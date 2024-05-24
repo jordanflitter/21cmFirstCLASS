@@ -22,7 +22,7 @@ Comprehensive jupyter notebook tutorials have been made for this code, check the
 * [Notebook #4](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/Tutorial%20(Jupyter%20notebooks)/notebook_4.ipynb) for studying the detectability of the 21cm signal with `21cmSense`.
 
 ## Acknowledging
-`21cmFirstCLASS` is an open source code and you are encouraged to use it for your studys. If you use this code please cite:
+`21cmFirstCLASS` is an open source code and you are encouraged to use it for your studies. If you use this code please cite:
 * Jordan Flitter and Ely D. Kovetz, _"New tool for 21-cm cosmology. I. Probing &Lambda;CDM and beyond"_, Phys. Rev. D 109 (2024) 4, 043512 ([arXiv: 2309.03942](https://arxiv.org/pdf/2309.03942)).
 * Jordan Flitter and Ely D. Kovetz, _"New tool for 21-cm cosmology. II. Investigating the effect of early linear fluctuations"_, Phys. Rev. D 109 (2024) 4, 043513 ([arXiv: 2309.03948](https://arxiv.org/pdf/2309.03948)).
 
