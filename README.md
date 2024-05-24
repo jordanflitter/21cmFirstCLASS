@@ -1,7 +1,17 @@
 # 21cmFirstCLASS
 This is an extension of the popular `21cmFAST` code that interfaces with `CLASS` to generate initial conditions at recombination that are consistent with the input cosmological model. These initial conditions can be set during the time of recombination, allowing one to compute the 21cm signal (and its spatial fluctuations) throughout the dark ages, as well as in the proceeding cosmic dawn and reionization epochs, just like in the standard `21cmFAST`.
+
+## Small taste of what can be done with the code
+`21cmFirstCLASS` tracks both the CDM density field $\delta_c$ as well as the baryons density field $\delta_b$.
+
+![densities](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/densities.png)
+
+`21cmFirstCLASS` allows you to consistently compute the brightness temperature field at the dark ages, as well as in the cosmic dawn and reionization epochs (like in `21cmFAST`).
+
 ![coeval boxes](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/coeval_boxes.png)
 ![lightcone boxes](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/lightcone_boxes.png)
+
+In addition, the user interface in `21cmFirstCLASS` has been improved and allows one to easily plot the 21cm power spectrum while including noise from the output of `21cmSense`.
 ![power spectrum](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/power_spectrum.png)
 
 ## Using the code
