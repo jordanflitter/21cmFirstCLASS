@@ -1,5 +1,8 @@
 # 21cmFirstCLASS
 This is an extension of the popular `21cmFAST` code that interfaces with `CLASS` to generate initial conditions at recombination that are consistent with the input cosmological model. These initial conditions can be set during the time of recombination, allowing one to compute the 21cm signal (and its spatial fluctuations) throughout the dark ages, as well as in the proceeding cosmic dawn and reionization epochs, just like in the standard `21cmFAST`.
+![coeval boxes](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/coeval_boxes.png)
+![lightcone boxes](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/lightcone_boxes.png)
+![power spectrum](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/power_spectrum.png)
 
 ## Using the code
 Comprehensive jupyter notebook tutorials have been made for this code, check them out at the following links.
@@ -18,7 +21,7 @@ As `21cmFirstCLASS` is based on [21cmFAST](https://github.com/21cmfast/21cmFAST/
 * Muñoz, J.B., Qin, Y., Mesinger, A., Murray, S., Greig, B., and Mason, C., _"The Impact of the First Galaxies on Cosmic Dawn and Reionization"_, Mon. Not. Roy. Astron. Soc. 511 (2022) 3, 3657-3681 ([arXiv: 2110.13919](https://arxiv.org/pdf/2110.13919)).
 
 Moreover, besides of incorporating new features in `21cmFAST`, `21cmFirstCLASS` also integrates various open source codes. Make sure you cite the relevant papers from the following github links if you use `21cmFirstCLASS` to...
-* Generate consistent initial conditions for the simulation with [CLASS](https://github.com/lesgourg/class_public).
+* Generate consistent initial conditions for the `21cmFAST` simulation (or to perform a joint 21cm-CMB analysis) with [CLASS](https://github.com/lesgourg/class_public).
 * Compute precisely the free electron fraction with [HYREC](https://github.com/nanoomlee/HYREC-2).
 * Compute the power spectrum of any box with [powerbox](https://github.com/steven-murray/powerbox).
 * Compute the noise of 21cm interferometers like HERA with [21cmSense](https://github.com/rasg-affiliates/21cmSense).
