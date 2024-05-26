@@ -1,7 +1,7 @@
 # 21cmFirstCLASS
 This is an extension of the popular `21cmFAST` code that interfaces with `CLASS` to generate initial conditions at recombination that are consistent with the input cosmological model. These initial conditions can be set during the time of recombination, allowing one to compute the 21cm signal (and its spatial fluctuations) throughout the dark ages, as well as in the proceeding cosmic dawn and reionization epochs, just like in the standard `21cmFAST`.
 
-## Small taste of what can be done with the code
+## A small taste of what can be done with the code
 `21cmFirstCLASS` tracks both the CDM density field $\delta_c$ as well as the baryons density field $\delta_b$.
 
 ![densities](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/densities.png)
@@ -15,7 +15,7 @@ In addition, the user interface in `21cmFirstCLASS` has been improved and allows
 ![power spectrum](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/images/power_spectrum.png)
 
 ## Using the code
-Comprehensive jupyter notebook tutorials have been made for this code, check them out at the following links.
+Comprehensive jupyter notebook tutorials have been prepared for this code, check them out at the following links.
 * [Notebook #1](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/Tutorial%20(Jupyter%20notebooks)/notebook_1.ipynb) for installation instructions and basic usage.
 * [Notebook #2](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/Tutorial%20(Jupyter%20notebooks)/notebook_2.ipynb) for learning about the new physical features (in &Lambda;CDM cosmology) that have been introduced to `21cmFirstCLASS`, like running the simulation through the dark ages, evolving the baryon density field, and more.
 * [Notebook #3](https://github.com/jordanflitter/21cmFirstCLASS/blob/main/Tutorial%20(Jupyter%20notebooks)/notebook_3.ipynb) for studying beyond &Lambda;CDM models with `21cmFirstCLASS`.
