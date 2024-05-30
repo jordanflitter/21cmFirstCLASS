@@ -61,9 +61,14 @@ def Interpolate_transfer(T_CLASS,k_CLASS,k_output):
     # (in a power-law fashion)
     if max(k_output) > max(k_CLASS):
         ind = np.where(k_output > k_CLASS[-1])[0][0] - 1
-        if (abs(Transfer[ind]) > 0.) and (abs(Transfer[ind]) > 0.):
+        if (abs(Transfer[ind]) > 0.) and (abs(Transfer[ind-1]) > 0.):
             slope = np.log(Transfer[ind]/Transfer[ind-1])/np.log(k_output[ind]/k_output[ind-1])
             Transfer[ind:] = Transfer[ind]*pow((k_output[ind:]/k_output[ind]),slope)
+    if min(k_output) < min(k_CLASS):
+        ind = np.where(k_output < k_CLASS[0])[0][-1] + 1
+        if (abs(Transfer[ind]) > 0.) and (abs(Transfer[ind+1]) > 0.):
+            slope = np.log(Transfer[ind]/Transfer[ind+1])/np.log(k_output[ind]/k_output[ind+1])
+            Transfer[:ind] = Transfer[ind]*pow((k_output[:ind]/k_output[ind]),slope)
     # Return output
     return abs(Transfer)
 
