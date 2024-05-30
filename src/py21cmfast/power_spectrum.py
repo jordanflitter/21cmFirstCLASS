@@ -347,16 +347,10 @@ def lightcone_power_spectrum(
 
     # If frequencies are given, we would like to interpolate the power spectrum at the experiment's bands
     if freq_bands_boundaries is not None:
-        # Find the redshift boundaries that correspond to the experiment's bands
-        z_exp_boundaries = (f_21/freq_bands_boundaries - 1.)[::-1]
-        z_exp_boundaries = z_exp_boundaries[z_exp_boundaries >= min(lightcone_redshifts)]
-        # Split the lightcone according to the bands and define the redshift of each band to correspond to
-        # the middle point in the band
-        indices_grid = interp1d(lightcone_redshifts, np.arange(lightcone_box.shape[2]), kind='cubic')
-        exp_indices_boundaries_array = indices_grid(z_exp_boundaries).astype(int)
-        exp_indices = ((exp_indices_boundaries_array[1:]+exp_indices_boundaries_array[:-1])/2).astype(int).tolist()
-        redshift_grid = interp1d(np.arange(lightcone_box.shape[2]),lightcone_redshifts, kind='cubic')
-        z_exp_values = redshift_grid(exp_indices)
+        # Find the centers of the frequency bands and the corresponding redshifts
+        freq_bands_centers = (freq_bands_boundaries[1:] + freq_bands_boundaries[:-1])/2.
+        z_exp_values = (f_21/freq_bands_centers - 1.)[::-1]
+        z_exp_values = z_exp_values[z_exp_values >= min(lightcone_redshifts)]
         # Interpolate the power spectrum at z_exp_values
         ps_exp_values = np.zeros((len(z_exp_values),len(k_values)))
         for k_ind in range(len(k_values)):
