@@ -567,13 +567,17 @@ def get_all_subclasses(cls):
     return all_subclasses
 
 
+# !!! SLTK: we added astro_params and flag_options to the quantities that globally defined since the beginning of the code
 class OutputStruct(StructWrapper, metaclass=ABCMeta):
     """Base class for any class that wraps a C struct meant to be output from a C function."""
 
     _meta = True
     _fields_ = []
     _global_params = None
-    _inputs = ("user_params", "cosmo_params", "_random_seed")
+    # !!! SLTK: here we added astro_params and flag_options, the order must then be respected wherever OutputStruct is used
+    _inputs = ("user_params", "cosmo_params", 
+               "astro_params", "flag_options",
+               "_random_seed")
     # JordanFlitter: Added variables to _filter_params
     _filter_params = ["external_table_path", "wisdoms_path","LOG_Z_ARR","LOG_T_k","LOG_x_e",
                       "LOG_SIGF","LOG_T_chi","LOG_V_chi_b",
@@ -582,7 +586,10 @@ class OutputStruct(StructWrapper, metaclass=ABCMeta):
     _c_based_pointers = ()
     _c_compute_function = None
 
-    _TYPEMAP = bidict({"float32": "float *", "float64": "double *", "int32": "int *"})
+    # !!! SLTK: added type for astro_params and flag_options
+    _TYPEMAP = bidict({"float32": "float *", "float64": "double *", 
+                        "float64": "double *", "bool": "bool *",
+                       "int32": "int *"})
 
     def __init__(self, *, random_seed=None, dummy=False, initial=False, **kwargs):
         """

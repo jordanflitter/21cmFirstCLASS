@@ -59,6 +59,8 @@ gsl_spline *deriv_spline;
 struct CosmoParams *cosmo_params_ps;
 struct UserParams *user_params_ps;
 struct FlagOptions *flag_options_ps;
+// !!! SLTK: added astro_params
+struct AstroParams *astro_params_ps;
 
 //double sigma_norm, R, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, R_CUTOFF, DEL_CURR, SIG_CURR;
 double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, R_CUTOFF, DEL_CURR, SIG_CURR;
@@ -219,10 +221,16 @@ double M_J_WDM();
 // JordanFlitter: Added power_in_SDM
 double power_in_SDM(double k, int flag);
 
-void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params){
+// !!! SLTK: added astro_params and flag_options
+void Broadcast_struct_global_PS(struct UserParams *user_params, 
+struct CosmoParams *cosmo_params, 
+struct AstroParams *astro_params, 
+struct FlagOptions *flag_options){
 
     cosmo_params_ps = cosmo_params;
     user_params_ps = user_params;
+    astro_params = astro_params;
+    flag_options = flag_options;
 }
 
 /*
@@ -1851,7 +1859,8 @@ float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
 
 int initialise_ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options) {
 
-    Broadcast_struct_global_PS(user_params,cosmo_params);
+    // !!! SLTK: added astro_params and flag_options
+    Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
     Broadcast_struct_global_UF(user_params,cosmo_params);
 
     lnMhalo_param = calloc(nbins,sizeof(double));
@@ -3493,7 +3502,8 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
     int status;
     Try{  // this try wraps the whole function.
-    Broadcast_struct_global_PS(user_params,cosmo_params);
+    // !!! SLTK: added astro_params and flag_options
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
     Broadcast_struct_global_UF(user_params,cosmo_params);
     init_ps();
     //     To solve differentail equation, uses Euler's method.

@@ -30,14 +30,21 @@ from ._utils import _check_compatible_inputs
 from .c_21cmfast import ffi, lib
 from .inputs import AstroParams, CosmoParams, FlagOptions, UserParams, global_params
 
-
+# !!! SLTK: we added astro_params and flag_options to the quantities that globally defined since the beginning of the code
 class _OutputStruct(_BaseOutputStruct):
     _global_params = global_params
 
-    def __init__(self, *, user_params=None, cosmo_params=None, **kwargs):
+    # !!! SLTK: here we added astro_params and flag_options
+    def __init__(self, *, user_params=None, cosmo_params=None, 
+                 astro_params = None, flag_options = None, 
+                 **kwargs):
 
         self.cosmo_params = cosmo_params or CosmoParams()
         self.user_params = user_params or UserParams()
+        # !!! SLTK: here we added astro_params flag_options
+        self.flag_options = flag_options or FlagOptions()
+        self.astro_params = astro_params or AstroParams(
+            INHOMO_RECO=self.flag_options.INHOMO_RECO)
 
         super().__init__(**kwargs)
 
@@ -174,6 +181,9 @@ class InitialConditions(_OutputStruct):
             self.random_seed,
             self.user_params,
             self.cosmo_params,
+            # !!! SLTK: we added the astro_params and flag_options
+            self.astro_params,
+            self.flag_options,
             hooks=hooks,
         )
 
@@ -260,6 +270,9 @@ class PerturbedField(_OutputStructZ):
             self.redshift,
             self.user_params,
             self.cosmo_params,
+            # !!! SLTK: we added the astro_params and flag_options
+            self.astro_params,
+            self.flag_options,
             ics,
             hooks=hooks,
         )
@@ -267,7 +280,8 @@ class PerturbedField(_OutputStructZ):
 
 class _AllParamsBox(_OutputStructZ):
     _meta = True
-    _inputs = _OutputStructZ._inputs + ("flag_options", "astro_params")
+    # !!! SLTK: we removed flag_options and astro_params from here since they are already defined inside OutputStruct
+    _inputs = _OutputStructZ._inputs #+ ("flag_options", "astro_params")
 
     _filter_params = _OutputStruct._filter_params + [
         "T_USE_VELOCITIES",  # bt
@@ -277,15 +291,17 @@ class _AllParamsBox(_OutputStructZ):
     def __init__(
         self,
         *,
-        astro_params: Optional[AstroParams] = None,
-        flag_options: Optional[FlagOptions] = None,
+        # !!! SLTK: we removed flag_options and astro_params from here since they are already defined inside OutputStruct
+        #astro_params: Optional[AstroParams] = None,
+        #flag_options: Optional[FlagOptions] = None,
         first_box: bool = False,
         **kwargs,
     ):
-        self.flag_options = flag_options or FlagOptions()
-        self.astro_params = astro_params or AstroParams(
-            INHOMO_RECO=self.flag_options.INHOMO_RECO
-        )
+        # !!! SLTK: we removed flag_options and astro_params from here since they are already defined inside OutputStruct
+        #self.flag_options = flag_options or FlagOptions()
+        #self.astro_params = astro_params or AstroParams(
+        #    INHOMO_RECO=self.flag_options.INHOMO_RECO
+        #)
 
         self.log10_Mturnover_ave = 0.0
         self.log10_Mturnover_MINI_ave = 0.0
@@ -881,8 +897,9 @@ class _HighLevelOutput:
             for k in [
                 "user_params",
                 "cosmo_params",
-                "flag_options",
+                # !!! SLTK: changed order (astro-flag) to be consistent, but it should be irrelevant
                 "astro_params",
+                "flag_options",
                 "global_params",
             ]:
                 q = getattr(self, k)
@@ -1057,15 +1074,16 @@ class Coeval(_HighLevelOutput):
         """Cosmo params shared by all datasets."""
         return self.brightness_temp_struct.cosmo_params
 
-    @property
-    def flag_options(self):
-        """Flag Options shared by all datasets."""
-        return self.brightness_temp_struct.flag_options
-
+    # !!! SLTK: changed order (astro-flag) to be consistent, but it should be irrelevant
     @property
     def astro_params(self):
         """Astro params shared by all datasets."""
         return self.brightness_temp_struct.astro_params
+
+    @property
+    def flag_options(self):
+        """Flag Options shared by all datasets."""
+        return self.brightness_temp_struct.flag_options
 
     @property
     def random_seed(self):
@@ -1088,8 +1106,9 @@ class Coeval(_HighLevelOutput):
                         if inp not in fl.attrs and inp not in [
                             "user_params",
                             "cosmo_params",
-                            "flag_options",
+                            # !!! SLTK: changed order (astro-flag) to be consistent, but it should be irrelevant
                             "astro_params",
+                            "flag_options",
                             "global_params",
                         ]:
                             fl.attrs[inp] = getattr(struct, inp)
@@ -1114,8 +1133,9 @@ class Coeval(_HighLevelOutput):
             and other.redshift == self.redshift
             and self.user_params == other.user_params
             and self.cosmo_params == other.cosmo_params
-            and self.flag_options == other.flag_options
+            # !!! SLTK: changed order (astro-flag) to be consistent, but it should be irrelevant
             and self.astro_params == other.astro_params
+            and self.flag_options == other.flag_options
         )
 
 
@@ -1262,6 +1282,7 @@ class LightCone(_HighLevelOutput):
             for (k, kls) in [
                 ("user_params", UserParams),
                 ("cosmo_params", CosmoParams),
+                # 
                 ("flag_options", FlagOptions),
                 ("astro_params", AstroParams),
             ]:

@@ -57,7 +57,8 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
 
     // Makes the parameter structs visible to a variety of functions/macros
     // Do each time to avoid Python garbage collection issues
-    Broadcast_struct_global_PS(user_params,cosmo_params);
+    // !!! SLTK: added astro_params, flag_options 
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
     Broadcast_struct_global_UF(user_params,cosmo_params);
     Broadcast_struct_global_HF(user_params,cosmo_params,astro_params, flag_options);
 

@@ -181,9 +181,11 @@ struct BrightnessTemp{
     float *brightness_temp;
 };
 
-int ComputeInitialConditions(unsigned long long random_seed, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes);
+// !!! SLTK: added astro_params and flag_options
+int ComputeInitialConditions(unsigned long long random_seed, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options, struct InitialConditions *boxes);
 
-int ComputePerturbField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes, struct PerturbedField *perturbed_field);
+// !!! SLTK: added astro_params and flag_options
+int ComputePerturbField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options, struct InitialConditions *boxes, struct PerturbedField *perturbed_field);
 
 int ComputeHaloField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                      struct AstroParams *astro_params, struct FlagOptions *flag_options,
@@ -226,7 +228,9 @@ float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_param
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params);
 
-void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params);
+// !!! SLTK: added astro_params and flag_options
+void Broadcast_struct_global_PS(struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options);
+
 void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoParams *cosmo_params);
 void Broadcast_struct_global_HF(struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options);
 

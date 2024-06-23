@@ -57,7 +57,8 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
 
       // Makes the parameter structs visible to a variety of functions/macros
       // Do each time to avoid Python garbage collection issues
-      Broadcast_struct_global_PS(user_params,cosmo_params);
+      // !!! SLTK: added astro_params and flag_options 
+      Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
       Broadcast_struct_global_UF(user_params,cosmo_params);
 
       omp_set_num_threads(user_params->N_THREADS);

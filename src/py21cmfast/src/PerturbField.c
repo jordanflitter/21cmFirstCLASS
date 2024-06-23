@@ -129,6 +129,8 @@ void multiply_in_Fourier_space(float *box, struct fftwf_complex *FFT_dummy_box, 
 // Re-write of perturb_field.c for being accessible within the MCMC
 int ComputePerturbField(
     float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
+    // !!! SLTK: added astro_params and flag_options
+    struct AstroParams *astro_params, struct FlagOptions *flag_options,
     struct InitialConditions *boxes, struct PerturbedField *perturbed_field
 ){
     /*
@@ -144,7 +146,8 @@ int ComputePerturbField(
 
     // Makes the parameter structs visible to a variety of functions/macros
     // Do each time to avoid Python garbage collection issues
-    Broadcast_struct_global_PS(user_params,cosmo_params);
+    // !!! SLTK: added astro_params and flag_options
+    Broadcast_struct_global_PS(user_params,cosmo_params,astro_params,flag_options);
     Broadcast_struct_global_UF(user_params,cosmo_params);
 
     omp_set_num_threads(user_params->N_THREADS);

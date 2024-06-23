@@ -127,12 +127,23 @@ def init(ctx, config, regen, direc, seed):
     # Set user/cosmo params from config.
     user_params = lib.UserParams(**cfg.get("user_params", {}))
     cosmo_params = lib.CosmoParams(**cfg.get("cosmo_params", {}))
+    # !!! SLTK: added astro_params and flag_options
+    astro_params = lib.AstroParams(
+        **cfg.get("astro_params", {}), INHOMO_RECO=flag_options.INHOMO_RECO
+    )
+    flag_options = lib.FlagOptions(
+        **cfg.get("flag_options", {}), USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+    )
 
-    _override(ctx, user_params, cosmo_params)
+    # !!! SLTK: added astro_params and flag_options
+    _override(ctx, user_params, cosmo_params, astro_params, flag_options)
 
     lib.initial_conditions(
         user_params=user_params,
         cosmo_params=cosmo_params,
+        # !!! SLTK: added astro_params and flag_options
+        astro_params=astro_params,
+        flag_options=flag_options,
         regenerate=regen,
         write=True,
         direc=direc,
@@ -194,13 +205,24 @@ def perturb(ctx, redshift, config, regen, direc, seed):
     # Set user/cosmo params from config.
     user_params = lib.UserParams(**cfg.get("user_params", {}))
     cosmo_params = lib.CosmoParams(**cfg.get("cosmo_params", {}))
+    # !!! SLTK: added astro_params and flag_options
+    astro_params = lib.AstroParams(
+        **cfg.get("astro_params", {}), INHOMO_RECO=flag_options.INHOMO_RECO
+    )
+    flag_options = lib.FlagOptions(
+        **cfg.get("flag_options", {}), USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+    )
 
-    _override(ctx, user_params, cosmo_params)
+    # !!! SLTK: added astro_params and flag_options
+    _override(ctx, user_params, cosmo_params, astro_params, flag_options)
 
     lib.perturb_field(
         redshift=redshift,
         user_params=user_params,
         cosmo_params=cosmo_params,
+        # !!! SLTK: added astro_params and flag_options
+        astro_params=astro_params,
+        flag_options=flag_options,
         regenerate=regen,
         write=True,
         direc=direc,

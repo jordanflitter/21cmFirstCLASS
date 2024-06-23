@@ -37,6 +37,11 @@ Planck18 = Planck15.clone(
     H0=67.66,
 )
 
+print('\n------------------------------------------')
+print('!!! SLTK: 23/06/24')
+print('We moved astro_params and flag_options to be globally defined for all files')
+print('------------------------------------------\n')
+
 
 class GlobalParams(StructInstanceWrapper):
     """

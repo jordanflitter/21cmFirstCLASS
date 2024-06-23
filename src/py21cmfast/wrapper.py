@@ -1262,6 +1262,9 @@ def initial_conditions(
     *,
     user_params=None,
     cosmo_params=None,
+    # !!! SLTK: added astro_params and flag_options
+    astro_params=None,
+    flag_options=None,
     random_seed=None,
     regenerate=None,
     write=None,
@@ -1309,10 +1312,18 @@ def initial_conditions(
     with global_params.use(**global_kwargs):
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
+        # !!! SLTK: added astro_params and flag_options
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        flag_options = FlagOptions(
+            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+        )
 
         # Initialize memory for the boxes that will be returned.
+        # !!! SLTK: add astro_params and flag_options
         boxes = InitialConditions(
-            user_params=user_params, cosmo_params=cosmo_params, random_seed=random_seed
+            user_params=user_params, cosmo_params=cosmo_params, 
+            astro_params=astro_params, flag_options=flag_options,
+            random_seed=random_seed
         )
 
         # Construct FFTW wisdoms. Only if required
@@ -1328,6 +1339,7 @@ def initial_conditions(
                 return boxes
             except OSError:
                 pass
+
         return boxes.compute(hooks=hooks)
 
 
@@ -1337,6 +1349,9 @@ def perturb_field(
     init_boxes=None,
     user_params=None,
     cosmo_params=None,
+    # !!! SLTK: added astro_params and flag_options
+    astro_params=None,
+    flag_options=None,
     random_seed=None,
     regenerate=None,
     write=None,
@@ -1406,11 +1421,15 @@ def perturb_field(
         _verify_types(init_boxes=init_boxes)
 
         # Configure and check input/output parameters/structs
-        random_seed, user_params, cosmo_params = _configure_inputs(
+        random_seed, user_params, cosmo_params, \
+        astro_params, flag_options = _configure_inputs(
             [
                 ("random_seed", random_seed),
                 ("user_params", user_params),
                 ("cosmo_params", cosmo_params),
+                # !!! SLTK: added astro_params and flag_options
+                ("astro_params", astro_params),
+                ("flag_options", flag_options),
             ],
             init_boxes,
         )
@@ -1418,12 +1437,20 @@ def perturb_field(
         # Verify input parameter structs (need to do this after configure_inputs).
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
+        # !!! SLTK: added astro_params and flag_options
+        flag_options = FlagOptions(flag_options,
+                                   USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES)
+        astro_params = AstroParams(astro_params, 
+                                   INHOMO_RECO=flag_options.INHOMO_RECO)
 
         # Initialize perturbed boxes.
         fields = PerturbedField(
             redshift=redshift,
             user_params=user_params,
             cosmo_params=cosmo_params,
+            # !!! SLTK: added astro_params and flag_options
+            astro_params=astro_params,
+            flag_options=flag_options,
             random_seed=random_seed,
         )
 
@@ -1447,6 +1474,9 @@ def perturb_field(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                # !!! SLTK: added astro_params and flag_options
+                astro_params = astro_params,
+                flag_options = flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1537,10 +1567,12 @@ def determine_halo_list(
         # Verify input parameter structs (need to do this after configure_inputs).
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
+        # !!! SLTK: changed order (astro-flag) but should be irrelevant 
+        astro_params = AstroParams(astro_params,
+                                   INHOMO_RECO=flag_options.INHOMO_RECO)
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1574,6 +1606,9 @@ def determine_halo_list(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                # !!! SLTK: added astro_params and flag_options
+                astro_params=astro_params,
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1670,10 +1705,13 @@ def perturb_halo_list(
         # Verify input parameter structs (need to do this after configure_inputs).
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
+        # !!! SLTK: inverted order (astro-flag) to be consistent, but it should be the same
+        astro_params = AstroParams(astro_params, 
+                                   INHOMO_RECO=flag_options.INHOMO_RECO)
         flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+            flag_options, 
+            USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if user_params.HMF != 1:
             raise ValueError("USE_HALO_FIELD is only valid for HMF = 1")
@@ -1705,6 +1743,9 @@ def perturb_halo_list(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                # !!! SLTK: added astro_params and flag_options
+                astro_params=astro_params,                
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -1923,10 +1964,13 @@ def ionize_box(
         # Verify input structs
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
+        # !!! SLTK: changed oreder (astro-flag) to be coherent, but should be the same
+        astro_params = AstroParams(astro_params, 
+                                   INHOMO_RECO=flag_options.INHOMO_RECO)
         flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+            flag_options, 
+            USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if spin_temp is not None and not flag_options.USE_TS_FLUCT:
             logger.warning(
@@ -1991,6 +2035,9 @@ def ionize_box(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                # !!! SLTK: added astro_params and flag_options
+                astro_params=astro_params,
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -2029,6 +2076,9 @@ def ionize_box(
                 # since init may have a set seed.
                 redshift=redshift,
                 regenerate=regenerate,
+                # !!! SLTK: added astro_params and flag_options specified to be coherent
+                astro_params=astro_params,
+                flag_options=flag_options,
                 hooks=hooks,
                 direc=direc,
             )
@@ -2044,6 +2094,9 @@ def ionize_box(
                     init_boxes=init_boxes,
                     redshift=prev_z,
                     regenerate=regenerate,
+                    # !!! SLTK: added astro_params and flag_options specified to be coherent
+                    astro_params=astro_params,
+                    flag_options=flag_options,
                     hooks=hooks,
                     direc=direc,
                 )
@@ -2268,10 +2321,13 @@ def spin_temperature(
                 )
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
+        # !!! SLTK: inverted order (astro-flag) but should be the same
+        astro_params = AstroParams(astro_params,    
+                                   INHOMO_RECO=flag_options.INHOMO_RECO)
         flag_options = FlagOptions(
-            flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
+            flag_options, 
+            USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         # Explicitly set this flag to True, though it shouldn't be required!
         flag_options.update(USE_TS_FLUCT=True)
@@ -2349,6 +2405,9 @@ def spin_temperature(
             init_boxes = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                # !!! SLTK: added astro_params and flag_options
+                astro_params=astro_params,
+                flag_options=flag_options,
                 regenerate=regenerate,
                 hooks=hooks,
                 direc=direc,
@@ -2387,6 +2446,9 @@ def spin_temperature(
                 redshift=redshift,
                 init_boxes=init_boxes,
                 regenerate=regenerate,
+                # !!! SLTK: added astro_params and flag_options specified to be coherent
+                astro_params=astro_params,
+                flag_options=flag_options,
                 hooks=hooks,
                 direc=direc,
             )
@@ -2614,11 +2676,15 @@ def run_coeval(
             pt_halos = [pt_halos] if not hasattr(pt_halos, "__len__") else []
         else:
             pt_halos = []
-        random_seed, user_params, cosmo_params = _configure_inputs(
+        # !!! SLTK: added astro_params and flag_options
+        random_seed, user_params, cosmo_params 
+        astro_params, flag_options = _configure_inputs(
             [
                 ("random_seed", random_seed),
                 ("user_params", user_params),
                 ("cosmo_params", cosmo_params),
+                ("astro_params", astro_params),
+                ("flag_options", flag_options),
             ],
             init_box,
             *perturb,
@@ -2627,10 +2693,11 @@ def run_coeval(
 
         user_params = UserParams(user_params)
         cosmo_params = CosmoParams(cosmo_params)
+        # !!! SLTK: change order (astro-flag) for consistency but should be the same
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
 
         if use_interp_perturb_field and flag_options.USE_MINI_HALOS:
             raise ValueError("Cannot use an interpolated perturb field with minihalos!")
@@ -2639,6 +2706,9 @@ def run_coeval(
             init_box = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                # !!! SLTK: added astro_params and flag_options
+                astro_params=astro_params,
+                flag_options=flag_options,
                 random_seed=random_seed,
                 hooks=hooks,
                 regenerate=regenerate,
@@ -2700,6 +2770,9 @@ def run_coeval(
                     redshift=z,
                     init_boxes=init_box,
                     regenerate=regenerate,
+                    # !!! SLTK: added astro_params and flag_options specified to be coherent
+                    astro_params=astro_params,
+                    flag_options=flag_options,
                     hooks=hooks,
                     direc=direc,
                 )
@@ -3074,11 +3147,15 @@ def run_lightcone(
     direc, regenerate, hooks = _get_config_options(direc, regenerate, write, hooks)
 
     with global_params.use(**global_kwargs):
-        random_seed, user_params, cosmo_params = _configure_inputs(
+        # !!! SLTK: added astro_params and flag_options
+        random_seed, user_params, cosmo_params, \
+        astro_params, flag_options = _configure_inputs(
             [
                 ("random_seed", random_seed),
                 ("user_params", user_params),
                 ("cosmo_params", cosmo_params),
+                ("astro_params", astro_params),
+                ("flag_options",flag_options),
             ],
             init_box,
             perturb,
@@ -3097,7 +3174,7 @@ def run_lightcone(
         flag_options = FlagOptions(
             flag_options, USE_VELS_AUX=user_params.USE_RELATIVE_VELOCITIES
         )
-        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)
+        astro_params = AstroParams(astro_params, INHOMO_RECO=flag_options.INHOMO_RECO)        
 
         # JordanFlitter: I added some logics to prevent conflict between inputs
         # I'm not sure if that's the best place for these logics, but it works...
@@ -3350,6 +3427,9 @@ def run_lightcone(
             init_box = initial_conditions(
                 user_params=user_params,
                 cosmo_params=cosmo_params,
+                # !!! SLTK: added astro_params and flag_options
+                astro_params=astro_params,
+                flag_options=flag_options,
                 hooks=hooks,
                 regenerate=regenerate,
                 write=write, # JordanFlitter: added that input so writing to the cache can be disabled (BUG)
@@ -3387,6 +3467,9 @@ def run_lightcone(
                     redshift=z,
                     init_boxes=init_box,
                     regenerate=regenerate,
+                    # !!! SLTK: added astro_params and flag_options specified to be coherent
+                    astro_params=astro_params,
+                    flag_options=flag_options,
                     direc=direc,
                     write=write, # JordanFlitter: added that input so writing to the cache can be disabled (BUG)
                     hooks=hooks,
@@ -3523,6 +3606,9 @@ def run_lightcone(
                       redshift=z,
                       init_boxes=init_box,
                       regenerate=regenerate,
+                        # !!! SLTK: added astro_params and flag_options specified to be coherent
+                        astro_params=astro_params,
+                        flag_options=flag_options,
                       direc=direc,
                       write=write, # JordanFlitter: added that input so writing to the cache can be disabled (BUG)
                       hooks=hooks,
@@ -3559,6 +3645,9 @@ def run_lightcone(
                                   redshift=z,
                                   init_boxes=init_box,
                                   regenerate=regenerate,
+                                # !!! SLTK: added astro_params and flag_options specified to be coherent
+                                astro_params=astro_params,
+                                flag_options=flag_options,
                                   direc=direc,
                                   write=write, # JordanFlitter: added that input so writing to the cache can be disabled (BUG)
                                   hooks=hooks,
@@ -3774,6 +3863,9 @@ def run_lightcone(
                       redshift=z,
                       init_boxes=init_box,
                       regenerate=regenerate,
+                        # !!! SLTK: added astro_params and flag_options specified to be coherent
+                        astro_params=astro_params,
+                        flag_options=flag_options,
                       direc=direc,
                       write=write, # JordanFlitter: added that input so writing to the cache can be disabled (BUG)
                       hooks=hooks,
@@ -4388,6 +4480,9 @@ def calibrate_photon_cons(
                 redshift=z,
                 init_boxes=init_box,
                 regenerate=regenerate,
+                # !!! SLTK: added astro_params and flag_options specified to be coherent
+                astro_params=astro_params,
+                flag_options=flag_options,
                 hooks=hooks,
                 direc=direc,
             )
