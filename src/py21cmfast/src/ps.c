@@ -229,8 +229,8 @@ struct FlagOptions *flag_options){
 
     cosmo_params_ps = cosmo_params;
     user_params_ps = user_params;
-    astro_params = astro_params;
-    flag_options = flag_options;
+    astro_params_ps = astro_params;
+    flag_options_ps = flag_options;
 }
 
 /*
