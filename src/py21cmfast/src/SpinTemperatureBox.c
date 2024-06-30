@@ -883,13 +883,14 @@ LOG_SUPER_DEBUG("Treating as the first box");
                         if (!user_params->EVOLVE_BARYONS) {
                             curr_delNL0 = delNL0[0][box_ct];
                         }
-                        // JordanFlitter: set local baryons (and SDM) density and its derivative
+                        // JordanFlitter: set local baryons (and SDM) density and its derivative.
+                        //                Note we use box_ct_FFT to access the approporiate cell in the box
                         else {
-                            delta_baryons_local = *((float *)delta_baryons + box_ct);
-                            delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct);
+                            delta_baryons_local = *((float *)delta_baryons + box_ct_FFT(box_ct));
+                            delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct_FFT(box_ct));
                             if (user_params->SCATTERING_DM){
-                                delta_SDM_local = *((float *)delta_SDM + box_ct);
-                                delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct);
+                                delta_SDM_local = *((float *)delta_SDM + box_ct_FFT(box_ct));
+                                delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct_FFT(box_ct));
                             }
                         }
                         // JordanFlitter: If this is the first iteration, we need to take the previous box as initial conditions, otherwise we take the current one
@@ -2689,12 +2690,13 @@ LOG_SUPER_DEBUG("looping over box...");
                             curr_delNL0 = delNL0[0][box_ct];
 
                             // JordanFlitter: set local baryons density and its derivative
+                            //                Note we use box_ct_FFT to access the approporiate cell in the box
                             if (user_params->EVOLVE_BARYONS){
-                                delta_baryons_local = *((float *)delta_baryons + box_ct);
-                                delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct);
+                                delta_baryons_local = *((float *)delta_baryons + box_ct_FFT(box_ct));
+                                delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct_FFT(box_ct));
                                 if (user_params->SCATTERING_DM) {
-                                    delta_SDM_local = *((float *)delta_SDM + box_ct);
-                                    delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct);
+                                    delta_SDM_local = *((float *)delta_SDM + box_ct_FFT(box_ct));
+                                    delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct_FFT(box_ct));
                                 }
                             }
 
@@ -3190,12 +3192,13 @@ LOG_SUPER_DEBUG("looping over box...");
                     curr_delNL0 = delNL0_rev[box_ct][0];
 
                     // JordanFlitter: set local baryons density and its derivative
+                    //                Note we use box_ct_FFT to access the approporiate cell in the box
                     if (user_params->EVOLVE_BARYONS){
-                        delta_baryons_local = *((float *)delta_baryons + box_ct);
-                        delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct);
+                        delta_baryons_local = *((float *)delta_baryons + box_ct_FFT(box_ct));
+                        delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct_FFT(box_ct));
                         if (user_params->SCATTERING_DM) {
-                            delta_SDM_local = *((float *)delta_SDM + box_ct);
-                            delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct);
+                            delta_SDM_local = *((float *)delta_SDM + box_ct_FFT(box_ct));
+                            delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct_FFT(box_ct));
                         }
                     }
 
