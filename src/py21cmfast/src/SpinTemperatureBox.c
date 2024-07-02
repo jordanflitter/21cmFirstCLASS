@@ -178,7 +178,9 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     float delta_SDM_local, delta_SDM_derivative_local;
 
     if(flag_options->USE_MASS_DEPENDENT_ZETA) {
-        ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
+        // !!! SLTK: Fstar10 already included in SFR function
+        ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_ESC10;
+        // ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
         ION_EFF_FACTOR_MINI = global_params.Pop3_ion * astro_params->F_STAR7_MINI * astro_params->F_ESC7_MINI;
     }
     else {
@@ -2093,8 +2095,12 @@ LOG_SUPER_DEBUG("finished looping over R_ct filter steps");
         Luminosity_converstion_factor *= (3.1556226e7)/(hplank);
 
         // Leave the original 21cmFAST code for reference. Refer to Greig & Mesinger (2017) for the new parameterisation.
+        // !!! SLTK: removed Fstar10 since it is already in the SFR function
         const_zp_prefactor = ( (astro_params->L_X) * Luminosity_converstion_factor ) / ((astro_params->NU_X_THRESH)*NU_over_EV) \
-                                * C * astro_params->F_STAR10 * cosmo_params->OMb * RHOcrit * pow(CMperMPC, -3) * pow(1+zp, astro_params->X_RAY_SPEC_INDEX+3);
+                                * C * cosmo_params->OMb * RHOcrit * pow(CMperMPC, -3) * pow(1+zp, astro_params->X_RAY_SPEC_INDEX+3);
+        // const_zp_prefactor = ( (astro_params->L_X) * Luminosity_converstion_factor ) / ((astro_params->NU_X_THRESH)*NU_over_EV) \
+        //                         * C * astro_params->F_STAR10 * cosmo_params->OMb * RHOcrit * pow(CMperMPC, -3) * pow(1+zp, astro_params->X_RAY_SPEC_INDEX+3);
+        
         //          This line below is kept purely for reference w.r.t to the original 21cmFAST
         //            const_zp_prefactor = ZETA_X * X_RAY_SPEC_INDEX / NU_X_THRESH * C * F_STAR * OMb * RHOcrit * pow(CMperMPC, -3) * pow(1+zp, X_RAY_SPEC_INDEX+3);
 
@@ -2147,7 +2153,9 @@ LOG_SUPER_DEBUG("finished looping over R_ct filter steps");
         dcomp_dzp_prefactor = (-1.51e-4)/(hubble(zp)/Ho)/(cosmo_params->hlittle)*pow(Trad_fast,4.0)/(1.0+zp);
 
         prefactor_1 = N_b0 * pow(1+zp, 3);
-        prefactor_2 = astro_params->F_STAR10 * C * N_b0 / FOURPI;
+        // !!! SLTK: removed Fstar10 since it is already in the SFR function
+        prefactor_2 = C * N_b0 / FOURPI;
+        // prefactor_2 = astro_params->F_STAR10 * C * N_b0 / FOURPI;
         prefactor_2_MINI = astro_params->F_STAR7_MINI * C * N_b0 / FOURPI;
 
         x_e_ave = 0; Tk_ave = 0; Ts_ave = 0;
@@ -2580,7 +2588,8 @@ LOG_SUPER_DEBUG("looping over box...");
                     ave_fcoll_inv_MINI = 1./ave_fcoll_MINI;
                 }
 
-                dfcoll_dz_val = (ave_fcoll_inv/pow(10.,10.))*ST_over_PS[R_ct]*SFR_timescale_factor[R_ct]/astro_params->t_STAR;
+                // !!! SLTK: remove t_STAR since it is already inside fcoll
+                dfcoll_dz_val = (ave_fcoll_inv/pow(10.,10.))*ST_over_PS[R_ct]*SFR_timescale_factor[R_ct] /astro_params->t_STAR;
 
                 dstarlya_dt_prefactor[R_ct] *= dfcoll_dz_val;
                 // JordanFlitter: Lya flux for Lya heating
@@ -2593,6 +2602,7 @@ LOG_SUPER_DEBUG("looping over box...");
                     }
                 }
                 if(flag_options->USE_MINI_HALOS){
+                    // !!! SLTK: we leave t_STAR for now
                     dfcoll_dz_val_MINI = (ave_fcoll_inv_MINI/pow(10.,10.))*ST_over_PS_MINI[R_ct]*SFR_timescale_factor[R_ct]/astro_params->t_STAR;
                     dstarlya_dt_prefactor_MINI[R_ct] *= dfcoll_dz_val_MINI;
                     dstarlyLW_dt_prefactor[R_ct] *= dfcoll_dz_val;

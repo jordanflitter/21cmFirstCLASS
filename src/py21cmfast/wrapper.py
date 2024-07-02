@@ -925,6 +925,7 @@ def compute_luminosity_function(
         )
         component = 1
 
+    
     if component == 0:
         lfunc = np.zeros(len(redshifts) * nbins)
         Muvfunc = np.zeros(len(redshifts) * nbins)
@@ -1050,6 +1051,7 @@ def compute_luminosity_function(
             ).T
         lfunc_all[lfunc_all <= -30] = np.nan
         return Muvfunc_all, Mhfunc_all, lfunc_all
+        
     elif component == 1:
         lfunc = np.zeros(len(redshifts) * nbins)
         Muvfunc = np.zeros(len(redshifts) * nbins)
@@ -1063,6 +1065,7 @@ def compute_luminosity_function(
         c_Mhfunc = ffi.cast("double *", ffi.from_buffer(Mhfunc))
         c_lfunc = ffi.cast("double *", ffi.from_buffer(lfunc))
 
+        #print('start c')
         # Run the C code
         errcode = lib.ComputeLF(
             nbins,
@@ -1078,6 +1081,7 @@ def compute_luminosity_function(
             c_Mhfunc,
             c_lfunc,
         )
+        # print('end c')
 
         _process_exitcode(
             errcode,
@@ -1095,6 +1099,7 @@ def compute_luminosity_function(
 
         lfunc[lfunc <= -30] = np.nan
         return Muvfunc, Mhfunc, lfunc
+    
     elif component == 2:
         lfunc_MINI = np.zeros(len(redshifts) * nbins)
         Muvfunc_MINI = np.zeros(len(redshifts) * nbins)

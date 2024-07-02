@@ -101,6 +101,9 @@ float Mass_limit (float logM, float PL, float FRAC);
 void bisection(float *x, float xlow, float xup, int *iter);
 float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
 
+// !!! SLTK: introduced a new function to model the SFR
+double SFR_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar);
+
 double sheth_delc(double del, double sig);
 float dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2);
 double dNion_ConditionallnM(double lnM, void *params);
@@ -1266,6 +1269,41 @@ double FgtrM_General(double z, double M){
     }
 }
 
+// !!! SLTK: defined new function to model SFR
+double SFR_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar){
+
+    // first we define the parameters (similar approach to original modeling in dNion_General)
+
+    double M = exp(lnM);
+
+    double t_star = astro_params_ps->t_STAR;
+
+    // we initialize the quantities we want to compute:
+    double Fstar;
+    double SFR;
+
+    // reproduce original modeling (MUN21)
+    if(astro_params_ps->SFR_MODEL==0){
+        if (Alpha_star > 0. && M > Mlim_Fstar)
+            Fstar = 1.;
+        else if (Alpha_star < 0. && M < Mlim_Fstar)
+            Fstar = 1;
+        else
+            Fstar = Fstar10 * pow(M/1e10,Alpha_star);
+
+        SFR = M * Fstar ; // / t_star;
+    }
+
+    // !!! TO BE CHANGED !!!
+    else{
+        SFR = 0.;
+    }
+
+    return SFR;
+
+}
+
+
 double dNion_General(double lnM, void *params){
     struct parameters_gsl_SFR_General_int_ vals = *(struct parameters_gsl_SFR_General_int_ *)params;
 
@@ -1280,14 +1318,19 @@ double dNion_General(double lnM, void *params){
     double Mlim_Fstar = vals.LimitMass_Fstar;
     double Mlim_Fesc = vals.LimitMass_Fesc;
 
-    double Fstar, Fesc, MassFunction;
+    // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
+    double Fstar_M, Fesc, MassFunction;
 
-    if (Alpha_star > 0. && M > Mlim_Fstar)
-        Fstar = 1./Fstar10;
-    else if (Alpha_star < 0. && M < Mlim_Fstar)
-        Fstar = 1/Fstar10;
-    else
-        Fstar = pow(M/1e10,Alpha_star);
+    // !!! SLTK: removed since it is passed through SFR_function
+    // if (Alpha_star > 0. && M > Mlim_Fstar)
+        // Fstar = 1./Fstar10;
+    // else if (Alpha_star < 0. && M < Mlim_Fstar)
+        // Fstar = 1/Fstar10;
+    // else
+        // Fstar = pow(M/1e10,Alpha_star);
+    
+    // !!! SLTK: compute M*Fstar
+    Fstar_M = SFR_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
         Fesc = 1./Fesc10;
@@ -1309,7 +1352,9 @@ double dNion_General(double lnM, void *params){
         MassFunction = dNdM_WatsonFOF_z(z, growthf, M);
     }
 
-    return MassFunction * M * M * exp(-MassTurnover/M) * Fstar * Fesc;
+    // !!! SLTK: changed since we use M*Fstar
+    // return MassFunction * M * M * exp(-MassTurnover/M) * Fstar * Fesc;
+    return MassFunction * M * exp(-MassTurnover/M) * Fstar_M * Fesc;
 }
 
 double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc){
@@ -1806,6 +1851,7 @@ double dSDGF_SDM_dz(double z,double k){
 
 
 /* compute a mass limit where the stellar baryon fraction and the escape fraction exceed unity */
+// !!! SLTK: need to fix here !!! 
 float Mass_limit (float logM, float PL, float FRAC) {
     return FRAC*pow(pow(10.,logM)/1e10,PL);
 }
@@ -1909,7 +1955,9 @@ int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cos
     double  dlnMhalo, lnMhalo_i, SFRparam, Muv_1, Muv_2, dMuvdMhalo;
     double Mhalo_i, lnMhalo_min, lnMhalo_max, lnMhalo_lo, lnMhalo_hi, dlnM, growthf;
     double f_duty_upper, Mcrit_atom;
+    // !!! SLTK: added Fstar_M, Fstar_temp_M since our output is M*Fstar
     float Fstar, Fstar_temp;
+    // float Fstar, Fstar_temp, Fstar_M, Fstar_temp_M;
     double dndm;
     int gsl_status;
 
@@ -1927,9 +1975,13 @@ int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cos
     lnMhalo_max = log(Mhalo_max*1.001);
     dlnMhalo = (lnMhalo_max - lnMhalo_min)/(double)(nbins - 1);
 
+    // printf("%f\n",nbins);
+    // printf("%f\n",z_LF);
+
     for (i_z=0; i_z<NUM_OF_REDSHIFT_FOR_LF; i_z++) {
 
         growthf = dicke(z_LF[i_z]);
+
         Mcrit_atom = atomic_cooling_threshold(z_LF[i_z]);
 
         i_unity = -1;
@@ -1937,11 +1989,20 @@ int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cos
             // generate interpolation arrays
             lnMhalo_param[i] = lnMhalo_min + dlnMhalo*(double)i;
             Mhalo_i = exp(lnMhalo_param[i]);
+    
 
-            if (component == 1)
+            if (component == 1){
+                // !!! SLTK: compute M*Fstar
+                // Fstar_M = SFR_function(lnMhalo_param[i], Alpha_star, Fstar10, Mlim_Fstar);
+
+                // !!! SLTK: compute Fstar
+                // Fstar = Fstar_M / Mhalo_i;
+
                 Fstar = astro_params->F_STAR10*pow(Mhalo_i/1e10,astro_params->ALPHA_STAR);
+            }
             else
                 Fstar = astro_params->F_STAR7_MINI*pow(Mhalo_i/1e7,astro_params->ALPHA_STAR_MINI);
+
             if (Fstar > 1.) Fstar = 1;
 
             if (i_unity < 0) { // Find the array number at which Fstar crosses unity.
@@ -1949,10 +2010,18 @@ int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cos
                     if ( (1.- Fstar) < FRACT_FLOAT_ERR ) i_unity = i;
                 }
                 else if (astro_params->ALPHA_STAR < 0. && i < nbins-1) {
-                    if (component == 1)
+                    if (component == 1){
+                        // !!! SLTK: compute M*Fstar
+                        // Fstar_temp_M = SFR_function(lnMhalo_min + dlnMhalo*(double)(i+1), Alpha_star, Fstar10, Mlim_Fstar);
+
+                        // !!! SLTK: compute Fstar
+                        // Fstar_temp = Fstar_temp_M / (exp(lnMhalo_min + dlnMhalo*(double)(i+1)));
+
                         Fstar_temp = astro_params->F_STAR10*pow( exp(lnMhalo_min + dlnMhalo*(double)(i+1))/1e10,astro_params->ALPHA_STAR);
+                    }
                     else
                         Fstar_temp = astro_params->F_STAR7_MINI*pow( exp(lnMhalo_min + dlnMhalo*(double)(i+1))/1e7,astro_params->ALPHA_STAR_MINI);
+                    
                     if (Fstar_temp < 1. && (1.- Fstar) < FRACT_FLOAT_ERR) i_unity = i;
                 }
             }
@@ -2210,14 +2279,19 @@ double dNion_ConditionallnM(double lnM, void *params) {
     double Mlim_Fstar = vals.LimitMass_Fstar;
     double Mlim_Fesc = vals.LimitMass_Fesc;
 
-    double Fstar,Fesc;
+    // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
+    double Fstar_M, Fesc;
 
-    if (Alpha_star > 0. && M > Mlim_Fstar)
-        Fstar = 1./Fstar10;
-    else if (Alpha_star < 0. && M < Mlim_Fstar)
-        Fstar = 1./Fstar10;
-    else
-        Fstar = pow(M/1e10,Alpha_star);
+    // !!! SLTK: removed since it is passed through SFR_function
+    // if (Alpha_star > 0. && M > Mlim_Fstar)
+    //     Fstar = 1./Fstar10;
+    // else if (Alpha_star < 0. && M < Mlim_Fstar)
+    //     Fstar = 1./Fstar10;
+    // else
+    //     Fstar = pow(M/1e10,Alpha_star);
+
+    // !!! SLTK: compute M*Fstar
+    Fstar_M = SFR_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
         Fesc = 1./Fesc10;
@@ -2226,7 +2300,9 @@ double dNion_ConditionallnM(double lnM, void *params) {
     else
         Fesc = pow(M/1e10,Alpha_esc);
 
-    return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
+    // !!! SLTK: changed since we use M*Fstar
+    // return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
+    return exp(-MassTurnover/M)*Fstar_M*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
 }
 
 
@@ -2398,6 +2474,7 @@ float Nion_ConditionallnM_GL_MINI(float lnM, struct parameters_gsl_SFR_con_int_ 
 }
 
 float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con){
+
     float M = exp(lnM);
     float growthf = parameters_gsl_SFR_con.gf_obs;
     float M2 = parameters_gsl_SFR_con.Mval;
@@ -2412,14 +2489,19 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     float Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
     float Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
 
-    float Fstar,Fesc;
+    // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
+    float Fstar_M,Fesc;
 
-    if (Alpha_star > 0. && M > Mlim_Fstar)
-        Fstar = 1./Fstar10;
-    else if (Alpha_star < 0. && M < Mlim_Fstar)
-        Fstar = 1./Fstar10;
-    else
-        Fstar = pow(M/1e10,Alpha_star);
+    // !!! SLTK: removed since it is passed through SFR_function
+    // if (Alpha_star > 0. && M > Mlim_Fstar)
+    //     Fstar = 1./Fstar10;
+    // else if (Alpha_star < 0. && M < Mlim_Fstar)
+    //     Fstar = 1./Fstar10;
+    // else
+    //     Fstar = pow(M/1e10,Alpha_star);
+
+    // !!! SLTK: compute M*Fstar
+    Fstar_M = SFR_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
         Fesc = 1./Fesc10;
@@ -2428,7 +2510,9 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     else
         Fesc = pow(M/1e10,Alpha_esc);
 
-    return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
+    // !!! SLTK: changed since we use M*Fstar
+    // return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
+    return exp(-MassTurnover/M)*Fstar_M*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
 
 }
 
@@ -2655,6 +2739,7 @@ float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sig
         for(i=1; i<(n+1); i++){
             if(Type==1) {
                 x = xi_SFR_Xray[i];
+                // !!! SLTK: to check !!! 
                 integrand += wi_SFR_Xray[i]*Nion_ConditionallnM_GL(x,parameters_gsl_SFR_con);
             }
             if(Type==0) {
@@ -3529,7 +3614,10 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
     //set the minimum source mass
     if (flag_options->USE_MASS_DEPENDENT_ZETA) {
-        ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
+        // !!! SLTK: removed Fstar10 since it is already included in Ngeneral (division M: that is already taken care from dNgeneral)
+        // however, the definition of Nion uses f*, not SFR --> tstar not need to rescale
+        // ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
+        ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_ESC10;
 
         M_MIN = astro_params->M_TURN/50.;
         Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR, astro_params->F_STAR10);
@@ -3583,9 +3671,10 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
             // Ionizing emissivity (num of photons per baryon)
             if (flag_options->USE_MASS_DEPENDENT_ZETA) {
-                Nion0 = ION_EFF_FACTOR*Nion_General(z0, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
+                Nion0 = ION_EFF_FACTOR * Nion_General(z0, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
                                                 Mlim_Fstar, Mlim_Fesc);
+
                 Nion1 = ION_EFF_FACTOR*Nion_General(z1, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
                                                 Mlim_Fstar, Mlim_Fesc);

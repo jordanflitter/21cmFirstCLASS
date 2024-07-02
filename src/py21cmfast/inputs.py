@@ -38,8 +38,8 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK: 23/06/24')
-print('We moved astro_params and flag_options to be globally defined for all files')
+print('!!! SLTK: 02/07/24')
+print('We updated ps.c moving Fstar*M in an external function')
 print('------------------------------------------\n')
 
 
@@ -1169,6 +1169,12 @@ class AstroParams(StructWithDefaults):
     INHOMO_RECO : bool, optional
         Whether inhomogeneous recombinations are being calculated. This is not a part of the
         astro parameters structure, but is required by this class to set some default behaviour.
+    # !!! SLTK: added new input to specify the SFR model
+    SFR_MODEL: int or str, optional
+        Select which SFR model to use. 
+        !!! CURRENTLY FOR POPII STARS ONLY !!!
+        If string, use the following codes:
+            0 : official 21cmFAST/21cmFirstCLASS releases, based on MUN21 (default)
     HII_EFF_FACTOR : float, optional
         The ionizing efficiency of high-z galaxies (zeta, from Eq. 2 of Greig+2015).
         Higher values tend to speed up reionization.
@@ -1254,6 +1260,7 @@ class AstroParams(StructWithDefaults):
     _ffi = ffi
 
     _defaults_ = {
+        "SFR_MODEL": 0, # !!! SLTK: new flag to set different SFR models
         "HII_EFF_FACTOR": 30.0,
         "F_STAR10": -1.3,
         "F_STAR7_MINI": -2.0,
@@ -1279,6 +1286,9 @@ class AstroParams(StructWithDefaults):
         "BETA_VCB": 1.8,
     }
 
+    # !!! SLTK: SFR_MODEL defined through strings
+    _sfr_models = ["MUN21"]
+
     def __init__(
         self, *args, INHOMO_RECO=FlagOptions._defaults_["INHOMO_RECO"], **kwargs
     ):
@@ -1303,6 +1313,35 @@ class AstroParams(StructWithDefaults):
             return 10 ** val
         else:
             return val
+
+    # !!! SLTK: add property to convert SFR_MODEL string to int
+    @property
+    def SFR_MODEL(self):
+        """
+        The sfr model to use, as an integer.
+
+        See :func:`sfr_model` for a string representation.
+        """
+        if isinstance(self._SFR_MODEL, str):
+            val = self._sfr_models.index(self._SFR_MODEL.upper())
+        else:
+            val = self._SFR_MODEL
+
+        if not 0 <= val < len(self._sfr_models):
+            raise ValueError(
+                "SFR model must be between 0 and {}".format(
+                    len(self._sfr_models) - 1
+                )
+            )
+
+        return val
+
+    # !!! SLTK: add property to define string representation of the SFR_MODEL 
+    @property
+    def sfr_model(self):
+        """String representation of the SFR model used."""
+        return self._sfr_models[self.SFR_MODEL]
+
 
     @property
     def R_BUBBLE_MAX(self):

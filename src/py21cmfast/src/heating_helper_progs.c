@@ -1049,7 +1049,9 @@ double tauX_MINI(double nu, double x_e, double x_e_ave, double zp, double zpp, d
     p.nu_0 = nu/(1+zp);
     p.x_e = x_e;
     p.x_e_ave = x_e_ave;
-    p.ion_eff = global_params.Pop2_ion*astro_params_hf->F_STAR10*astro_params_hf->F_ESC10;
+    // !!! SLTK: removed Fstar10 since it's in SFR function
+    p.ion_eff = global_params.Pop2_ion*astro_params_hf->F_ESC10;
+    // p.ion_eff = global_params.Pop2_ion*astro_params_hf->F_STAR10*astro_params_hf->F_ESC10;
     p.ion_eff_MINI = global_params.Pop3_ion*astro_params_hf->F_STAR7_MINI*astro_params_hf->F_ESC7_MINI;
     p.log10_Mturn_MINI = log10_Mturn_MINI;
     p.LOG10_MTURN_INT = LOG10_MTURN_INT;
@@ -1102,7 +1104,9 @@ double tauX(double nu, double x_e, double x_e_ave, double zp, double zpp, double
     p.x_e_ave = x_e_ave;
 
     if(flag_options_hf->USE_MASS_DEPENDENT_ZETA) {
-        p.ion_eff = global_params.Pop2_ion*astro_params_hf->F_STAR10*astro_params_hf->F_ESC10;
+        // !!! SLTK: removed Fstar10 since it's in SFR function
+        p.ion_eff = global_params.Pop2_ion*astro_params_hf->F_ESC10;
+        // p.ion_eff = global_params.Pop2_ion*astro_params_hf->F_STAR10*astro_params_hf->F_ESC10;
     }
     else {
         if (HI_filling_factor_zp > FRACT_FLOAT_ERR){

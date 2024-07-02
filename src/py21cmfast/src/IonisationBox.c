@@ -77,7 +77,8 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
       double global_xH, ST_over_PS, f_coll, R, stored_R, f_coll_min;
       double ST_over_PS_MINI, f_coll_MINI, f_coll_min_MINI;
 
-      double t_ast,  Gamma_R_prefactor, rec, dNrec, sigmaMmax;
+    // !!! SLTK: we separate the two contributions of t_star (t_ast) in popII and popIII to model the SFR separately 
+      double t_ast_popII, t_ast_popIII, Gamma_R_prefactor, rec, dNrec, sigmaMmax;
       double Gamma_R_prefactor_MINI;
       float fabs_dtdz, ZSTEP, z_eff;
       const float dz = 0.01;
@@ -133,7 +134,11 @@ LOG_SUPER_DEBUG("defined parameters");
 
 
     if(flag_options->USE_MASS_DEPENDENT_ZETA) {
-        ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
+        // !!! SLTK: removed Fstar10 since it is already included in Ngeneral, which defines mean_fcoll (division M: that is already taken care from dNgeneral)
+        // however, the definition of Nion uses f*, not SFR --> tstar not need to rescale
+        ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_ESC10;
+        // ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
+        
         ION_EFF_FACTOR_MINI = global_params.Pop3_ion * astro_params->F_STAR7_MINI * astro_params->F_ESC7_MINI;
     }
     else {
@@ -179,7 +184,12 @@ LOG_SUPER_DEBUG("defined parameters");
     debugSummarizeBox(box->z_re_box, user_params->HII_DIM, "  ");
 
     fabs_dtdz = fabs(dtdz(redshift))/1e15; //reduce to have good precision
-    t_ast = astro_params->t_STAR * t_hubble(redshift);
+    // !!! SLTK: we separate the two contributions to model the SFR separately 
+    // !!! SLTK: for popII, the tstar is already included in Fstar 
+    t_ast_popII = astro_params->t_STAR * t_hubble(redshift);
+    t_ast_popIII = astro_params->t_STAR * t_hubble(redshift);
+    // t_ast = astro_params->t_STAR * t_hubble(redshift);
+
     growth_factor_dz = dicke(redshift-dz);
 
     // Modify the current sampled redshift to a redshift which matches the expected filling factor given our astrophysical parameterisation.
@@ -1292,8 +1302,10 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                 Gamma_R_prefactor_MINI *= pow(1+redshift, 2);
             }
 
-            Gamma_R_prefactor /= t_ast;
-            Gamma_R_prefactor_MINI /= t_ast;
+
+            // !!! SLTK: we separate the two contributions to model the SFR separately 
+            Gamma_R_prefactor /= t_ast_popII;
+            Gamma_R_prefactor_MINI /= t_ast_popIII;
 
             if (global_params.FIND_BUBBLE_ALGORITHM != 2 && global_params.FIND_BUBBLE_ALGORITHM != 1) { // center method
                 LOG_ERROR("Incorrect choice of find bubble algorithm: %i",

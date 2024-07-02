@@ -66,6 +66,9 @@ struct UserParams{
 struct AstroParams{
 
     // Parameters taken from INIT_PARAMS.H
+    // !!! SLTK: added input to change SFR model
+    int SFR_MODEL;
+
     float HII_EFF_FACTOR;
 
     float F_STAR10;
