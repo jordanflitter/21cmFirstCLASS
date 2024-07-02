@@ -68,3 +68,9 @@
 #define HII_R_FFT_INDEX(x,y,z)((unsigned long long)((z)+2llu*(HII_MID+1llu)*((y)+HII_D*(x))))
 // for 3D real array with no padding
 #define HII_R_INDEX(x,y,z)((unsigned long long)((z)+HII_D*((y)+HII_D*(x))))
+// JordanFlitter: New indexing functions, to convert box_ct from a non-FFT box to an FFT box
+#define box_ct_FFT(box_ct)(int)(HII_R_FFT_INDEX((int)(floor(box_ct/HII_D/HII_D)), \
+                                                (int)(floor((box_ct-floor(box_ct/HII_D/HII_D)*HII_D*HII_D)/HII_D)), \
+                                                (int)(box_ct-floor(box_ct/HII_D/HII_D)*HII_D*HII_D-floor((box_ct-floor(box_ct/HII_D/HII_D)*HII_D*HII_D)/HII_D)*HII_D) \
+                                                ) \
+                                )
