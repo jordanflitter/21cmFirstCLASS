@@ -38,8 +38,8 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK: 02/07/24')
-print('We updated ps.c moving Fstar*M in an external function')
+print('!!! SLTK: 03/07/24')
+print('We updated ps.c moving Fstar*M in an external function for SF efficiency. We moved 1/tstar to external function for SFR')
 print('------------------------------------------\n')
 
 

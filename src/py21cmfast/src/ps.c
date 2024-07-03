@@ -101,8 +101,9 @@ float Mass_limit (float logM, float PL, float FRAC);
 void bisection(float *x, float xlow, float xup, int *iter);
 float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
 
-// !!! SLTK: introduced a new function to model the SFR
-double SFR_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar);
+// !!! SLTK: introduced a new function to model the SFR efficiency and SFR
+double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar);
+double SFR_function(double efficiency);
 
 double sheth_delc(double del, double sig);
 float dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2);
@@ -168,6 +169,8 @@ struct parameters_gsl_SFR_General_int_{
     double frac_esc;
     double LimitMass_Fstar;
     double LimitMass_Fesc;
+    // !!! SLTK: added to specify if you want efficiency or SFR
+    double eff_or_SFR;
 };
 
 struct parameters_gsl_SFR_con_int_{
@@ -1269,18 +1272,16 @@ double FgtrM_General(double z, double M){
     }
 }
 
-// !!! SLTK: defined new function to model SFR
-double SFR_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar){
+// !!! SLTK: defined new function to model SFR efficiency
+double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar){
 
     // first we define the parameters (similar approach to original modeling in dNion_General)
 
     double M = exp(lnM);
 
-    double t_star = astro_params_ps->t_STAR;
-
     // we initialize the quantities we want to compute:
     double Fstar;
-    double SFR;
+    double epsilon;
 
     // reproduce original modeling (MUN21)
     if(astro_params_ps->SFR_MODEL==0){
@@ -1291,14 +1292,36 @@ double SFR_function(double lnM, double Alpha_star, double Fstar10, double Mlim_F
         else
             Fstar = Fstar10 * pow(M/1e10,Alpha_star);
 
-        SFR = M * Fstar ; // / t_star;
+        epsilon = M * Fstar ;
+    }
+
+    // !!! TO BE CHANGED !!!
+    else{
+        epsilon = 0.;
+    }
+
+    return epsilon;
+
+}
+
+// !!! SLTK: SFR function
+double SFR_function(double efficiency){
+
+    double t_star = astro_params_ps->t_STAR;
+
+    // we initialize the quantities we want to compute:
+    double SFR;
+
+    // reproduce original modeling (MUN21)
+    if(astro_params_ps->SFR_MODEL==0){
+
+        SFR = efficiency / t_star;
     }
 
     // !!! TO BE CHANGED !!!
     else{
         SFR = 0.;
     }
-
     return SFR;
 
 }
@@ -1318,8 +1341,11 @@ double dNion_General(double lnM, void *params){
     double Mlim_Fstar = vals.LimitMass_Fstar;
     double Mlim_Fesc = vals.LimitMass_Fesc;
 
+    // !!! SLTK: added this parameter if you want to use the efficiency or the SFR 
+    double eff_or_SFR = vals.eff_or_SFR;
+    
     // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
-    double Fstar_M, Fesc, MassFunction;
+    double Fstar_M, use_quantity, Fesc, MassFunction;
 
     // !!! SLTK: removed since it is passed through SFR_function
     // if (Alpha_star > 0. && M > Mlim_Fstar)
@@ -1329,8 +1355,14 @@ double dNion_General(double lnM, void *params){
     // else
         // Fstar = pow(M/1e10,Alpha_star);
     
-    // !!! SLTK: compute M*Fstar
-    Fstar_M = SFR_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
+    // !!! SLTK: compute M*Fstar, namely the efficiency, or the SFR
+    Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
+    if (eff_or_SFR == 0){
+        use_quantity = Fstar_M;
+    }
+    else{
+        use_quantity = SFR_function(Fstar_M);
+    }
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
         Fesc = 1./Fesc10;
@@ -1354,10 +1386,11 @@ double dNion_General(double lnM, void *params){
 
     // !!! SLTK: changed since we use M*Fstar
     // return MassFunction * M * M * exp(-MassTurnover/M) * Fstar * Fesc;
-    return MassFunction * M * exp(-MassTurnover/M) * Fstar_M * Fesc;
+    return MassFunction * M * exp(-MassTurnover/M) * use_quantity * Fesc;
 }
 
-double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc){
+// !!! SLTK: added eff_or_SFR flag
+double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, int eff_or_SFR){
 
     double growthf;
 
@@ -1380,6 +1413,8 @@ double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_st
         .frac_esc = Fesc10,
         .LimitMass_Fstar = Mlim_Fstar,
         .LimitMass_Fesc = Mlim_Fesc,
+        // !!! SLTK: added to specify if you want efficiency or SFR
+        .eff_or_SFR = eff_or_SFR,
     };
     int status;
 
@@ -2280,7 +2315,8 @@ double dNion_ConditionallnM(double lnM, void *params) {
     double Mlim_Fesc = vals.LimitMass_Fesc;
 
     // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
-    double Fstar_M, Fesc;
+    // !!! SLTK: added SFR in Msun/yr
+    double Fstar_M, SFR, Fesc;
 
     // !!! SLTK: removed since it is passed through SFR_function
     // if (Alpha_star > 0. && M > Mlim_Fstar)
@@ -2290,8 +2326,9 @@ double dNion_ConditionallnM(double lnM, void *params) {
     // else
     //     Fstar = pow(M/1e10,Alpha_star);
 
-    // !!! SLTK: compute M*Fstar
-    Fstar_M = SFR_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
+    // !!! SLTK: compute M*Fstar and SFR
+    Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
+    SFR = SFR_function(Fstar_M);
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
         Fesc = 1./Fesc10;
@@ -2302,7 +2339,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
 
     // !!! SLTK: changed since we use M*Fstar
     // return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
-    return exp(-MassTurnover/M)*Fstar_M*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
+    return exp(-MassTurnover/M)*SFR*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
 }
 
 
@@ -2490,7 +2527,8 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     float Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
 
     // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
-    float Fstar_M,Fesc;
+    // !!! SLTK: added SFR
+    float Fstar_M, SFR, Fesc;
 
     // !!! SLTK: removed since it is passed through SFR_function
     // if (Alpha_star > 0. && M > Mlim_Fstar)
@@ -2500,8 +2538,9 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     // else
     //     Fstar = pow(M/1e10,Alpha_star);
 
-    // !!! SLTK: compute M*Fstar
-    Fstar_M = SFR_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
+    // !!! SLTK: compute M*Fstar and SFR
+    Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
+    SFR = SFR_function(Fstar_M);
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
         Fesc = 1./Fesc10;
@@ -2512,7 +2551,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
 
     // !!! SLTK: changed since we use M*Fstar
     // return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
-    return exp(-MassTurnover/M)*Fstar_M*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
+    return exp(-MassTurnover/M)*SFR*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2)/sqrt(2.*PI);
 
 }
 
@@ -3149,7 +3188,8 @@ void initialise_Nion_Ts_spline(
 #pragma omp for
         for (i=0; i<Nbin; i++){
             z_val[i] = zmin + (double)i/((double)Nbin-1.)*(zmax - zmin);
-            Nion_z_val[i] = Nion_General(z_val[i], Mmin, MassTurn, Alpha_star, Alpha_esc, Fstar10, Fesc10, Mlim_Fstar, Mlim_Fesc);
+            // !!! SLTK: added input eff_or_SFR : USE eff
+            Nion_z_val[i] = Nion_General(z_val[i], Mmin, MassTurn, Alpha_star, Alpha_esc, Fstar10, Fesc10, Mlim_Fstar, Mlim_Fesc, 0);
         }
     }
 
@@ -3193,7 +3233,8 @@ void initialise_Nion_Ts_spline_MINI(
         for (i=0; i<Nbin; i++){
             z_val[i] = zmin + (double)i/((double)Nbin-1.)*(zmax - zmin);
             Mcrit_atom_val = atomic_cooling_threshold(z_val[i]);
-            Nion_z_val[i] = Nion_General(z_val[i], Mmin, Mcrit_atom_val, Alpha_star, Alpha_esc, Fstar10, Fesc10, Mlim_Fstar, Mlim_Fesc);
+            // !!! SLTK: added input eff_or_SFR : USE SFR
+            Nion_z_val[i] = Nion_General(z_val[i], Mmin, Mcrit_atom_val, Alpha_star, Alpha_esc, Fstar10, Fesc10, Mlim_Fstar, Mlim_Fesc, 1);
 
             for (j=0; j<NMTURN; j++){
                 Nion_z_val_MINI[i+j*Nbin] = Nion_General_MINI(z_val[i], Mmin, MassTurnover[j], Mcrit_atom_val, Alpha_star_mini, Alpha_esc, Fstar7_MINI, Fesc7_MINI, Mlim_Fstar_MINI, Mlim_Fesc_MINI);
@@ -3238,7 +3279,8 @@ void initialise_SFRD_spline(int Nbin, float zmin, float zmax, float MassTurn, fl
 #pragma omp for
         for (i=0; i<Nbin; i++){
             z_X_val[i] = zmin + (double)i/((double)Nbin-1.)*(zmax - zmin);
-            SFRD_val[i] = Nion_General(z_X_val[i], Mmin, MassTurn, Alpha_star, 0., Fstar10, 1.,Mlim_Fstar,0.);
+            // !!! SLTK: added input eff_or_SFR : USE SFR
+            SFRD_val[i] = Nion_General(z_X_val[i], Mmin, MassTurn, Alpha_star, 0., Fstar10, 1.,Mlim_Fstar,0.,1);
         }
     }
 
@@ -3278,7 +3320,8 @@ void initialise_SFRD_spline_MINI(int Nbin, float zmin, float zmax, float Alpha_s
         for (i=0; i<Nbin; i++){
             z_X_val[i] = zmin + (double)i/((double)Nbin-1.)*(zmax - zmin);
             Mcrit_atom_val = atomic_cooling_threshold(z_X_val[i]);
-            SFRD_val[i] = Nion_General(z_X_val[i], Mmin, Mcrit_atom_val, Alpha_star, 0., Fstar10, 1.,Mlim_Fstar,0.);
+            // !!! SLTK: added input eff_or_SFR : USE SFR
+            SFRD_val[i] = Nion_General(z_X_val[i], Mmin, Mcrit_atom_val, Alpha_star, 0., Fstar10, 1.,Mlim_Fstar,0.,1);
 
             for (j=0; j<NMTURN; j++){
                 SFRD_val_MINI[i+j*Nbin] = Nion_General_MINI(z_X_val[i], Mmin, MassTurnover[j], Mcrit_atom_val, Alpha_star_mini, 0., Fstar7_MINI, 1.,Mlim_Fstar_MINI,0.);
@@ -3671,13 +3714,15 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
             // Ionizing emissivity (num of photons per baryon)
             if (flag_options->USE_MASS_DEPENDENT_ZETA) {
+                // !!! SLTK: added input eff_or_SFR : USE SFR
                 Nion0 = ION_EFF_FACTOR * Nion_General(z0, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
-                                                Mlim_Fstar, Mlim_Fesc);
+                                                Mlim_Fstar, Mlim_Fesc,1);
 
+                // !!! SLTK: added input eff_or_SFR : USE SFR
                 Nion1 = ION_EFF_FACTOR*Nion_General(z1, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
-                                                Mlim_Fstar, Mlim_Fesc);
+                                                Mlim_Fstar, Mlim_Fesc,1);
             }
             else {
                 //set the minimum source mass
