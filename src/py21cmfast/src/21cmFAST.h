@@ -178,6 +178,8 @@ struct IonizedBox{
     float *temp_kinetic_all_gas;
     float *Fcoll;
     float *Fcoll_MINI;
+    // !!! SLTK: added _sfrd 
+    double mean_f_coll_sfrd;
 };
 
 struct BrightnessTemp{

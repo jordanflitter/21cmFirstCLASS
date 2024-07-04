@@ -1494,7 +1494,6 @@ LOG_SUPER_DEBUG("got density gridpoints");
 
                 redshift_table_Nion_z = determine_zpp_min + zpp_bin_width*(float)redshift_int_Nion_z;
 
-                
                 Splined_Fcollzp_mean = Nion_z_val[redshift_int_Nion_z] + \
                         ( zp - redshift_table_Nion_z )*( Nion_z_val[redshift_int_Nion_z+1] - Nion_z_val[redshift_int_Nion_z] )/(zpp_bin_width);
             }
@@ -2542,9 +2541,9 @@ LOG_SUPER_DEBUG("looping over box...");
                             else {
 
                                 if (flag_options->USE_MINI_HALOS){
-
+                                    // !!! SLTK: added eff_or_SFR flag and set to SFR
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,curr_dens,Mcrit_atom_interp_table[R_ct],
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES);
+                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1);
 
                                     fcoll_MINI = Nion_ConditionalM_MINI(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,\
                                                            curr_dens,pow(10,log10_Mcrit_LW[R_ct][box_ct]),Mcrit_atom_interp_table[R_ct],\
@@ -2553,8 +2552,9 @@ LOG_SUPER_DEBUG("looping over box...");
 
                                 }
                                 else {
+                                    // !!! SLTK: added eff_or_SFR flag and set to SFR
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(M_MIN),log(Mmax),sigmaMmax,Deltac,curr_dens,astro_params->M_TURN,
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES);
+                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1);
                                 }
                                 fcoll *= pow(10.,10.);
                             }

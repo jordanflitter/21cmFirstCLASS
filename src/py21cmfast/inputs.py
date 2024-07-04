@@ -38,8 +38,13 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK: 03/07/24')
-print('We updated ps.c moving Fstar*M in an external function for SF efficiency. We moved 1/tstar to external function for SFR')
+print('!!! SLTK: 04/07/24')
+print('We updated ps.c moving Fstar*M in an external function for SF efficiency. We moved 1/tstar to external function for SFR.\n'
+      'SFRD and Nion call separately either the SFR and the efficiency when using Fcoll.\n',
+      '\n\n',
+      'NOTE: in IonisationBox, there is only one point in which the SFRD is required instead of Nion.\n',
+      'For the moment, we collect the extra factor in the ST_over_PS factor but this is based on the assumption that the ratio is mass independent.\n',
+      'Moreover, this uses the average value in the box instead of the value per cell, which introduces a variation < 2\% in Tb, < 6\% in Pk')
 print('------------------------------------------\n')
 
 

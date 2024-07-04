@@ -14,8 +14,8 @@ float prev_overdense_large_min, prev_overdense_large_bin_width, prev_overdense_l
 float log10Mturn_min, log10Mturn_max, log10Mturn_bin_width, log10Mturn_bin_width_inv;
 float log10Mturn_min_MINI, log10Mturn_max_MINI, log10Mturn_bin_width_MINI, log10Mturn_bin_width_inv_MINI;
 
-
 int EvaluateSplineTable(bool MINI_HALOS, int dens_type, float curr_dens, float filtered_Mturn, float filtered_Mturn_MINI, float *Splined_Fcoll, float *Splined_Fcoll_MINI);
+
 void InterpolationRange(int dens_type, float R, float L, float *min_density, float *max_density);
 
 int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
@@ -74,7 +74,8 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
 
       float curr_vcb;
 
-      double global_xH, ST_over_PS, f_coll, R, stored_R, f_coll_min;
+    // !!! SLTK: we introduced ST_over_PS_sfrd and f_coll_sfrd: to keep the dependence from the SFR we only use that in the numerator, while we use the regular fcoll in the denominator
+      double global_xH, ST_over_PS, f_coll, R, stored_R, f_coll_min, ST_over_PS_sfrd, f_coll_sfrd;
       double ST_over_PS_MINI, f_coll_MINI, f_coll_min_MINI;
 
     // !!! SLTK: we separate the two contributions of t_star (t_ast) in popII and popIII to model the SFR separately 
@@ -306,10 +307,13 @@ LOG_SUPER_DEBUG("erfc interpolation done");
                 prev_Overdense_spline_SFR = calloc(NSFR_high,sizeof(float));
                 log10_Nion_spline = calloc(NSFR_low*NMTURN,sizeof(float));
                 Nion_spline = calloc(NSFR_high*NMTURN,sizeof(float));
+
                 log10_Nion_spline_MINI = calloc(NSFR_low*NMTURN,sizeof(float));
                 Nion_spline_MINI = calloc(NSFR_high*NMTURN,sizeof(float));
+
                 prev_log10_Nion_spline = calloc(NSFR_low*NMTURN,sizeof(float));
                 prev_Nion_spline = calloc(NSFR_high*NMTURN,sizeof(float));
+
                 prev_log10_Nion_spline_MINI = calloc(NSFR_low*NMTURN,sizeof(float));
                 prev_Nion_spline_MINI = calloc(NSFR_high*NMTURN,sizeof(float));
             }
@@ -405,6 +409,8 @@ LOG_DEBUG("first redshift, do some initialization");
                 previous_ionize_box->Fcoll       = (float *) calloc(HII_TOT_NUM_PIXELS*counter, sizeof(float));
                 previous_ionize_box->Fcoll_MINI  = (float *) calloc(HII_TOT_NUM_PIXELS*counter, sizeof(float));
                 previous_ionize_box->mean_f_coll = 0.0;
+                // !!! SLTK: added _sfrd
+                previous_ionize_box->mean_f_coll_sfrd = 0.0;
                 previous_ionize_box->mean_f_coll_MINI = 0.0;
 
 #pragma omp parallel shared(prev_deltax_unfiltered) private(i,j,k) num_threads(user_params->N_THREADS)
@@ -602,6 +608,9 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
                 // !!! SLTK: added input eff_or_SFR : USE eff
                 box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
                                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                // !!! SLTK: added _sfrd
+                box->mean_f_coll_sfrd = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+                                                astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
             }
             else{
                 box->mean_f_coll = previous_ionize_box->mean_f_coll + \
@@ -610,6 +619,14 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
                                                  astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0) - \
                                     Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
                                                  astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                // !!! SLTK: added _sfrd
+                box->mean_f_coll_sfrd = previous_ionize_box->mean_f_coll_sfrd + \
+                                    // !!! SLTK: added input eff_or_SFR : USE eff
+                                    Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+                                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1) - \
+                                    Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+                                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
+
             }
             if (previous_ionize_box->mean_f_coll_MINI * ION_EFF_FACTOR_MINI < 1e-4){
                 box->mean_f_coll_MINI = Nion_General_MINI(redshift,M_MIN,Mturnover_MINI,Mcrit_atom,
@@ -628,14 +645,14 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
             // !!! SLTK: added input eff_or_SFR : USE eff
             f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,astro_params->ALPHA_STAR,
                                       astro_params->ALPHA_ESC,astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
-            f_coll_min_MINI = Nion_General_MINI(global_params.Z_HEAT_MAX,M_MIN,Mturnover_MINI,Mcrit_atom,
-                                                astro_params->ALPHA_STAR_MINI,astro_params->ALPHA_ESC,astro_params->F_STAR7_MINI,
-                                                astro_params->F_ESC7_MINI,Mlim_Fstar_MINI,Mlim_Fesc_MINI);
         }
         else{
             // !!! SLTK: added input eff_or_SFR : USE eff
             box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
                                             astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+            // !!! SLTK: added _sfrd
+            box->mean_f_coll_sfrd = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+                                            astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
             box->mean_f_coll_MINI = 0.;
             // !!! SLTK: added input eff_or_SFR : USE eff
             f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
@@ -643,6 +660,7 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
         }
     }
     else {
+        // !!! SLTK: NOTE THAT IN THIS CASE YOU CAN NOT CHANGE MODEL 
         box->mean_f_coll = FgtrM_General(redshift, M_MIN);
     }
     if(isfinite(box->mean_f_coll)==0) {
@@ -878,6 +896,8 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
             // Check if this is the last filtering scale.  If so, we don't need deltax_unfiltered anymore.
             // We will re-read it to get the real-space field, which we will use to set the residual neutral fraction
             ST_over_PS = 0;
+        // !!! SLTK: we introduced ST_over_PS_sfrd : to keep the dependence from the SFR we only use that in the numerator, while we use the regular fcoll in the denominator
+            ST_over_PS_sfrd = 0;
             ST_over_PS_MINI = 0;
             f_coll = 0;
             f_coll_MINI = 0;
@@ -1044,6 +1064,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
             // renormalize the collapse fraction so that the mean matches ST,
             // since we are using the evolved (non-linear) density field
+
 #pragma omp parallel shared(deltax_filtered,N_rec_filtered,xe_filtered,overdense_int_boundexceeded_threaded,log10_Nion_spline,Nion_spline,erfc_denom,erfc_arg_min,\
                             erfc_arg_max,InvArgBinWidth,ArgBinWidth,ERFC_VALS_DIFF,ERFC_VALS,log10_Mturnover_filtered,log10Mturn_min,log10Mturn_bin_width_inv, \
                             log10_Mturnover_MINI_filtered,log10Mturn_bin_width_inv_MINI,log10_Nion_spline_MINI,prev_deltax_filtered,previous_ionize_box,ION_EFF_FACTOR,\
@@ -1056,6 +1077,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                             prev_dens_val,density_over_mean,status_int) \
                     num_threads(user_params->N_THREADS)
             {
+
 #pragma omp for reduction(+:f_coll,f_coll_MINI)
                 for (x = 0; x < user_params->HII_DIM; x++) {
                     for (y = 0; y < user_params->HII_DIM; y++) {
@@ -1086,8 +1108,6 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                                 Splined_Fcoll = *((float *)M_coll_filtered + HII_R_FFT_INDEX(x,y,z)) / (massofscaleR*density_over_mean);
                                 Splined_Fcoll *= (4/3.0)*PI*pow(R,3) / pixel_volume;
-
-
                             }
                             else {
 
@@ -1111,11 +1131,11 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                             }
                                         }
                                         else {
-
+                                            // !!! SLTK: added eff_or_SFR flag and set to eff
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                               pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
                                                                               astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
+                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0);
 
                                             Splined_Fcoll_MINI = Nion_ConditionalM_MINI(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                                     pow(10.,log10_Mturnover_MINI),Mcrit_atom,astro_params->ALPHA_STAR_MINI,
@@ -1138,11 +1158,12 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                                 }
                                             }
                                             else {
+                                                // !!! SLTK: added eff_or_SFR flag and set to eff
 
                                                 prev_Splined_Fcoll = Nion_ConditionalM(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
                                                                                        pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
                                                                                        astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                                       astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
+                                                                                       astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0);
 
                                                 prev_Splined_Fcoll_MINI = Nion_ConditionalM_MINI(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
                                                                                         pow(10.,log10_Mturnover_MINI),Mcrit_atom,astro_params->ALPHA_STAR_MINI,
@@ -1159,6 +1180,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                                         if(user_params->USE_INTERPOLATION_TABLES) {
 
+                                            // !!! SLTK: added _Sfrd
                                             status_int = EvaluateSplineTable(flag_options->USE_MINI_HALOS,1,curr_dens,0.,0.,&Splined_Fcoll,&Splined_Fcoll_MINI);
 
                                             if(status_int > 0) {
@@ -1169,12 +1191,11 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                                         }
                                         else {
-
+                                    // !!! SLTK: added eff_or_SFR flag and set to eff
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                               astro_params->M_TURN,astro_params->ALPHA_STAR,
                                                                               astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
-
+                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0);
                                         }
                                     }
                                 }
@@ -1193,17 +1214,21 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                             // save the value of the collasped fraction into the Fcoll array
                             if (flag_options->USE_MINI_HALOS){
+
                                 if (Splined_Fcoll > 1.) Splined_Fcoll = 1.;
                                 if (Splined_Fcoll < 0.) Splined_Fcoll = 1e-40;
                                 if (prev_Splined_Fcoll > 1.) prev_Splined_Fcoll = 1.;
                                 if (prev_Splined_Fcoll < 0.) prev_Splined_Fcoll = 1e-40;
+
                                 box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] = \
                                         previous_ionize_box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] + Splined_Fcoll - prev_Splined_Fcoll;
 
                                 if (box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] >1.) box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] = 1.;
+// ------------ !!! SLTK: this was already removed
                                 //if (box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] <0.) box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] = 1e-40;
                                 //if (box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] < previous_ionize_box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)])
-                                //    box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] = previous_ionize_box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)];
+                                //    box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)] = previous_ionize_box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)];   
+// ------------    
                                 f_coll += box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)];
                                 if(isfinite(f_coll)==0) {
                                     LOG_ERROR("f_coll is either infinite or NaN!(%d,%d,%d)%g,%g,%g,%g,%g,%g,%g,%g,%g",\
@@ -1244,6 +1269,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                               log10_Nion_spline_MINI[overdense_int +1+ NSFR_low* log10_Mturnover_MINI_int   ], \
                                               log10_Nion_spline_MINI[overdense_int   + NSFR_low*(log10_Mturnover_MINI_int+1)],  \
                                               log10_Nion_spline_MINI[overdense_int +1+ NSFR_low*(log10_Mturnover_MINI_int+1)]);
+
 //                                    Throw(ParameterError);
                                     Throw(InfinityorNaNError);
                                 }
@@ -1281,6 +1307,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
             // To avoid ST_over_PS becoming nan when f_coll = 0, I set f_coll = FRACT_FLOAT_ERR.
             if (flag_options->USE_MASS_DEPENDENT_ZETA) {
+
                 if (f_coll <= f_coll_min) f_coll = f_coll_min;
                 if (flag_options->USE_MINI_HALOS){
                     if (f_coll_MINI <= f_coll_min_MINI) f_coll_MINI = f_coll_min_MINI;
@@ -1291,6 +1318,10 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
             }
 
             ST_over_PS = box->mean_f_coll/f_coll;
+        // !!! SLTK: we introduced ST_over_PS_sfrd : to keep the dependence from the SFR we only use that in the numerator, while we use the regular fcoll in the denominator
+        // !!! SLTK: BE CAREFUL! This holds when SFR/eff is independent from the mass, need to check when you implement a new prescription
+            ST_over_PS_sfrd = box->mean_f_coll_sfrd/f_coll;
+        
             ST_over_PS_MINI = box->mean_f_coll_MINI/f_coll_MINI;
 
             //////////////////////////////  MAIN LOOP THROUGH THE BOX ///////////////////////////////////
@@ -1318,12 +1349,12 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                 Throw(ValueError);
             }
 
-
+// !!! SLTK: we introduced ST_over_PS_sfrd 
 #pragma omp parallel shared(deltax_filtered,N_rec_filtered,xe_filtered,box,ST_over_PS,pixel_mass,M_MIN,r,f_coll_min,Gamma_R_prefactor,\
-                            ION_EFF_FACTOR,ION_EFF_FACTOR_MINI,LAST_FILTER_STEP,counter,ST_over_PS_MINI,f_coll_min_MINI,Gamma_R_prefactor_MINI,TK) \
+                            ION_EFF_FACTOR,ION_EFF_FACTOR_MINI,LAST_FILTER_STEP,counter,ST_over_PS_MINI,f_coll_min_MINI,Gamma_R_prefactor_MINI,TK,ST_over_PS_sfrd) \
                     private(x,y,z,curr_dens,Splined_Fcoll,f_coll,ave_M_coll_cell,ave_N_min_cell,N_halos_in_cell,rec,xHII_from_xrays,res_xH,\
                             Splined_Fcoll_MINI,f_coll_MINI) \
-                    num_threads(user_params->N_THREADS)
+                    num_threads(user_params->N_THREADS) 
             {
 #pragma omp for
                 for (x = 0; x < user_params->HII_DIM; x++) {
@@ -1333,8 +1364,10 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                             curr_dens = *((float *)deltax_filtered + HII_R_FFT_INDEX(x,y,z));
 
                             Splined_Fcoll = box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)];
-
+                           
                             f_coll = ST_over_PS * Splined_Fcoll;
+                            // !!! SLTK: we need to define _sfrd through the mean property of the ST_over_PS factor
+                            f_coll_sfrd = ST_over_PS_sfrd * Splined_Fcoll;
 
                             if (flag_options->USE_MINI_HALOS){
                                 Splined_Fcoll_MINI = box->Fcoll_MINI[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)];
@@ -1383,7 +1416,8 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                 // if this is the first crossing of the ionization barrier for this cell (largest R), record the gamma
                                 // this assumes photon-starved growth of HII regions...  breaks down post EoR
                                 if (flag_options->INHOMO_RECO && (box->xH_box[HII_R_INDEX(x,y,z)] > FRACT_FLOAT_ERR) ){
-                                    box->Gamma12_box[HII_R_INDEX(x,y,z)] = Gamma_R_prefactor * f_coll + Gamma_R_prefactor_MINI * f_coll_MINI;
+                                    // !!! SLTK: inside f_coll we have the SF efficincy, but here we need the SFR, so we insert it in f_coll_sfrd
+                                    box->Gamma12_box[HII_R_INDEX(x,y,z)] = Gamma_R_prefactor * f_coll_sfrd + Gamma_R_prefactor_MINI * f_coll_MINI;
                                     box->MFP_box[HII_R_INDEX(x,y,z)] = R;
                                 }
 
@@ -1638,6 +1672,7 @@ LOG_SUPER_DEBUG("freed fftw boxes");
                 free(prev_Overdense_spline_SFR);
                 free(prev_log10_Nion_spline);
                 free(prev_Nion_spline);
+
                 free(log10_Nion_spline_MINI);
                 free(Nion_spline_MINI);
                 free(prev_log10_Nion_spline_MINI);
@@ -1676,7 +1711,6 @@ LOG_SUPER_DEBUG("freed fftw boxes");
     }
     return(0);
 }
-
 
 int EvaluateSplineTable(bool MINI_HALOS, int dens_type, float curr_dens, float filtered_Mturn, float filtered_Mturn_MINI, float *Splined_Fcoll, float *Splined_Fcoll_MINI) {
 
