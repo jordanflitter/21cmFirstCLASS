@@ -1283,6 +1283,7 @@ double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, do
     // first we define the parameters (similar approach to original modeling in dNion_General)
 
     double M = exp(lnM);
+    double Mstar;
 
     // we initialize the quantities we want to compute:
     double Fstar;
@@ -1297,7 +1298,9 @@ double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, do
         else
             Fstar = Fstar10 * pow(M/1e10,Alpha_star);
 
-        epsilon = M * Fstar ;
+        Mstar = M ; // !!! SLTK: there should be also: * cosmo_params_ps->OMb / cosmo_params_ps->OMm ;
+        // !!! SLTK : riscale to be consistent with the quantities throughout the code 
+        epsilon = Mstar * Fstar ;
     }
 
     // !!! TO BE CHANGED !!!
@@ -1444,6 +1447,7 @@ double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_st
         }
         gsl_integration_workspace_free (w);
 
+        // !!! SLTK: this is why we needed to compensate the factor in SFR_eff
         return result / ((cosmo_params_ps->OMm)*RHOcrit);
     }
     else {
@@ -2337,10 +2341,10 @@ double dNion_ConditionallnM(double lnM, void *params) {
     // !!! SLTK: compute and distinguish between M*Fstar and SFR
     Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
     if (eff_or_SFR == 0){
-        use_quantity = Fstar_M;
+        use_quantity = Fstar_M ;
     }
     else{
-        use_quantity = SFR_function(Fstar_M, z);
+        use_quantity = SFR_function(Fstar_M, z) ;
     }
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
@@ -2562,10 +2566,10 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     // !!! SLTK: compute M*Fstar and SFR and distinguish when to use it 
     Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar);
     if (eff_or_SFR == 0){
-        use_quantity = Fstar_M;
+        use_quantity = Fstar_M ;
     }
     else{
-        use_quantity = SFR_function(Fstar_M, z);
+        use_quantity = SFR_function(Fstar_M, z) ;
     }
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)

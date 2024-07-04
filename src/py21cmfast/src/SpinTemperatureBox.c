@@ -1602,6 +1602,7 @@ LOG_SUPER_DEBUG("got density gridpoints");
                 Splined_Fcollzp_mean_MINI = 0;
             }
 
+            // !!! SLTK: corrected 
             if ( ( Splined_Fcollzp_mean < 1e-15 ) && (Splined_Fcollzp_mean_MINI < 1e-15))
                 NO_LIGHT = 1;
             else
@@ -2103,9 +2104,9 @@ LOG_SUPER_DEBUG("finished looping over R_ct filter steps");
         Luminosity_converstion_factor *= (3.1556226e7)/(hplank);
 
         // Leave the original 21cmFAST code for reference. Refer to Greig & Mesinger (2017) for the new parameterisation.
-        // !!! SLTK: removed Fstar10*Omega_b since it is already in the SFR function
+        // !!! SLTK: removed Fstar10*Omega_b*RHOcrit since it is already in the SFR function
         const_zp_prefactor = ( (astro_params->L_X) * Luminosity_converstion_factor ) / ((astro_params->NU_X_THRESH)*NU_over_EV) \
-                                * C * cosmo_params->OMb * RHOcrit * pow(CMperMPC, -3) * pow(1+zp, astro_params->X_RAY_SPEC_INDEX+3);
+                                * C * pow(CMperMPC, -3) * cosmo_params->OMb * RHOcrit  * pow(1+zp, astro_params->X_RAY_SPEC_INDEX+3);
         // const_zp_prefactor = ( (astro_params->L_X) * Luminosity_converstion_factor ) / ((astro_params->NU_X_THRESH)*NU_over_EV) \
         //                         * C * astro_params->F_STAR10 * cosmo_params->OMb * RHOcrit * pow(CMperMPC, -3) * pow(1+zp, astro_params->X_RAY_SPEC_INDEX+3);
         
