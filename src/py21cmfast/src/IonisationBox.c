@@ -186,8 +186,8 @@ LOG_SUPER_DEBUG("defined parameters");
 
     fabs_dtdz = fabs(dtdz(redshift))/1e15; //reduce to have good precision
     // !!! SLTK: we separate the two contributions to model the SFR separately 
-    // !!! SLTK: for popII, the tstar is already included in Fstar 
-    t_ast_popII = t_hubble(redshift);
+    // !!! SLTK: for popII, the tstar and t_hubble are already included in Fstar 
+    t_ast_popII = 1.; 
     t_ast_popIII = astro_params->t_STAR * t_hubble(redshift);
     // t_ast = astro_params->t_STAR * t_hubble(redshift);
 
@@ -1131,11 +1131,11 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                             }
                                         }
                                         else {
-                                            // !!! SLTK: added eff_or_SFR flag and set to eff
+                                            // !!! SLTK: added eff_or_SFR flag and set to eff and z dependence
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                               pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
                                                                               astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0);
+                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,redshift);
 
                                             Splined_Fcoll_MINI = Nion_ConditionalM_MINI(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                                     pow(10.,log10_Mturnover_MINI),Mcrit_atom,astro_params->ALPHA_STAR_MINI,
@@ -1158,12 +1158,11 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                                 }
                                             }
                                             else {
-                                                // !!! SLTK: added eff_or_SFR flag and set to eff
-
+                                                // !!! SLTK: added eff_or_SFR flag and set to eff and z dependece
                                                 prev_Splined_Fcoll = Nion_ConditionalM(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
                                                                                        pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
                                                                                        astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                                       astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0);
+                                                                                       astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,prev_redshift);
 
                                                 prev_Splined_Fcoll_MINI = Nion_ConditionalM_MINI(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
                                                                                         pow(10.,log10_Mturnover_MINI),Mcrit_atom,astro_params->ALPHA_STAR_MINI,
@@ -1191,11 +1190,11 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                                         }
                                         else {
-                                    // !!! SLTK: added eff_or_SFR flag and set to eff
+                                    // !!! SLTK: added eff_or_SFR flag and set to eff and z dependence
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                               astro_params->M_TURN,astro_params->ALPHA_STAR,
                                                                               astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0);
+                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,redshift);
                                         }
                                     }
                                 }

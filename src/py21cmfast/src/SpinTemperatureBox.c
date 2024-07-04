@@ -1463,15 +1463,17 @@ LOG_SUPER_DEBUG("got density gridpoints");
 
             if(user_params->USE_INTERPOLATION_TABLES) {
                 if (!flag_options->USE_MINI_HALOS){
+                    // !!! SLTK: add z dependence
                     initialise_SFRD_Conditional_table(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
                                                      max_densities,zpp_growth,R_values, astro_params->M_TURN,
-                                                     astro_params->ALPHA_STAR, astro_params->F_STAR10, user_params->FAST_FCOLL_TABLES);
+                                                     astro_params->ALPHA_STAR, astro_params->F_STAR10, user_params->FAST_FCOLL_TABLES,zpp);
                 }
                 else{
+                    // !!! SLTK: add z dependence
                     initialise_SFRD_Conditional_table_MINI(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
                                                           max_densities,zpp_growth,R_values,Mcrit_atom_interp_table,
                                                           astro_params->ALPHA_STAR, astro_params->ALPHA_STAR_MINI, astro_params->F_STAR10,
-                                                          astro_params->F_STAR7_MINI, user_params->FAST_FCOLL_TABLES);
+                                                          astro_params->F_STAR7_MINI, user_params->FAST_FCOLL_TABLES,zpp);
                 }
             }
         }
@@ -1744,7 +1746,9 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                     }
                 }
 
-                SFR_timescale_factor[R_ct] = hubble(zpp)*fabs(dtdz(zpp));
+                // !!! SLTK: remove hubble since it is in the SFR function
+                // SFR_timescale_factor[R_ct] = hubble(zpp)*fabs(dtdz(zpp));
+                SFR_timescale_factor[R_ct] = fabs(dtdz(zpp));
 
             }
             else {
@@ -2099,7 +2103,7 @@ LOG_SUPER_DEBUG("finished looping over R_ct filter steps");
         Luminosity_converstion_factor *= (3.1556226e7)/(hplank);
 
         // Leave the original 21cmFAST code for reference. Refer to Greig & Mesinger (2017) for the new parameterisation.
-        // !!! SLTK: removed Fstar10 since it is already in the SFR function
+        // !!! SLTK: removed Fstar10*Omega_b since it is already in the SFR function
         const_zp_prefactor = ( (astro_params->L_X) * Luminosity_converstion_factor ) / ((astro_params->NU_X_THRESH)*NU_over_EV) \
                                 * C * cosmo_params->OMb * RHOcrit * pow(CMperMPC, -3) * pow(1+zp, astro_params->X_RAY_SPEC_INDEX+3);
         // const_zp_prefactor = ( (astro_params->L_X) * Luminosity_converstion_factor ) / ((astro_params->NU_X_THRESH)*NU_over_EV) \
@@ -2541,9 +2545,9 @@ LOG_SUPER_DEBUG("looping over box...");
                             else {
 
                                 if (flag_options->USE_MINI_HALOS){
-                                    // !!! SLTK: added eff_or_SFR flag and set to SFR
+                                    // !!! SLTK: added eff_or_SFR flag and set to SFR and z dependence
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,curr_dens,Mcrit_atom_interp_table[R_ct],
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1);
+                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
 
                                     fcoll_MINI = Nion_ConditionalM_MINI(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,\
                                                            curr_dens,pow(10,log10_Mcrit_LW[R_ct][box_ct]),Mcrit_atom_interp_table[R_ct],\
@@ -2552,9 +2556,9 @@ LOG_SUPER_DEBUG("looping over box...");
 
                                 }
                                 else {
-                                    // !!! SLTK: added eff_or_SFR flag and set to SFR
+                                    // !!! SLTK: added eff_or_SFR flag and set to SFR and z dependence
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(M_MIN),log(Mmax),sigmaMmax,Deltac,curr_dens,astro_params->M_TURN,
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1);
+                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
                                 }
                                 fcoll *= pow(10.,10.);
                             }
@@ -2593,7 +2597,7 @@ LOG_SUPER_DEBUG("looping over box...");
                     ave_fcoll_inv_MINI = 1./ave_fcoll_MINI;
                 }
 
-                // !!! SLTK: remove t_STAR since it is already inside fcoll
+                // !!! SLTK: remove t_STAR (and hubble from SFR timescale) since it is already inside fcoll
                 dfcoll_dz_val = (ave_fcoll_inv/pow(10.,10.))*ST_over_PS[R_ct]*SFR_timescale_factor[R_ct] ; // /astro_params->t_STAR;
 
                 dstarlya_dt_prefactor[R_ct] *= dfcoll_dz_val;

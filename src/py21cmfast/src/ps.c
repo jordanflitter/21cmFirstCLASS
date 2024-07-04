@@ -103,18 +103,18 @@ float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
 
 // !!! SLTK: introduced a new function to model the SFR efficiency and SFR
 double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar);
-double SFR_function(double efficiency);
+double SFR_function(double efficiency, double redshift);
 
 double sheth_delc(double del, double sig);
 float dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2);
 double dNion_ConditionallnM(double lnM, void *params);
-// !!! SLTK: added eff_or_SFR flag
-double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR);
+// !!! SLTK: added eff_or_SFR flag and z dependence
+double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR, double z);
 double dNion_ConditionallnM_MINI(double lnM, void *params);
 double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double MassTurnover_upper, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES);
 
-// !!! SLTK: added eff_or_SFR flag
-float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR);
+// !!! SLTK: added eff_or_SFR flag and z dependence
+float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR, double z);
 float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float MassTurnover_upper, float Alpha_star, float Alpha_esc, float Fstar7_MINI, float Fesc7_MINI, float Mlim_Fstar_MINI, float Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES);
 
 
@@ -189,8 +189,9 @@ struct parameters_gsl_SFR_con_int_{
     double frac_esc;
     double LimitMass_Fstar;
     double LimitMass_Fesc;
-    // !!! SLTK: added eff_or_SFR flag 
+    // !!! SLTK: added eff_or_SFR flag and redshift dependence
     int eff_or_SFR;
+    double z;
 };
 
 unsigned long *lvector(long nl, long nh);
@@ -1309,7 +1310,7 @@ double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, do
 }
 
 // !!! SLTK: SFR function
-double SFR_function(double efficiency){
+double SFR_function(double efficiency, double redshift){
 
     double t_star = astro_params_ps->t_STAR;
 
@@ -1319,7 +1320,7 @@ double SFR_function(double efficiency){
     // reproduce original modeling (MUN21)
     if(astro_params_ps->SFR_MODEL==0){
 
-        SFR = efficiency / t_star;
+        SFR = efficiency  / t_star * hubble(redshift);
     }
 
     // !!! TO BE CHANGED !!!
@@ -1365,7 +1366,7 @@ double dNion_General(double lnM, void *params){
         use_quantity = Fstar_M;
     }
     else{
-        use_quantity = SFR_function(Fstar_M);
+        use_quantity = SFR_function(Fstar_M, z);
     }
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
@@ -2317,8 +2318,9 @@ double dNion_ConditionallnM(double lnM, void *params) {
     double Fesc10 = vals.frac_esc;
     double Mlim_Fstar = vals.LimitMass_Fstar;
     double Mlim_Fesc = vals.LimitMass_Fesc;
-    // !!! SLTK: add eff_or_SFR flag
+    // !!! SLTK: add eff_or_SFR flag and z 
     int eff_or_SFR = vals.eff_or_SFR;
+    double z = vals.z;
 
     // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
     // !!! SLTK: distinguish between efficiency and SFR
@@ -2338,7 +2340,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
         use_quantity = Fstar_M;
     }
     else{
-        use_quantity = SFR_function(Fstar_M);
+        use_quantity = SFR_function(Fstar_M, z);
     }
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
@@ -2381,7 +2383,7 @@ double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma
         .frac_star = Fstar10,
         .frac_esc = Fesc10,
         .LimitMass_Fstar = Mlim_Fstar,
-        .LimitMass_Fesc = Mlim_Fesc
+        .LimitMass_Fesc = Mlim_Fesc,
     };
     int status;
 
@@ -2419,14 +2421,14 @@ double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma
 
 
 
-// !!! SLTK: added eff_or_SFR flag
-double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR) {
+// !!! SLTK: added eff_or_SFR flag and z dependence
+double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR, double z) {
 
 
   if (FAST_FCOLL_TABLES && global_params.USE_FAST_ATOMIC) { //JBM: Fast tables. Assume sharp Mturn, not exponential cutoff.
 
-    // !!! added eff_or_SFR flag and set according to the input
-    return GaussLegendreQuad_Nion(0, 0, (float) growthf, (float) M2, (float) sigma2, (float) delta1, (float) delta2, (float) MassTurnover, (float) Alpha_star, (float) Alpha_esc, (float) Fstar10, (float) Fesc10, (float) Mlim_Fstar, (float) Mlim_Fesc, FAST_FCOLL_TABLES,eff_or_SFR);
+    // !!! added eff_or_SFR flag and set according to the input and z dependence
+    return GaussLegendreQuad_Nion(0, 0, (float) growthf, (float) M2, (float) sigma2, (float) delta1, (float) delta2, (float) MassTurnover, (float) Alpha_star, (float) Alpha_esc, (float) Fstar10, (float) Fesc10, (float) Mlim_Fstar, (float) Mlim_Fesc, FAST_FCOLL_TABLES,eff_or_SFR, z);
 
   }
   else{ //standard
@@ -2451,6 +2453,8 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
         .LimitMass_Fesc = Mlim_Fesc,
     // !!! SLTK: added eff_or_SFR flag
         .eff_or_SFR = eff_or_SFR,
+    // !!! SLTK: add redshift dependence
+        .z = z,
     };
 
     F.function = &dNion_ConditionallnM;
@@ -2539,9 +2543,9 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     float Fesc10 = parameters_gsl_SFR_con.frac_esc;
     float Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
     float Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
-    // !!! added eff_or_SFR flag 
+    // !!! added eff_or_SFR flag and z
     int eff_or_SFR = parameters_gsl_SFR_con.eff_or_SFR;
-
+    double z = parameters_gsl_SFR_con.z;
 
     // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
     // !!! SLTK: distinguish between usign efficiency or SFR
@@ -2561,7 +2565,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
         use_quantity = Fstar_M;
     }
     else{
-        use_quantity = SFR_function(Fstar_M);
+        use_quantity = SFR_function(Fstar_M, z);
     }
 
     if (Alpha_esc > 0. && M > Mlim_Fesc)
@@ -2601,7 +2605,7 @@ float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, floa
         .frac_star = Fstar7_MINI,
         .frac_esc = Fesc7_MINI,
         .LimitMass_Fstar = Mlim_Fstar_MINI,
-        .LimitMass_Fesc = Mlim_Fesc_MINI
+        .LimitMass_Fesc = Mlim_Fesc_MINI,
     };
 
 
@@ -2700,8 +2704,8 @@ float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, floa
     }
 }
 //JBM: Added the approximation if user_params->FAST_FCOLL_TABLES==True
-// !!! added eff_or_SFR flag 
-float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR) {
+// !!! SLTK: added eff_or_SFR flag and z dependence
+float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR, double z) {
     //Performs the Gauss-Legendre quadrature.
     int i;
 
@@ -2731,6 +2735,8 @@ float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sig
         .LimitMass_Fstar = Mlim_Fstar,
         .LimitMass_Fesc = Mlim_Fesc,
         .eff_or_SFR = eff_or_SFR,
+        // !!! SLTK: added redshift dependence
+        .z = z, 
     };
 
   if (FAST_FCOLL_TABLES && global_params.USE_FAST_ATOMIC){ //JBM: Fast tables. Assume sharp Mturn, not exponential cutoff.
@@ -2866,8 +2872,8 @@ void initialise_Nion_General_spline(float z, float min_density, float max_densit
             overdense_val = log10(1. + overdense_small_low) + (double)i/((double)NSFR_low-1.)*(log10(1.+overdense_small_high)-log10(1.+overdense_small_low));
 
             log10_overdense_spline_SFR[i] = overdense_val;
-            // !!! SLTK: added eff_or_SFR flag and set to use eff
-            log10_Nion_spline[i] = GaussLegendreQuad_Nion(0,NGL_SFR,growthf,Mmax,sigma2,Deltac,pow(10.,overdense_val)-1.,MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0);
+            // !!! SLTK: added eff_or_SFR flag and set to use eff and z dependence
+            log10_Nion_spline[i] = GaussLegendreQuad_Nion(0,NGL_SFR,growthf,Mmax,sigma2,Deltac,pow(10.,overdense_val)-1.,MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0,z);
             
             if(fabs(log10_Nion_spline[i]) < 1e-38) {
                 log10_Nion_spline[i] = 1e-38;
@@ -2895,8 +2901,8 @@ void initialise_Nion_General_spline(float z, float min_density, float max_densit
 #pragma omp for
         for(i=0;i<NSFR_high;i++) {
             Overdense_spline_SFR[i] = overdense_large_low + (float)i/((float)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
-            // !!! SLTK: added eff_or_SFR flag and set to use eff
-            Nion_spline[i] = Nion_ConditionalM(growthf,Mmin,Mmax,sigma2,Deltac,Overdense_spline_SFR[i],MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0);
+            // !!! SLTK: added eff_or_SFR flag and set to use eff and z dependence
+            Nion_spline[i] = Nion_ConditionalM(growthf,Mmin,Mmax,sigma2,Deltac,Overdense_spline_SFR[i],MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0,z);
 
             if(Nion_spline[i]<0.) {
                 Nion_spline[i]=pow(10.,-40.0);
@@ -2965,10 +2971,10 @@ void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_de
 #pragma omp for
         for (i=0; i<NSFR_low; i++){
             for (j=0; j<NMTURN; j++){
-            // !!! SLTK: added eff_or_SFR flag and set to use eff
+            // !!! SLTK: added eff_or_SFR flag and set to use eff and z depndence 
                 log10_Nion_spline[i+j*NSFR_low] = log10(GaussLegendreQuad_Nion(0,NGL_SFR,growthf,Mmax,sigma2,Deltac,\
                                                         pow(10.,log10_overdense_spline_SFR[i])-1.,Mturns[j],Alpha_star,\
-                                                                Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0));
+                                                                Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0,z));
 
                 if(log10_Nion_spline[i+j*NSFR_low] < -40.){
 
@@ -3014,10 +3020,10 @@ void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_de
 #pragma omp for
         for(i=0;i<NSFR_high;i++) {
             for (j=0; j<NMTURN; j++){
-            // !!! SLTK: added eff_or_SFR flag and set to use 
+            // !!! SLTK: added eff_or_SFR flag and set to use and z dependence
                 Nion_spline[i+j*NSFR_high] = Nion_ConditionalM(
                     growthf,Mmin,Mmax,sigma2,Deltac,Overdense_spline_SFR[i],
-                    Mturns[j],Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0);
+                    Mturns[j],Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0,z);
 
                 if(Nion_spline[i+j*NSFR_high]<0.) {
                     Nion_spline[i+j*NSFR_high]=pow(10.,-40.0);
@@ -3106,10 +3112,10 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
 #pragma omp for
         for (i=0; i<NSFR_low; i++){
             for (j=0; j<NMTURN; j++){
-            // !!! SLTK: added eff_or_SFR flag and set to use eff
+            // !!! SLTK: added eff_or_SFR flag and set to use eff and z dependence
                 prev_log10_Nion_spline[i+j*NSFR_low] = log10(GaussLegendreQuad_Nion(0,NGL_SFR,growthf,Mmax,sigma2,Deltac,\
                                                             pow(10.,prev_log10_overdense_spline_SFR[i])-1.,Mturns[j],\
-                                                            Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0));
+                                                            Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0,z));
 
 
                 if(prev_log10_Nion_spline[i+j*NSFR_low] < -40.){
@@ -3156,9 +3162,9 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
 #pragma omp for
         for(i=0;i<NSFR_high;i++) {
             for (j=0; j<NMTURN; j++){
-            // !!! SLTK: added eff_or_SFR flag and set to use eff
+            // !!! SLTK: added eff_or_SFR flag and set to use eff and z dependence
                 prev_Nion_spline[i+j*NSFR_high] = Nion_ConditionalM(growthf,Mmin,Mmax,sigma2,Deltac,prev_Overdense_spline_SFR[i],\
-                                                                    Mturns[j],Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0);
+                                                                    Mturns[j],Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES,0,z);
 
                 if(prev_Nion_spline[i+j*NSFR_high]<0.) {
                     prev_Nion_spline[i+j*NSFR_high]=pow(10.,-40.0);
@@ -3375,9 +3381,10 @@ void initialise_SFRD_spline_MINI(int Nbin, float zmin, float zmax, float Alpha_s
     }
 }
 
+// !!! SLTK: added z dependence 
 void initialise_SFRD_Conditional_table(
     int Nfilter, float min_density[], float max_density[], float growthf[], float R[],
-    float MassTurnover, float Alpha_star, float Fstar10, bool FAST_FCOLL_TABLES
+    float MassTurnover, float Alpha_star, float Fstar10, bool FAST_FCOLL_TABLES, double z
 ){
 
     double overdense_val;
@@ -3438,8 +3445,8 @@ void initialise_SFRD_Conditional_table(
 #pragma omp for
             for (i=0; i<NSFR_low; i++){
 
-            // !!! SLTK: added eff_or_SFR flag and set to use SFR
-                log10_SFRD_z_low_table[j][i] = GaussLegendreQuad_Nion(1,NGL_SFR,growthf[j],Mmax,sigma2,Deltac,overdense_low_table[i]-1.,MassTurnover,Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1);
+            // !!! SLTK: added eff_or_SFR flag and set to use SFR and z dependence
+                log10_SFRD_z_low_table[j][i] = GaussLegendreQuad_Nion(1,NGL_SFR,growthf[j],Mmax,sigma2,Deltac,overdense_low_table[i]-1.,MassTurnover,Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1,z);
                 if(fabs(log10_SFRD_z_low_table[j][i]) < 1e-38) {
                     log10_SFRD_z_low_table[j][i] = 1e-38;
                 }
@@ -3462,8 +3469,8 @@ void initialise_SFRD_Conditional_table(
         {
 #pragma omp for
             for(i=0;i<NSFR_high;i++) {
-// !!! SLTK: added eff_or_SFR flag ad set to sfr
-                SFRD_z_high_table[j][i] = Nion_ConditionalM(growthf[j],Mmin,Mmax,sigma2,Deltac,overdense_high_table[i],MassTurnover,Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1);
+// !!! SLTK: added eff_or_SFR flag ad set to sfr and z dependence
+                SFRD_z_high_table[j][i] = Nion_ConditionalM(growthf[j],Mmin,Mmax,sigma2,Deltac,overdense_high_table[i],MassTurnover,Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1,z);
                 SFRD_z_high_table[j][i] *= pow(10., 10.0);
 
             }
@@ -3480,9 +3487,10 @@ void initialise_SFRD_Conditional_table(
     }
 }
 
+// !!! SLTK: added z dependence
 void initialise_SFRD_Conditional_table_MINI(
     int Nfilter, float min_density[], float max_density[], float growthf[], float R[],
-    float Mcrit_atom[], float Alpha_star, float Alpha_star_mini, float Fstar10, float Fstar7_MINI, bool FAST_FCOLL_TABLES
+    float Mcrit_atom[], float Alpha_star, float Alpha_star_mini, float Fstar10, float Fstar7_MINI, bool FAST_FCOLL_TABLES, double z 
 ){
 
     double overdense_val;
@@ -3550,8 +3558,8 @@ void initialise_SFRD_Conditional_table_MINI(
         {
 #pragma omp for
             for (i=0; i<NSFR_low; i++){
-            // !!! SLTK: added eff_or_SFR flag and set to use SFR and set to SFR
-                log10_SFRD_z_low_table[j][i] = log10(GaussLegendreQuad_Nion(1,NGL_SFR,growthf[j],Mmax,sigma2,Deltac,overdense_low_table[i]-1.,Mcrit_atom[j],Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1));
+            // !!! SLTK: added eff_or_SFR flag and set to use SFR and set to SFR and z dependence
+                log10_SFRD_z_low_table[j][i] = log10(GaussLegendreQuad_Nion(1,NGL_SFR,growthf[j],Mmax,sigma2,Deltac,overdense_low_table[i]-1.,Mcrit_atom[j],Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1,z));
                 if(log10_SFRD_z_low_table[j][i] < -50.){
                     log10_SFRD_z_low_table[j][i] = -50.;
                 }
@@ -3593,9 +3601,9 @@ void initialise_SFRD_Conditional_table_MINI(
         {
 #pragma omp for
             for(i=0;i<NSFR_high;i++) {
-            // !!! SLTK: added eff_or_SFR flag and set to use SFR and set to SFR
+            // !!! SLTK: added eff_or_SFR flag and set to use SFR and set to SFR and z dependence 
                 SFRD_z_high_table[j][i] = Nion_ConditionalM(growthf[j],Mmin,Mmax,sigma2,Deltac,overdense_high_table[i],\
-                                                            Mcrit_atom[j],Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1);
+                                                            Mcrit_atom[j],Alpha_star,0.,Fstar10,1.,Mlim_Fstar,0., FAST_FCOLL_TABLES,1,z);
                 if (SFRD_z_high_table[j][i] < 1e-50){
                     SFRD_z_high_table[j][i] = 1e-50;
                 }
