@@ -1115,6 +1115,7 @@ class FlagOptions(StructWithDefaults):
     @property
     def USE_MASS_DEPENDENT_ZETA(self):
         """Automatically setting USE_MASS_DEPENDENT_ZETA to True if USE_MINI_HALOS."""
+
         if self.USE_MINI_HALOS and not self._USE_MASS_DEPENDENT_ZETA:
             logger.warning(
                 "You have set USE_MINI_HALOS to True but USE_MASS_DEPENDENT_ZETA to False! "
@@ -1123,7 +1124,7 @@ class FlagOptions(StructWithDefaults):
             return True
         else:
             return self._USE_MASS_DEPENDENT_ZETA
-
+    
     @property
     def INHOMO_RECO(self):
         """Automatically setting INHOMO_RECO to True if USE_MINI_HALOS."""
@@ -1327,21 +1328,6 @@ class AstroParams(StructWithDefaults):
 
         See :func:`sfr_model` for a string representation.
         """
-
-        if FlagOptions._defaults_["USE_MASS_DEPENDENT_ZETA"] == False :
-            logger.warning(
-                "This 21cmFC distibution requires USE_MASS_DEPENDENT_ZETA to be True. "
-                "Automatically setting USE_MASS_DEPENDENT_ZETA = True"
-            )
-            FlagOptions._defaults_["USE_MASS_DEPENDENT_ZETA"] = True
-
-        # !!! SLTK: THIS HAS TO BE CHANGED!
-        if FlagOptions._defaults_["USE_MINI_HALOS"] == True :
-            logger.warning(
-                "\n\nPopIII stars model is currently inconsistent with SFR model. A new version will soon be released. "
-                "\nAutomatically setting USE_MINI_HALOS = False\n "
-            )
-            FlagOptions._defaults_["USE_MINI_HALOS"] = False
 
         if isinstance(self._SFR_MODEL, str):
             val = self._sfr_models.index(self._SFR_MODEL.upper())
