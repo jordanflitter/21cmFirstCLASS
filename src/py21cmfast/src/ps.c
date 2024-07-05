@@ -102,7 +102,7 @@ void bisection(float *x, float xlow, float xup, int *iter);
 float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
 
 // !!! SLTK: introduced a new function to model the SFR efficiency and SFR
-double SFR_efficiency_function(double lnM, void *params);//double Alpha_star, double Fstar10, double Mlim_Fstar, double MassTurnover);
+double SFR_efficiency_function(double lnM, void *params);
 double SFR_function(double efficiency, double redshift);
 
 double sheth_delc(double del, double sig);
@@ -1291,7 +1291,6 @@ double FgtrM_General(double z, double M){
 
 // !!! SLTK: defined new function to model SFR efficiency
 double SFR_efficiency_function(double lnM, void *params){
-// double Alpha_star, double Fstar10, double Mlim_Fstar, double MassTurnover){
 
     struct parameters_SFR_efficiency vals = *(struct parameters_SFR_efficiency *)params;
     double MassTurnover = vals.Mdrop;
@@ -1402,7 +1401,7 @@ double dNion_General(double lnM, void *params){
         // Fstar = pow(M/1e10,Alpha_star);
     
     // !!! SLTK: compute M*Fstar, namely the efficiency, or the SFR
-    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff); //Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
+    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff);
     if (eff_or_SFR == 0){
         use_quantity = Fstar_M;
     }
@@ -2389,7 +2388,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
     //     Fstar = pow(M/1e10,Alpha_star);
 
     // !!! SLTK: compute and distinguish between M*Fstar and SFR
-    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff); //Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
+    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff); 
     if (eff_or_SFR == 0){
         use_quantity = Fstar_M ;
     }
@@ -2626,7 +2625,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     //     Fstar = pow(M/1e10,Alpha_star);
 
     // !!! SLTK: compute M*Fstar and SFR and distinguish when to use it 
-    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff);//Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
+    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff);
     if (eff_or_SFR == 0){
         use_quantity = Fstar_M ;
     }
@@ -2673,9 +2672,6 @@ float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, floa
         .LimitMass_Fstar = Mlim_Fstar_MINI,
         .LimitMass_Fesc = Mlim_Fesc_MINI,
     };
-
-
-
 
     if(delta2 > delta1*0.9999) {
         result = 1.;
@@ -2769,6 +2765,7 @@ float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, floa
       return integrand;
     }
 }
+
 //JBM: Added the approximation if user_params->FAST_FCOLL_TABLES==True
 // !!! SLTK: added eff_or_SFR flag and z dependence
 float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR, double z) {
@@ -2837,9 +2834,6 @@ float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sig
 
 
       double nucrit_sigma2 = delta_arg*pow(sigma2+1e-10,-2.0); //above this nu sigma2>sigma1, so HMF=0. eps added to avoid infinities
-
-
-
 
     // // 3PLs
       double fcollres=0.0;

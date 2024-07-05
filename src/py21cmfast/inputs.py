@@ -44,7 +44,7 @@ print('We defined the SF efficiency function using Fstar*M*fduty. We defined the
       '\n\n',
       'NOTE: in IonisationBox, there is only one point in which the SFRD is required instead of Nion.\n',
       'For the moment, we collect the extra factor in the ST_over_PS factor but this is based on the assumption that the ratio is mass independent.\n',
-      'Moreover, this uses the average value in the box instead of the value per cell, which introduces a variation < 2\% in Tb, < 6\% in Pk')
+      'Moreover, this uses the average value in the box instead of the value per cell, which introduces a variation < 2perc in Tb, < 6perc in Pk')
 print('------------------------------------------\n')
 
 
@@ -1093,7 +1093,7 @@ class FlagOptions(StructWithDefaults):
 
     @property
     def USE_HALO_FIELD(self):
-        """Automatically setting USE_MASS_DEPENDENT_ZETA to False if USE_MINI_HALOS."""
+        """Automatically setting USE_HALO_FIELD to False if USE_MINI_HALOS."""
         if self.USE_MINI_HALOS and self._USE_HALO_FIELD:
             logger.warning(
                 "You have set USE_MINI_HALOS to True but USE_HALO_FIELD is also True! "
@@ -1327,6 +1327,22 @@ class AstroParams(StructWithDefaults):
 
         See :func:`sfr_model` for a string representation.
         """
+
+        if FlagOptions._defaults_["USE_MASS_DEPENDENT_ZETA"] == False :
+            logger.warning(
+                "This 21cmFC distibution requires USE_MASS_DEPENDENT_ZETA to be True. "
+                "Automatically setting USE_MASS_DEPENDENT_ZETA = True"
+            )
+            FlagOptions._defaults_["USE_MASS_DEPENDENT_ZETA"] = True
+
+        # !!! SLTK: THIS HAS TO BE CHANGED!
+        if FlagOptions._defaults_["USE_MINI_HALOS"] == True :
+            logger.warning(
+                "\n\nPopIII stars model is currently inconsistent with SFR model. A new version will soon be released. "
+                "\nAutomatically setting USE_MINI_HALOS = False\n "
+            )
+            FlagOptions._defaults_["USE_MINI_HALOS"] = False
+
         if isinstance(self._SFR_MODEL, str):
             val = self._sfr_models.index(self._SFR_MODEL.upper())
         else:
