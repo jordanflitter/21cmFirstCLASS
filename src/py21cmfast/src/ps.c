@@ -102,7 +102,7 @@ void bisection(float *x, float xlow, float xup, int *iter);
 float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
 
 // !!! SLTK: introduced a new function to model the SFR efficiency and SFR
-double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar, double MassTurnover);
+double SFR_efficiency_function(double lnM, void *params);//double Alpha_star, double Fstar10, double Mlim_Fstar, double MassTurnover);
 double SFR_function(double efficiency, double redshift);
 
 double sheth_delc(double del, double sig);
@@ -158,6 +158,18 @@ double FinalNF_Estimate, FirstNF_Estimate;
 struct parameters_gsl_FgtrM_int_{
     double z_obs;
     double gf_obs;
+};
+
+// !!! SLTK: created structure containing shared parameters to be used to compute the efficiency
+struct parameters_SFR_efficiency {
+    double Mdrop;
+    double Mdrop_upper;
+    double pl_star;
+    double pl_esc;
+    double frac_star;
+    double frac_esc;
+    double LimitMass_Fstar;
+    double LimitMass_Fesc;
 };
 
 struct parameters_gsl_SFR_General_int_{
@@ -1278,7 +1290,17 @@ double FgtrM_General(double z, double M){
 }
 
 // !!! SLTK: defined new function to model SFR efficiency
-double SFR_efficiency_function(double lnM, double Alpha_star, double Fstar10, double Mlim_Fstar, double MassTurnover){
+double SFR_efficiency_function(double lnM, void *params){
+// double Alpha_star, double Fstar10, double Mlim_Fstar, double MassTurnover){
+
+    struct parameters_SFR_efficiency vals = *(struct parameters_SFR_efficiency *)params;
+    double MassTurnover = vals.Mdrop;
+    double Alpha_star = vals.pl_star;
+    double Alpha_esc = vals.pl_esc;
+    double Fstar10 = vals.frac_star;
+    double Fesc10 = vals.frac_esc;
+    double Mlim_Fstar = vals.LimitMass_Fstar;
+    double Mlim_Fesc = vals.LimitMass_Fesc;
 
     // first we define the parameters (similar approach to original modeling in dNion_General)
 
@@ -1337,18 +1359,33 @@ double SFR_function(double efficiency, double redshift){
 
 
 double dNion_General(double lnM, void *params){
+
     struct parameters_gsl_SFR_General_int_ vals = *(struct parameters_gsl_SFR_General_int_ *)params;
 
     double M = exp(lnM);
     double z = vals.z_obs;
     double growthf = vals.gf_obs;
-    double MassTurnover = vals.Mdrop;
-    double Alpha_star = vals.pl_star;
+    
+    // !!! SLTK: pass these parameters to the struct 
+    // double MassTurnover = vals.Mdrop;
+    // double Alpha_star = vals.pl_star;
     double Alpha_esc = vals.pl_esc;
-    double Fstar10 = vals.frac_star;
+    // double Fstar10 = vals.frac_star;
     double Fesc10 = vals.frac_esc;
-    double Mlim_Fstar = vals.LimitMass_Fstar;
+    // double Mlim_Fstar = vals.LimitMass_Fstar;
     double Mlim_Fesc = vals.LimitMass_Fesc;
+
+    // !!! SLTK: struct to be passed to SFR efficiency 
+    struct parameters_SFR_efficiency parameters_SFReff = {
+        .Mdrop = vals.Mdrop,
+        .pl_star = vals.pl_star,
+        .pl_esc = vals.pl_esc,
+        .frac_star = vals.frac_star,
+        .frac_esc = vals.frac_esc,
+        .LimitMass_Fstar = vals.LimitMass_Fstar,
+        .LimitMass_Fesc = vals.LimitMass_Fesc,
+    };
+
 
     // !!! SLTK: added this parameter if you want to use the efficiency or the SFR 
     double eff_or_SFR = vals.eff_or_SFR;
@@ -1365,7 +1402,7 @@ double dNion_General(double lnM, void *params){
         // Fstar = pow(M/1e10,Alpha_star);
     
     // !!! SLTK: compute M*Fstar, namely the efficiency, or the SFR
-    Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
+    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff); //Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
     if (eff_or_SFR == 0){
         use_quantity = Fstar_M;
     }
@@ -2316,16 +2353,28 @@ double dNion_ConditionallnM(double lnM, void *params) {
     double sigma2 = vals.sigma2;
     double del1 = vals.delta1;
     double del2 = vals.delta2;
-    double MassTurnover = vals.Mdrop;
-    double Alpha_star = vals.pl_star;
+    // !!! SLTK: passed to the struct
+    // double MassTurnover = vals.Mdrop;
+    // double Alpha_star = vals.pl_star;
     double Alpha_esc = vals.pl_esc;
-    double Fstar10 = vals.frac_star;
+    // double Fstar10 = vals.frac_star;
     double Fesc10 = vals.frac_esc;
-    double Mlim_Fstar = vals.LimitMass_Fstar;
+    // double Mlim_Fstar = vals.LimitMass_Fstar;
     double Mlim_Fesc = vals.LimitMass_Fesc;
     // !!! SLTK: add eff_or_SFR flag and z 
     int eff_or_SFR = vals.eff_or_SFR;
     double z = vals.z;
+
+    // !!! SLTK: struct to be passed to SFR efficiency 
+    struct parameters_SFR_efficiency parameters_SFReff = {
+        .Mdrop = vals.Mdrop,
+        .pl_star = vals.pl_star,
+        .pl_esc = vals.pl_esc,
+        .frac_star = vals.frac_star,
+        .frac_esc = vals.frac_esc,
+        .LimitMass_Fstar = vals.LimitMass_Fstar,
+        .LimitMass_Fesc = vals.LimitMass_Fesc,
+    };
 
     // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
     // !!! SLTK: distinguish between efficiency and SFR
@@ -2340,7 +2389,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
     //     Fstar = pow(M/1e10,Alpha_star);
 
     // !!! SLTK: compute and distinguish between M*Fstar and SFR
-    Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
+    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff); //Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
     if (eff_or_SFR == 0){
         use_quantity = Fstar_M ;
     }
@@ -2541,16 +2590,28 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     float sigma2 = parameters_gsl_SFR_con.sigma2;
     float del1 = parameters_gsl_SFR_con.delta1;
     float del2 = parameters_gsl_SFR_con.delta2;
-    float MassTurnover = parameters_gsl_SFR_con.Mdrop;
-    float Alpha_star = parameters_gsl_SFR_con.pl_star;
+    // !!! SLTK: passed to the struct 
+    // float MassTurnover = parameters_gsl_SFR_con.Mdrop;
+    // float Alpha_star = parameters_gsl_SFR_con.pl_star;
     float Alpha_esc = parameters_gsl_SFR_con.pl_esc;
-    float Fstar10 = parameters_gsl_SFR_con.frac_star;
+    // float Fstar10 = parameters_gsl_SFR_con.frac_star;
     float Fesc10 = parameters_gsl_SFR_con.frac_esc;
-    float Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
+    // float Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
     float Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
     // !!! added eff_or_SFR flag and z
     int eff_or_SFR = parameters_gsl_SFR_con.eff_or_SFR;
     double z = parameters_gsl_SFR_con.z;
+
+    // !!! SLTK: struct to be passed to SFR efficiency 
+    struct parameters_SFR_efficiency parameters_SFReff = {
+        .Mdrop = parameters_gsl_SFR_con.Mdrop,
+        .pl_star = parameters_gsl_SFR_con.pl_star,
+        .pl_esc = parameters_gsl_SFR_con.pl_esc,
+        .frac_star = parameters_gsl_SFR_con.frac_star,
+        .frac_esc = parameters_gsl_SFR_con.frac_esc,
+        .LimitMass_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar,
+        .LimitMass_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc,
+    };
 
     // !!! SLTK: changed Fstar -> Fstar_M since our output is M*Fstar
     // !!! SLTK: distinguish between usign efficiency or SFR
@@ -2565,7 +2626,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     //     Fstar = pow(M/1e10,Alpha_star);
 
     // !!! SLTK: compute M*Fstar and SFR and distinguish when to use it 
-    Fstar_M = SFR_efficiency_function(lnM, Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
+    Fstar_M = SFR_efficiency_function(lnM, &parameters_SFReff);//Alpha_star, Fstar10, Mlim_Fstar, MassTurnover);
     if (eff_or_SFR == 0){
         use_quantity = Fstar_M ;
     }

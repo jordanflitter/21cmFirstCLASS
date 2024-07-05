@@ -38,8 +38,8 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK: 04/07/24')
-print('We updated ps.c moving Fstar*M in an external function for SF efficiency. We moved 1/(tstar*H) to external function for SFR.\n'
+print('!!! SLTK: 05/07/24')
+print('We defined the SF efficiency function using Fstar*M*fduty. We defined the SFR function using 1/(tstar*H).\n'
       'SFRD and Nion call separately either the SFR and the efficiency when using Fcoll.\n',
       '\n\n',
       'NOTE: in IonisationBox, there is only one point in which the SFRD is required instead of Nion.\n',
