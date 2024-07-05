@@ -1328,7 +1328,6 @@ class AstroParams(StructWithDefaults):
 
         See :func:`sfr_model` for a string representation.
         """
-
         if isinstance(self._SFR_MODEL, str):
             val = self._sfr_models.index(self._SFR_MODEL.upper())
         else:

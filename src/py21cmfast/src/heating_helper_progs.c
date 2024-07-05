@@ -930,8 +930,11 @@ double tauX_integrand_MINI(double zhat, void *params){
         Mlim_Fesc = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params_hf->ALPHA_ESC, astro_params_hf->F_ESC10);
 
         // !!! SLTK: added input eff_or_SFR : USE eff
-        fcoll = Nion_General(zhat, global_params.M_MIN_INTEGRAL, Mcrit_atom_val, astro_params_hf->ALPHA_STAR, astro_params_hf->ALPHA_ESC,
-                             astro_params_hf->F_STAR10, astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+        // !!! SLTK: removed from input parameters that are in the astro_params dict
+        // fcoll = Nion_General(zhat, global_params.M_MIN_INTEGRAL, Mcrit_atom_val, astro_params_hf->ALPHA_STAR, astro_params_hf->ALPHA_ESC,
+        //                      astro_params_hf->F_STAR10, astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+        fcoll = Nion_General(zhat, global_params.M_MIN_INTEGRAL, Mcrit_atom_val, astro_params_hf->ALPHA_ESC,
+                             astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
 
         Mlim_Fstar_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params_hf->ALPHA_STAR_MINI,
                                                astro_params_hf->F_STAR7_MINI * pow(1e3, astro_params_hf->ALPHA_STAR_MINI));
@@ -989,8 +992,9 @@ double tauX_integrand(double zhat, void *params){
             Mlim_Fesc = Mass_limit_bisection(astro_params_hf->M_TURN/50., global_params.M_MAX_INTEGRAL, astro_params_hf->ALPHA_ESC, astro_params_hf->F_ESC10);
 
             // !!! SLTK: added input eff_or_SFR : USE eff
-            fcoll = Nion_General(zhat, astro_params_hf->M_TURN/50., astro_params_hf->M_TURN/50., astro_params_hf->ALPHA_STAR, astro_params_hf->ALPHA_ESC,
-                                 astro_params_hf->F_STAR10, astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+            // !!! SLTK: removed from input parameters that are in the astro_params dict
+            fcoll = Nion_General(zhat, astro_params_hf->M_TURN/50., astro_params_hf->M_TURN/50., astro_params_hf->ALPHA_ESC,
+                                  astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
         }
     }
     else {

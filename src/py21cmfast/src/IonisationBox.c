@@ -606,26 +606,34 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
         if (flag_options->USE_MINI_HALOS){
             if (previous_ionize_box->mean_f_coll * ION_EFF_FACTOR < 1e-4){
                 // !!! SLTK: added input eff_or_SFR : USE eff
-                box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                                astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                // !!! SLTK: removed from input parameters that are in the astro_params dict
+                // box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+                //                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                                astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
                 // !!! SLTK: added _sfrd
-                box->mean_f_coll_sfrd = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                                astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
+                box->mean_f_coll_sfrd = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                                astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
             }
             else{
                 box->mean_f_coll = previous_ionize_box->mean_f_coll + \
                                     // !!! SLTK: added input eff_or_SFR : USE eff
-                                    Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0) - \
-                                    Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                // !!! SLTK: removed from input parameters that are in the astro_params dict
+                                    // Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+                                    //              astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0) - \
+                                    // Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+                                    //              astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                                    Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                                 astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0) - \
+                                    Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                                 astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
                 // !!! SLTK: added _sfrd
                 box->mean_f_coll_sfrd = previous_ionize_box->mean_f_coll_sfrd + \
-                                    // !!! SLTK: added input eff_or_SFR : USE eff
-                                    Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1) - \
-                                    Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
+                                    // !!! SLTK: added input eff_or_SFR : USE SFR
+                                    Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                                 astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1) - \
+                                    Nion_General(prev_redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                                 astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
 
             }
             if (previous_ionize_box->mean_f_coll_MINI * ION_EFF_FACTOR_MINI < 1e-4){
@@ -643,20 +651,29 @@ LOG_SUPER_DEBUG("sigma table has been initialised");
                                                           Mlim_Fstar_MINI,Mlim_Fesc_MINI);
             }
             // !!! SLTK: added input eff_or_SFR : USE eff
-            f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,astro_params->ALPHA_STAR,
-                                      astro_params->ALPHA_ESC,astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                // !!! SLTK: removed from input parameters that are in the astro_params dict
+            // f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,astro_params->ALPHA_STAR,
+            //                           astro_params->ALPHA_ESC,astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+            f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,
+                                      astro_params->ALPHA_ESC,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
         }
         else{
             // !!! SLTK: added input eff_or_SFR : USE eff
-            box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                            astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+                // !!! SLTK: removed from input parameters that are in the astro_params dict
+            // box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+            //                                 astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+            box->mean_f_coll = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                            astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
             // !!! SLTK: added _sfrd
-            box->mean_f_coll_sfrd = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                            astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
+            box->mean_f_coll_sfrd = Nion_General(redshift,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                            astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,1);
             box->mean_f_coll_MINI = 0.;
             // !!! SLTK: added input eff_or_SFR : USE eff
-            f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
-                                      astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+            // !!! SLTK: removed from input parameters that are in the astro_params dict
+            // f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,
+            //                           astro_params->F_STAR10,astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
+            f_coll_min = Nion_General(global_params.Z_HEAT_MAX,M_MIN,Mturnover,astro_params->ALPHA_ESC,
+                                      astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc,0);
         }
     }
     else {
@@ -1037,8 +1054,12 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                             }
                         }
                         else{
+                        // !!! SLTK: removed parameters that are in the astro_params
+                            // initialise_Nion_General_spline(redshift,min_density,max_density,massofscaleR,astro_params->M_TURN,
+                            //                             astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                            //                             astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
                             initialise_Nion_General_spline(redshift,min_density,max_density,massofscaleR,astro_params->M_TURN,
-                                                        astro_params->ALPHA_STAR,astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                                                        astro_params->ALPHA_ESC,
                                                         astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
                         }
                     }
@@ -1132,9 +1153,15 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                         }
                                         else {
                                             // !!! SLTK: added eff_or_SFR flag and set to eff and z dependence
+                                            // !!! SLTK: removed inputs that are in astro_params
+                                            // Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
+                                            //                                   pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
+                                            //                                   astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                                            //                                   astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,redshift);
+
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
-                                                                              pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
-                                                                              astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                                                                              pow(10.,log10_Mturnover),
+                                                                              astro_params->ALPHA_ESC,
                                                                               astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,redshift);
 
                                             Splined_Fcoll_MINI = Nion_ConditionalM_MINI(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
@@ -1159,9 +1186,14 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                             }
                                             else {
                                                 // !!! SLTK: added eff_or_SFR flag and set to eff and z dependece
+                                                // !!! SLTK: removed inputs that are in astro_params
+                                                // prev_Splined_Fcoll = Nion_ConditionalM(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
+                                                //                                        pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
+                                                //                                        astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                                                //                                        astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,prev_redshift);
                                                 prev_Splined_Fcoll = Nion_ConditionalM(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
-                                                                                       pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
-                                                                                       astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                                                                                       pow(10.,log10_Mturnover),
+                                                                                       astro_params->ALPHA_ESC,
                                                                                        astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,prev_redshift);
 
                                                 prev_Splined_Fcoll_MINI = Nion_ConditionalM_MINI(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
@@ -1191,9 +1223,14 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                         }
                                         else {
                                     // !!! SLTK: added eff_or_SFR flag and set to eff and z dependence
+                                                // !!! SLTK: removed inputs that are in astro_params
+                                            // Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
+                                            //                                   astro_params->M_TURN,astro_params->ALPHA_STAR,
+                                            //                                   astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                                            //                                   astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,redshift);
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
-                                                                              astro_params->M_TURN,astro_params->ALPHA_STAR,
-                                                                              astro_params->ALPHA_ESC,astro_params->F_STAR10,
+                                                                              astro_params->M_TURN,
+                                                                              astro_params->ALPHA_ESC,
                                                                               astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,0,redshift);
                                         }
                                     }

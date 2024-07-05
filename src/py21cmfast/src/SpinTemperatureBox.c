@@ -1333,9 +1333,13 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
 
                     /* initialise interpolation of the mean collapse fraction for global reionization.*/
                     if (!flag_options->USE_MINI_HALOS){
+                        // !!! SLTK: removed paramters from the astro_params
+                        // initialise_Nion_Ts_spline(zpp_interp_points_SFR, determine_zpp_min, determine_zpp_max,
+                        //                          astro_params->M_TURN, astro_params->ALPHA_STAR, astro_params->ALPHA_ESC,
+                        //                          astro_params->F_STAR10, astro_params->F_ESC10);
                         initialise_Nion_Ts_spline(zpp_interp_points_SFR, determine_zpp_min, determine_zpp_max,
-                                                 astro_params->M_TURN, astro_params->ALPHA_STAR, astro_params->ALPHA_ESC,
-                                                 astro_params->F_STAR10, astro_params->F_ESC10);
+                                                 astro_params->M_TURN,  astro_params->ALPHA_ESC,
+                                                 astro_params->F_ESC10);
 
                         initialise_SFRD_spline(zpp_interp_points_SFR, determine_zpp_min, determine_zpp_max,
                                               astro_params->M_TURN, astro_params->ALPHA_STAR, astro_params->F_STAR10);
@@ -1464,9 +1468,13 @@ LOG_SUPER_DEBUG("got density gridpoints");
             if(user_params->USE_INTERPOLATION_TABLES) {
                 if (!flag_options->USE_MINI_HALOS){
                     // !!! SLTK: add z dependence
+                    // !!! SLTK: removed parameters that are in astro_params
+                    // initialise_SFRD_Conditional_table(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
+                    //                                  max_densities,zpp_growth,R_values, astro_params->M_TURN,
+                    //                                  astro_params->ALPHA_STAR, astro_params->F_STAR10, user_params->FAST_FCOLL_TABLES,zpp);
                     initialise_SFRD_Conditional_table(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
                                                      max_densities,zpp_growth,R_values, astro_params->M_TURN,
-                                                     astro_params->ALPHA_STAR, astro_params->F_STAR10, user_params->FAST_FCOLL_TABLES,zpp);
+                                                     user_params->FAST_FCOLL_TABLES,zpp);
                 }
                 else{
                     // !!! SLTK: add z dependence
@@ -1503,13 +1511,17 @@ LOG_SUPER_DEBUG("got density gridpoints");
 
                 if(flag_options->USE_MINI_HALOS) {
                     // !!! SLTK: added input eff_or_SFR : USE eff
-                    Splined_Fcollzp_mean = Nion_General(zp, global_params.M_MIN_INTEGRAL, atomic_cooling_threshold(zp), astro_params->ALPHA_STAR, astro_params->ALPHA_ESC,
-                                                        astro_params->F_STAR10, astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+            // !!! SLTK: removed from input parameters that are in the astro_params dict
+                    // Splined_Fcollzp_mean = Nion_General(zp, global_params.M_MIN_INTEGRAL, atomic_cooling_threshold(zp), astro_params->ALPHA_STAR, astro_params->ALPHA_ESC,
+                    //                                     astro_params->F_STAR10, astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+                    Splined_Fcollzp_mean = Nion_General(zp, global_params.M_MIN_INTEGRAL, atomic_cooling_threshold(zp),  astro_params->ALPHA_ESC,
+                                                        astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
                 }
                 else {
                     // !!! SLTK: added input eff_or_SFR : USE eff
-                    Splined_Fcollzp_mean = Nion_General(zp, M_MIN, astro_params->M_TURN, astro_params->ALPHA_STAR, astro_params->ALPHA_ESC,
-                                                    astro_params->F_STAR10, astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+            // !!! SLTK: removed from input parameters that are in the astro_params dict
+                    Splined_Fcollzp_mean = Nion_General(zp, M_MIN, astro_params->M_TURN, astro_params->ALPHA_ESC,
+                                                 astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
                 }
             }
 
@@ -1954,15 +1966,17 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                     if (flag_options->USE_MASS_DEPENDENT_ZETA) {
                         if(flag_options->USE_MINI_HALOS){
                         // !!! SLTK: added input eff_or_SFR : USE SFR
+                        // !!! SLTK: removed from input parameters that are in the astro_params dict
                             ST_over_PS[R_ct] *= Nion_General(zpp_for_evolve_list[R_ct], global_params.M_MIN_INTEGRAL, Mcrit_atom_interp_table[R_ct],
-                                                             astro_params->ALPHA_STAR, 0., astro_params->F_STAR10, 1.,Mlim_Fstar,0.,1);
+                                                              0., 1.,Mlim_Fstar,0.,1);
                             ST_over_PS_MINI[R_ct] *= Nion_General_MINI(zpp_for_evolve_list[R_ct], global_params.M_MIN_INTEGRAL, pow(10.,log10_Mcrit_LW_ave_list[R_ct]),
                                                                 Mcrit_atom_interp_table[R_ct], astro_params->ALPHA_STAR_MINI, 0.,
                                                                 astro_params->F_STAR7_MINI, 1.,Mlim_Fstar_MINI,0.);
                         }
                         else {
                             // !!! SLTK: added input eff_or_SFR : USE SFR
-                            ST_over_PS[R_ct] *= Nion_General(zpp_for_evolve_list[R_ct], M_MIN, astro_params->M_TURN, astro_params->ALPHA_STAR, 0., astro_params->F_STAR10, 1.,Mlim_Fstar,0.,1);
+                        // !!! SLTK: removed from input parameters that are in the astro_params dict
+                            ST_over_PS[R_ct] *= Nion_General(zpp_for_evolve_list[R_ct], M_MIN, astro_params->M_TURN, 0., 1.,Mlim_Fstar,0.,1);
                         }
                     }
                     else {
@@ -2547,8 +2561,11 @@ LOG_SUPER_DEBUG("looping over box...");
 
                                 if (flag_options->USE_MINI_HALOS){
                                     // !!! SLTK: added eff_or_SFR flag and set to SFR and z dependence
+                                    // !!! SLTK: removed inputs that are in astro_params
+                                    // fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,curr_dens,Mcrit_atom_interp_table[R_ct],
+                                    //                           astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,curr_dens,Mcrit_atom_interp_table[R_ct],
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
+                                                              0.,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
 
                                     fcoll_MINI = Nion_ConditionalM_MINI(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,\
                                                            curr_dens,pow(10,log10_Mcrit_LW[R_ct][box_ct]),Mcrit_atom_interp_table[R_ct],\
@@ -2558,8 +2575,11 @@ LOG_SUPER_DEBUG("looping over box...");
                                 }
                                 else {
                                     // !!! SLTK: added eff_or_SFR flag and set to SFR and z dependence
+                                    // !!! SLTK: removed inputs that are in astro_params
+                                    // fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(M_MIN),log(Mmax),sigmaMmax,Deltac,curr_dens,astro_params->M_TURN,
+                                    //                           astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(M_MIN),log(Mmax),sigmaMmax,Deltac,curr_dens,astro_params->M_TURN,
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
+                                                              0.,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
                                 }
                                 fcoll *= pow(10.,10.);
                             }
