@@ -135,9 +135,9 @@ LOG_SUPER_DEBUG("defined parameters");
 
 
     if(flag_options->USE_MASS_DEPENDENT_ZETA) {
-        // !!! SLTK: removed Fstar10 since it is already included in Ngeneral, which defines mean_fcoll (division M: that is already taken care from dNgeneral)
+        // !!! SLTK: removed Fstar10*Fesc  since it is already included in Ngeneral, which defines mean_fcoll (division M: that is already taken care from dNgeneral)
         // however, the definition of Nion uses f*, not SFR --> tstar not need to rescale
-        ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_ESC10;
+        ION_EFF_FACTOR = global_params.Pop2_ion ;
         // ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
         
         ION_EFF_FACTOR_MINI = global_params.Pop3_ion * astro_params->F_STAR7_MINI * astro_params->F_ESC7_MINI;
