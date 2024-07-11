@@ -38,9 +38,12 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK: 05/07/24')
+print('!!! SLTK: 11/07/24')
 print('We defined the SF efficiency function using Fstar*M*fduty*Fesc. We defined the SFR function using 1/(tstar*H).\n'
       'SFRD and Nion call separately either the SFR and the efficiency when using Fcoll.\n',
+      'We added to ps.c function to compute the HMF and to the wrapper functions to compute HMF and LF.',
+      '\n\n',
+      'Added SFR model from Bin Yue.'
       '\n\n',
       'NOTE: in IonisationBox, there is only one point in which the SFRD is required instead of Nion.\n',
       'For the moment, we collect the extra factor in the ST_over_PS factor but this is based on the assumption that the ratio is mass independent.\n',
@@ -1268,9 +1271,9 @@ class AstroParams(StructWithDefaults):
     _defaults_ = {
         "SFR_MODEL": 0, # !!! SLTK: new flag to set different SFR models
         "HII_EFF_FACTOR": 30.0,
-        "F_STAR10": -1.3,
+        "F_STAR10": -1.3, # !!! SLTK: this parameter is used in all the models to define some efficiency value
         "F_STAR7_MINI": -2.0,
-        "ALPHA_STAR": 0.5,
+        "ALPHA_STAR": 0.5, # !!! SLTK: this parameter is defined in all the models to define the power low that favours the larger halos
         "ALPHA_STAR_MINI": 0.5,
         "F_ESC10": -1.0,
         "F_ESC7_MINI": -2.0,
@@ -1284,16 +1287,24 @@ class AstroParams(StructWithDefaults):
         "X_RAY_SPEC_INDEX": 1.0,
         "X_RAY_Tvir_MIN": None,
         "F_H2_SHIELD": 0.0,
-        "t_STAR": 0.5,
-        "N_RSD_STEPS": 20,
         "A_LW": 2.00,
         "BETA_LW": 0.6,
         "A_VCB": 1.0,
         "BETA_VCB": 1.8,
+        "t_STAR": 0.5,
+        "N_RSD_STEPS": 20,
+
+        'sigma_Muv': 0.45, # !!! SLTK: to compute the luminosity function
+        # !!! SLTK: parameters for SFR_MODEL = 0
+        "MpYUE":11.73,
+        "GlowYUE":-0.49,
+        "Mdot12_YUE":24.1,
+        "Alpha_accrYUE":1.094,
+        "z_accrYUE":1.75,
     }
 
     # !!! SLTK: SFR_MODEL defined through strings
-    _sfr_models = ["MUN21"]
+    _sfr_models = ["MUN21", "YUE"]
 
     def __init__(
         self, *args, INHOMO_RECO=FlagOptions._defaults_["INHOMO_RECO"], **kwargs

@@ -96,6 +96,15 @@ struct AstroParams{
     float t_STAR;
 
     int N_RSD_STEPS;
+
+    float sigma_Muv; // !!! SLTK: to compute the luminosity function
+
+    // !!! SLTK: parameters for SFR_MODEL = 1
+    float MpYUE;
+    float GlowYUE;
+    float Mdot12_YUE;
+    float Alpha_accrYUE;
+    float z_accrYUE;
 };
 
 struct FlagOptions{
@@ -226,8 +235,13 @@ int ComputeZstart_PhotonCons(double *zstart);
 int ObtainPhotonConsData(double *z_at_Q_data, double *Q_data, int *Ndata_analytic, double *z_cal_data, double *nf_cal_data, int *Ndata_calibration,
                          double *PhotonCons_NFdata, double *PhotonCons_deltaz, int *Ndata_PhotonCons);
 
-int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,
-               struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, float *z_LF, float *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi);
+// !!! SLTK: added function to compute halo mass function
+int ComputeHMF_API(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options,
+                    int NUM_OF_REDSHIFT_FOR_HMF, float *z_HMF, double *M_h_z, double *HMF);
+
+// !!! SLTK: removed since it is now computed from the wrapper
+// int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,
+            //    struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, float *z_LF, float *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi);
 
 float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, int Npoints, float *redshifts, float *global_xHI);
 
