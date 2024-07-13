@@ -871,10 +871,10 @@ def Muv_of_Mh(*,
     elif astro_params.SFR_MODEL == 1:
 
 
-        Mpivot = pow(10,astro_params.MpYUE)
+        Mpivot = pow(10,astro_params.Mp)
 
         # in this model we re-label epsilon_0 -> Fstar10 , gamma_high -> Alpha_star this already contains the Omb/OmM factor
-        epsilon = 2*pow(10,astro_params.F_STAR10) / (pow(Mh / Mpivot, astro_params.GlowYUE) + pow(Mh / Mpivot, astro_params.ALPHA_STAR))
+        epsilon = 2*pow(10,astro_params.F_STAR10) / (pow(Mh / Mpivot, astro_params.ALPHA_STAR_LOWM) + pow(Mh / Mpivot, astro_params.ALPHA_STAR))
 
         epsilon[epsilon >= 1.] = 1.
 
@@ -884,6 +884,30 @@ def Muv_of_Mh(*,
         Mdot = amplitude_s * pow(Mh/1e12,astro_params.Alpha_accrYUE) * (1. + astro_params.z_accrYUE * redshifts)*np.sqrt(cosmo_params.OMm *pow(1+redshifts,3) + cosmo_params.OMl)
 
         SFR = epsilon * Mdot * cosmo_params.OMb / cosmo_params.OMm
+
+    # GALLUMI model II 
+    elif astro_params.SFR_MODEL == 2:        
+
+        redshifts.shape = (len(redshifts), 1)
+        eps_star = pow((1+redshifts)/7,astro_params.EPS_STAR_S_G) * pow(10,astro_params.F_STAR10)
+
+        Mpivot = pow((1+redshifts)/7.,astro_params.alpha_z_M_GALLUMI) * pow(10,astro_params.Mp)
+        M_c = pow((1+redshifts)/7,astro_params.M_C_S_G) * pow(10,astro_params.Mp) 
+
+        Fstar = eps_star / (pow(Mh/M_c,astro_params.ALPHA_STAR_LOWM) + pow(Mh/M_c,astro_params.ALPHA_STAR))
+    
+        Fstar[Fstar >= 1.] = 1.
+
+        M_star = Fstar * Mh # GALLUMI already includes OMb/OMm in epsilon
+
+        H_z = cosmo_params.hlittle * np.sqrt(
+        cosmo_params.OMm * np.power(1 + redshifts, 3) + global_params.OMr * np.power(1 + redshifts,4) + cosmo_params.OMl) * 3.2407e-18  # units of 1/s
+        H_z *= 3.1536e7  # convert from 1/s to 1/year
+
+        H_z.shape = (len(redshifts), 1)
+
+        SFR = M_star * H_z / astro_params.t_STAR
+
     else: 
         print('SFR MODEL not implemented yet!')
         return -1
@@ -989,7 +1013,7 @@ def compute_luminosity_function(*,
                     - erf((m_uv_z - m_uv - width / 2.0) / (sigma_uv * np.sqrt(2)))
             )
 
-            if astro_params.SFR_MODEL == 0:
+            if astro_params.SFR_MODEL == 0 or astro_params.SFR_MODEL == 2:
                 f_duty = np.exp(-M_turn/ Mh_HMF[i])
             elif astro_params.SFR_MODEL == 1:
                 f_duty = np.exp(-M_turn*pow((1+redshifts[i])/7.,-1.5)/Mh_HMF[i])

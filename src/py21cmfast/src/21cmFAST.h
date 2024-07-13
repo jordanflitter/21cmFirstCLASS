@@ -71,8 +71,8 @@ struct AstroParams{
 
     float HII_EFF_FACTOR;
 
-    float F_STAR10;
-    float ALPHA_STAR;
+    float F_STAR10; //  !!! SLTK: this parameter is used in all the models to define some efficiency value - epsilon
+    float ALPHA_STAR; // !!!  SLTK: this parameter is used in all the models to define some efficiency value - ALPHA_HIGH_M
     float ALPHA_STAR_MINI;
     float F_ESC10;
     float ALPHA_ESC;
@@ -99,12 +99,18 @@ struct AstroParams{
 
     float sigma_Muv; // !!! SLTK: to compute the luminosity function
 
+    // !!! SLTK: parameters for SFR_MODEL with double power law
+    float Mp;
+    float ALPHA_STAR_LOWM;
+
     // !!! SLTK: parameters for SFR_MODEL = 1
-    float MpYUE;
-    float GlowYUE;
     float Mdot12_YUE;
     float Alpha_accrYUE;
     float z_accrYUE;
+
+    // !!! SLTK: parameters for SFR_MODEL = 2
+    float EPS_STAR_S_G;
+    float M_C_S_G;
 };
 
 struct FlagOptions{

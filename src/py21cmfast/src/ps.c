@@ -71,6 +71,8 @@ double R_CUTOFF;
 float MinMass, mass_bin_width, inv_mass_bin_width;
 
 double sigmaparam_FgtrM_bias(float z, float sigsmallR, float del_bias, float sig_bias);
+// !!! SLTK: added to use it inside other functions
+double ddicke_dz(double z);
 
 float *Mass_InterpTable, *Sigma_InterpTable, *dSigmadm_InterpTable;
 
@@ -179,6 +181,7 @@ struct parameters_SFR_efficiency {
     double LimitMass_Fstar;
     double LimitMass_Fesc;
     double redshift;
+    double growthf;
 };
 
 struct parameters_gsl_SFR_General_int_{
@@ -1306,6 +1309,8 @@ double SFR_efficiency_function(double lnM, void *params){
     double Alpha_esc = vals.pl_esc;
     double Fstar10 = vals.frac_star;
     double Fesc10 = vals.frac_esc;
+    double growthf = vals.growthf;
+
     double Mlim_Fesc = vals.LimitMass_Fesc;
     double redshift = vals.redshift;
     double t_star = astro_params_ps->t_STAR;
@@ -1345,11 +1350,11 @@ double SFR_efficiency_function(double lnM, void *params){
         double Mdot;
         double sec_to_yr, amplitude_s;
 
-        Mpivot = pow(10,astro_params_ps->MpYUE);
+        Mpivot = pow(10,astro_params_ps->Mp);
 
         // in this model we re-label epsilon_0 -> Fstar10 , gamma_high -> Alpha_star
         // this already contains the Omb/OmM factor
-        epsilon = 2*Fstar10 / (pow(M / Mpivot, astro_params_ps->GlowYUE) + pow(M / Mpivot, Alpha_star));
+        epsilon = 2*Fstar10 / (pow(M / Mpivot, astro_params_ps->ALPHA_STAR_LOWM) + pow(M / Mpivot, Alpha_star));
 
         if (epsilon > 1.){ epsilon = 1.;}
 
@@ -1361,7 +1366,26 @@ double SFR_efficiency_function(double lnM, void *params){
         Mdot = amplitude_s * pow(M/1e12,astro_params_ps->Alpha_accrYUE) * (1. + astro_params_ps->z_accrYUE * redshift)*sqrt(cosmo_params_ps->OMm *pow(1+redshift,3) + cosmo_params_ps->OMl);
 
         epsilon *= Mdot * t_star / hubble(redshift);        
+    }
 
+    // model II from GALLUMI
+    else if(astro_params_ps->SFR_MODEL==2){
+
+        double MassTurnover = vals.Mdrop;
+        double eps_star, M_c;        
+
+        eps_star = pow((1+redshift)/7,astro_params_ps->EPS_STAR_S_G) * pow(10,Fstar10);
+
+        M_c = pow((1+redshift)/7,astro_params_ps->M_C_S_G) * pow(10,astro_params_ps->Mp) ;        
+
+        Fstar = (eps_star / (pow(M/M_c,astro_params_ps->ALPHA_STAR_LOWM) + pow(M/M_c,Alpha_star))) / ((cosmo_params_ps->OMb)/(cosmo_params_ps->OMm));        
+
+        if (Fstar > 1.){Fstar = 1.;}
+        
+        fduty = exp(-MassTurnover/M);
+        Mstar = M ; // !!! SLTK: there should be also: * cosmo_params_ps->OMb / cosmo_params_ps->OMm ;
+        // !!! SLTK : riscale to be consistent with the quantities throughout the code 
+        epsilon = Mstar * Fstar * fduty;
     }
 
     // !!! TO BE CHANGED !!!
@@ -1388,23 +1412,10 @@ double SFR_function(double efficiency, double redshift, double lnM){
     double SFR;
     double t_star = astro_params_ps->t_STAR;
 
-    M = exp(lnM);
+    // !!! SLTK: we account for a typical interval of time 
+    // This is the definition of SFR in MUN21, but in other models it just accounts for the interval factor that was introduced in the SF_efficiency
+    SFR = efficiency  / t_star * hubble(redshift);
 
-    // reproduce original modeling (MUN21)
-    if(astro_params_ps->SFR_MODEL==0){
-
-        SFR = efficiency  / t_star * hubble(redshift);
-    }
-
-    // model from Bin Yue
-    else if(astro_params_ps->SFR_MODEL==1){
-
-        SFR = efficiency / t_star * hubble(redshift) ;
-    }
-    // !!! TO BE CHANGED !!!
-    else{
-        SFR = 0.;
-    }
     return SFR;
 
 }
@@ -1436,7 +1447,8 @@ double dNion_General(double lnM, void *params){
         .frac_esc = vals.frac_esc,
         .LimitMass_Fstar = vals.LimitMass_Fstar,
         .LimitMass_Fesc = vals.LimitMass_Fesc,
-        .redshift = vals.z_obs
+        .redshift = vals.z_obs,
+        .growthf = vals.gf_obs
     };
 
 
@@ -2522,6 +2534,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
         .LimitMass_Fstar = vals.LimitMass_Fstar,
         .LimitMass_Fesc = vals.LimitMass_Fesc,
         .redshift = vals.z,
+        .growthf = vals.gf_obs
     };
 
     // !!! SLTK: changed Fstar -> Fstaresc_M since our output is M*Fstar*Fesc
@@ -2770,6 +2783,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
         .LimitMass_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar,
         .LimitMass_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc,
         .redshift = parameters_gsl_SFR_con.z,
+        .growthf = parameters_gsl_SFR_con.gf_obs
     };
 
     // !!! SLTK: changed Fstar -> Fstaresc_M since our output is M*Fstar
