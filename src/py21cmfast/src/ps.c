@@ -57,6 +57,8 @@ int N_NFsamples,N_extrapolated, N_analytic, N_calibrated, N_deltaz;
 
 // !!! SLTK: added HMF computation
 bool initialised_HMF = false;
+// !!! SLTK: added function to output the SFR in the wrapper
+bool initialised_wSFR = false;
 
 struct CosmoParams *cosmo_params_ps;
 struct UserParams *user_params_ps;
@@ -102,13 +104,17 @@ void freeSigmaMInterpTable();
 void initialiseGL_Nion(int n, float M_Min, float M_Max);
 void initialiseGL_Nion_Xray(int n, float M_Min, float M_Max);
 
-float Mass_limit (float logM, float PL, float FRAC);
+// !!! SLTK: changed inputs
+// float Mass_limit (float logM, float PL, float FRAC);
+float Mass_limit (float logM, int type, double z);
 void bisection(float *x, float xlow, float xup, int *iter);
+
 // !!! SLTK: removed parameters that are in astro_params
-float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
+// float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
+float Mass_limit_bisection(float Mmin, float Mmax, int type, double z);
 
 // !!! SLTK: introduced a new function to model the SFR efficiency and SFR
-double SFR_efficiency_function(double lnM, void *params);
+double SFR_efficiency_function(double lnM, int output, void *params);
 double SFR_function(double efficiency, double redshift, double lnM);
 
 double sheth_delc(double del, double sig);
@@ -119,6 +125,7 @@ double dNion_ConditionallnM(double lnM, void *params);
 // double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR, double z);
 double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_esc, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, int eff_or_SFR, double z);
 double dNion_ConditionallnM_MINI(double lnM, void *params);
+// !!! SLTK: removed fstar10 and alpha_star, they are in astro_ps
 double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double MassTurnover_upper, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES);
 
 // !!! SLTK: added eff_or_SFR flag and z dependence
@@ -173,10 +180,8 @@ struct parameters_gsl_FgtrM_int_{
 // !!! SLTK: created structure containing shared parameters to be used to compute the efficiency
 struct parameters_SFR_efficiency {
     double Mdrop;
-    double Mdrop_upper;
-    double pl_star;
+    // double Mdrop_upper;
     double pl_esc;
-    double frac_star;
     double frac_esc;
     double LimitMass_Fstar;
     double LimitMass_Fesc;
@@ -189,6 +194,7 @@ struct parameters_gsl_SFR_General_int_{
     double gf_obs;
     double Mdrop;
     double Mdrop_upper;
+    // !!! SLTK: when fixing popIII, remove pl_star and frac_star
     double pl_star;
     double pl_esc;
     double frac_star;
@@ -207,6 +213,7 @@ struct parameters_gsl_SFR_con_int_{
     double delta2;
     double Mdrop;
     double Mdrop_upper;
+    // !!! SLTK: when fixing popIII, remove pl_star and frac_star
     double pl_star;
     double pl_esc;
     double frac_star;
@@ -1301,13 +1308,11 @@ double FgtrM_General(double z, double M){
 }
 
 // !!! SLTK: defined new function to model SFR efficiency
-double SFR_efficiency_function(double lnM, void *params){
+double SFR_efficiency_function(double lnM, int output, void *params){
 
     struct parameters_SFR_efficiency vals = *(struct parameters_SFR_efficiency *)params;
 
-    double Alpha_star = vals.pl_star;
     double Alpha_esc = vals.pl_esc;
-    double Fstar10 = vals.frac_star;
     double Fesc10 = vals.frac_esc;
     double growthf = vals.growthf;
 
@@ -1330,12 +1335,13 @@ double SFR_efficiency_function(double lnM, void *params){
         double MassTurnover = vals.Mdrop;
         double Mlim_Fstar = vals.LimitMass_Fstar;
 
-        if (Alpha_star > 0. && M > Mlim_Fstar)
+        Fstar = astro_params_ps->F_STAR10 * pow(M/1e10,astro_params_ps->ALPHA_STAR);
+        if (output == 0){return Fstar;}
+
+        if (astro_params_ps->ALPHA_STAR > 0. && M > Mlim_Fstar)
             Fstar = 1.;
-        else if (Alpha_star < 0. && M < Mlim_Fstar)
+        else if (astro_params_ps->ALPHA_STAR < 0. && M < Mlim_Fstar)
             Fstar = 1;
-        else
-            Fstar = Fstar10 * pow(M/1e10,Alpha_star);
 
         fduty = exp(-MassTurnover/M);
         Mstar = M ; // !!! SLTK: there should be also: * cosmo_params_ps->OMb / cosmo_params_ps->OMm ;
@@ -1346,17 +1352,18 @@ double SFR_efficiency_function(double lnM, void *params){
     // model from Bin Yue
     else if(astro_params_ps->SFR_MODEL==1){
 
-        double Mpivot;
+        double M_c;
         double Mdot;
         double sec_to_yr, amplitude_s;
 
-        Mpivot = pow(10,astro_params_ps->Mp);
+        M_c = pow(10,astro_params_ps->Mp);
 
         // in this model we re-label epsilon_0 -> Fstar10 , gamma_high -> Alpha_star
         // this already contains the Omb/OmM factor
-        epsilon = 2*Fstar10 / (pow(M / Mpivot, astro_params_ps->ALPHA_STAR_LOWM) + pow(M / Mpivot, Alpha_star));
+        Fstar = 2*astro_params_ps->F_STAR10 / (pow(M / M_c, astro_params_ps->ALPHA_STAR_HIGHM) + pow(M / M_c, astro_params_ps->ALPHA_STAR));
+        if (output == 0){return Fstar;}
 
-        if (epsilon > 1.){ epsilon = 1.;}
+        if (Fstar > 1.){ Fstar = 1.;}
 
         fduty = exp(- astro_params_ps->M_TURN*pow((1+redshift)/7.,-1.5)/M);
 
@@ -1365,7 +1372,7 @@ double SFR_efficiency_function(double lnM, void *params){
 
         Mdot = amplitude_s * pow(M/1e12,astro_params_ps->Alpha_accrYUE) * (1. + astro_params_ps->z_accrYUE * redshift)*sqrt(cosmo_params_ps->OMm *pow(1+redshift,3) + cosmo_params_ps->OMl);
 
-        epsilon *= Mdot * t_star / hubble(redshift);        
+        epsilon = Fstar * Mdot * t_star / hubble(redshift);        
     }
 
     // model II from GALLUMI
@@ -1374,11 +1381,12 @@ double SFR_efficiency_function(double lnM, void *params){
         double MassTurnover = vals.Mdrop;
         double eps_star, M_c;        
 
-        eps_star = pow((1+redshift)/7,astro_params_ps->EPS_STAR_S_G) * pow(10,Fstar10);
+        eps_star = pow((1+redshift)/7,astro_params_ps->EPS_STAR_S_G) * astro_params_ps->F_STAR10 ; // !!! SLTK: Fstar 10 is already 10^ in the input 
 
         M_c = pow((1+redshift)/7,astro_params_ps->M_C_S_G) * pow(10,astro_params_ps->Mp) ;        
 
-        Fstar = (eps_star / (pow(M/M_c,astro_params_ps->ALPHA_STAR_LOWM) + pow(M/M_c,Alpha_star))) / ((cosmo_params_ps->OMb)/(cosmo_params_ps->OMm));        
+        Fstar = (eps_star / (pow(M/M_c,astro_params_ps->ALPHA_STAR_HIGHM) + pow(M/M_c,astro_params_ps->ALPHA_STAR))) / ((cosmo_params_ps->OMb)/(cosmo_params_ps->OMm));        
+        if (output == 0){return Fstar;}
 
         if (Fstar > 1.){Fstar = 1.;}
         
@@ -1421,6 +1429,104 @@ double SFR_function(double efficiency, double redshift, double lnM){
 }
 
 
+// !!! SLTK: added function to output the SFR in the wrapper
+int initialise_wSFR(struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options) {
+
+    Broadcast_struct_global_PS(user_params,cosmo_params, astro_params, flag_options);
+    Broadcast_struct_global_UF(user_params,cosmo_params);
+
+    init_ps();
+
+    int status;
+    Try initialiseSigmaMInterpTable(0.999*Mhalo_min,1.001*Mhalo_max);
+    Catch(status) {
+        LOG_ERROR("\t...called from initialise_wSFR");
+        return(status);
+    }
+
+    initialised_wSFR = true;
+    return(0);
+}
+
+void cleanup_wSFR(){
+    freeSigmaMInterpTable();
+    initialised_wSFR = 0;
+}
+
+int output_wSFR(struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options, int NUM_OF_REDSHIFT_FOR_SFR, float *z_SFR, int NUM_OF_Mh_FOR_SFR, double *M_h_z, double *SFR) {
+
+    /*
+    This is an API-level function and thus returns an int status.
+    */
+    int status;
+    
+    Try{ // This try block covers the whole function.
+    // This NEEDS to be done every time, because the actual object passed in as
+    // user_params, cosmo_params etc. can change on each call, freeing up the memory.
+    initialise_wSFR(user_params,cosmo_params,astro_params,flag_options);
+
+    if (!user_params_ps->USE_DICKE_GROWTH_FACTOR || user_params_ps->EVOLVE_BARYONS) {
+        init_CLASS_GROWTH_FACTOR();
+    }
+
+    int i_m,i_z;
+    double  SF_efficiency;
+    double Mlim_Fstar, f_duty;
+    float Mmin = astro_params->M_TURN/50.;
+    float Mmax = global_params.M_MAX_INTEGRAL;
+
+    double  lnMhalo_i;
+    // double  lnMhalo_lo, lnMhalo_hi, dlnM;
+// 
+    // lnMhalo_lo = log(Mhalo_min);
+    // lnMhalo_hi = log(Mhalo_max);
+    // dlnM = (lnMhalo_hi - lnMhalo_lo)/(double)(nbins - 1);
+
+    for (i_z=0; i_z<NUM_OF_REDSHIFT_FOR_SFR; i_z++) {
+
+        Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, 0, z_SFR[i_z]);
+
+        // !!! SLTK: the SFR is defined without fescape -> set to 0 ; moreover, it is defined without fduty -> setting Mdrop to 0 the exp goes to 1 
+        struct parameters_SFR_efficiency use_vals = {
+            .Mdrop = 0.,
+            .pl_esc = 0.,
+            .frac_esc = 1.,
+            .LimitMass_Fstar = Mlim_Fstar,
+            .LimitMass_Fesc = 0.,
+            .redshift = z_SFR[i_z],
+            .growthf = dicke(z_SFR[i_z]),
+        };
+
+        for (i_m=0; i_m<NUM_OF_Mh_FOR_SFR; i_m++) {
+
+            // lnMhalo_i = lnMhalo_lo + dlnM*(double)i;
+            // M_h_z[i_z + i_z*NUM_OF_Mh_FOR_SFR] = exp(lnMhalo_i);
+
+            lnMhalo_i = log(M_h_z[i_m]);
+            SF_efficiency = SFR_efficiency_function(lnMhalo_i,1,&use_vals);
+
+            // !!! SLTK: this model has a different fduty
+            if (astro_params->SFR_MODEL==1)
+                {SF_efficiency /= exp(- astro_params_ps->M_TURN*pow((1+z_SFR[i_z])/7.,-1.5)/exp(lnMhalo_i));}
+
+            // !!! SLTK: in units 1/yr
+            SFR[i_m + i_z*NUM_OF_Mh_FOR_SFR] = SFR_function(SF_efficiency,z_SFR[i_z],lnMhalo_i) * (cosmo_params->OMb/cosmo_params->OMm) / 3.16880878e-08;
+        }
+    }  
+    cleanup_wSFR();
+
+    // we need destruct_CLASS_GROWTH_FACTOR() if the following conditions are satisfied
+    if (!user_params_ps->USE_DICKE_GROWTH_FACTOR || user_params_ps->EVOLVE_BARYONS) {
+          destruct_CLASS_GROWTH_FACTOR();
+    }    } // End try
+
+    Catch(status){
+        return status;
+    }
+    return(0);
+}
+
+
 double dNion_General(double lnM, void *params){
 
     struct parameters_gsl_SFR_General_int_ vals = *(struct parameters_gsl_SFR_General_int_ *)params;
@@ -1441,9 +1547,7 @@ double dNion_General(double lnM, void *params){
     // !!! SLTK: struct to be passed to SFR efficiency 
     struct parameters_SFR_efficiency parameters_SFReff = {
         .Mdrop = vals.Mdrop,
-        .pl_star = vals.pl_star,
         .pl_esc = vals.pl_esc,
-        .frac_star = vals.frac_star,
         .frac_esc = vals.frac_esc,
         .LimitMass_Fstar = vals.LimitMass_Fstar,
         .LimitMass_Fesc = vals.LimitMass_Fesc,
@@ -1467,7 +1571,7 @@ double dNion_General(double lnM, void *params){
         // Fstar = pow(M/1e10,Alpha_star);
     
     // !!! SLTK: compute M*Fstar, namely the efficiency, or the SFR
-    Fstaresc_M = SFR_efficiency_function(lnM, &parameters_SFReff);
+    Fstaresc_M = SFR_efficiency_function(lnM, 1, &parameters_SFReff);
     if (eff_or_SFR == 0){
         use_quantity = Fstaresc_M;
     }
@@ -1526,8 +1630,6 @@ double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_es
         .pl_esc = Alpha_esc,
         // .frac_star = Fstar10,
         .frac_esc = Fesc10,
-        .pl_star = astro_params_ps->ALPHA_STAR,
-        .frac_star = astro_params_ps->F_STAR10,
         .LimitMass_Fstar = Mlim_Fstar,
         .LimitMass_Fesc = Mlim_Fesc,
         // !!! SLTK: added to specify if you want efficiency or SFR
@@ -2005,15 +2107,44 @@ double dSDGF_SDM_dz(double z,double k){
 
 
 /* compute a mass limit where the stellar baryon fraction and the escape fraction exceed unity */
-float Mass_limit (float logM, float PL, float FRAC) {
-    return FRAC*pow(pow(10.,logM)/1e10,PL);
+// !!! SLTK: generalized input to distinguish efficiency / escape, in the first case use our external function 
+// float Mass_limit (float logM, float PL, float FRAC) {
+//     return FRAC*pow(pow(10.,logM)/1e10,PL);
+// }
+float Mass_limit (float logM, int type, double z) {
+
+    if (type == 0){
+        double efficiency;
+        
+        // !!! SLTK: the parameters that have 0. are not used to estimate the efficiency required in this function
+        struct parameters_SFR_efficiency fudges = {
+            .Mdrop = 0.,
+            .pl_esc = 0.,
+            .frac_esc = 0.,
+            .LimitMass_Fstar =0.,
+            .LimitMass_Fesc = 0.,
+            .redshift = z,
+            .growthf = dicke(z) // !!! SLTK: TO CHECK !!! 
+        };
+        efficiency = SFR_efficiency_function(log(pow(10,logM)), 0, &fudges);
+        return efficiency;}
+
+    else if (type == 1)
+        {return astro_params_ps->F_ESC10*pow(pow(10.,logM)/1e10,astro_params_ps->ALPHA_ESC);}
+    // !!! SLTK
+    else if (type == 2)
+        {return astro_params_ps->F_STAR7_MINI * pow(1e3, astro_params_ps->ALPHA_STAR_MINI);}
+    else if (type == 3)
+        {return astro_params_ps->F_ESC7_MINI * pow(1e3, astro_params_ps->ALPHA_ESC);}
 }
 void bisection(float *x, float xlow, float xup, int *iter){
     *x=(xlow + xup)/2.;
     ++(*iter);
 }
 
-float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
+// !!! SLTK: generalized input to distinguish efficiency / escape, in the first case use our external function 
+// float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
+float Mass_limit_bisection(float Mmin, float Mmax, int type, double z){
     int i, iter, max_iter=200;
     float rel_tol=0.001;
     float logMlow, logMupper, x, x1;
@@ -2021,21 +2152,60 @@ float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
     logMlow = log10(Mmin);
     logMupper = log10(Mmax);
 
-    if (PL < 0.) {
-        if (Mass_limit(logMlow,PL,FRAC) <= 1.) {
-            return Mmin;
+    if (type == 0){
+        // !!! SLTK: we changed the if but the result is the same
+        if (Mass_limit(logMlow,type,z) > Mass_limit(logMupper,type,z)) {
+            if (Mass_limit(logMlow,type,z) <= 1.) {
+                return Mmin;}
+            }
+        else if (Mass_limit(logMlow,type,z) < Mass_limit(logMupper,type,z)) {
+            if (Mass_limit(logMupper,type,z) <= 1.) {
+                    return Mmax;
+                }
         }
-    }
-    else if (PL > 0.) {
-        if (Mass_limit(logMupper,PL,FRAC) <= 1.) {
-            return Mmax;
+            else
+                return 0;   
         }
+
+    else if ((type == 1) || (type == 3)){
+        if (astro_params_ps->ALPHA_ESC < 0.) {
+            // if (Mass_limit(logMlow,PL,FRAC) <= 1.) {
+            if (Mass_limit(logMlow,type,z) <= 1.) {
+                    return Mmin;
+                }
+            }
+        else if (astro_params_ps->ALPHA_ESC > 0.) {
+            // !!! SLTK
+            // if (Mass_limit(logMupper,PL,FRAC) <= 1.) {
+            if (Mass_limit(logMupper,type,z) <= 1.) {
+                    return Mmax;
+                }
+            }
+            else
+                return 0;        
     }
-    else
-        return 0;
+    else if (type == 2) {
+        if (astro_params_ps->ALPHA_STAR_MINI < 0.) {
+            // if (Mass_limit(logMlow,PL,FRAC) <= 1.) {
+            if (Mass_limit(logMlow,type,z) <= 1.,z) {
+                    return Mmin;
+                }
+            }
+        else if (astro_params_ps->ALPHA_STAR_MINI > 0.) {
+            // !!! SLTK
+            // if (Mass_limit(logMupper,PL,FRAC) <= 1.) {
+            if (Mass_limit(logMupper,type,z) <= 1.,z) {
+                    return Mmax;
+                }
+            }
+        else
+            return 0;        
+    }
     bisection(&x, logMlow, logMupper, &iter);
     do {
-        if((Mass_limit(logMlow,PL,FRAC)-1.)*(Mass_limit(x,PL,FRAC)-1.) < 0.)
+        // !!! SLTK
+        // if((Mass_limit(logMlow,PL,FRAC)-1.)*(Mass_limit(x,PL,FRAC)-1.) < 0.)
+        if((Mass_limit(logMlow,type,z)-1.)*(Mass_limit(x,type,z)-1.) < 0.)
             logMupper = x;
         else
             logMlow = x;
@@ -2527,9 +2697,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
     // !!! SLTK: struct to be passed to SFR efficiency 
     struct parameters_SFR_efficiency parameters_SFReff = {
         .Mdrop = vals.Mdrop,
-        .pl_star = vals.pl_star,
         .pl_esc = vals.pl_esc,
-        .frac_star = vals.frac_star,
         .frac_esc = vals.frac_esc,
         .LimitMass_Fstar = vals.LimitMass_Fstar,
         .LimitMass_Fesc = vals.LimitMass_Fesc,
@@ -2550,7 +2718,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
     //     Fstar = pow(M/1e10,Alpha_star);
 
     // !!! SLTK: compute and distinguish between M*Fstar and SFR
-    Fstaresc_M = SFR_efficiency_function(lnM, &parameters_SFReff); 
+    Fstaresc_M = SFR_efficiency_function(lnM, 1, &parameters_SFReff); 
     if (eff_or_SFR == 0){
         use_quantity = Fstaresc_M ;
     }
@@ -2617,7 +2785,7 @@ double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma
         LOG_ERROR("gsl integration error occured!");
         LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
         LOG_ERROR("data: growthf=%e M2=%e sigma2=%e delta1=%e delta2=%e MassTurnover=%e",growthf,M2,sigma2,delta1,delta2,MassTurnover);
-        LOG_ERROR("data: MassTurnover_upper=%e Alpha_star=%e Alpha_esc=%e Fstar10=%e Fesc10=%e Mlim_Fstar=%e Mlim_Fesc=%e",MassTurnover_upper,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc);
+        LOG_ERROR("data: MassTurnover_upper=%e Alpha_star=%e Alpha_esc=%e Fstar10=%e Fesc10=%e Mlim_Fstar=%e Mlim_Fesc=%e",MassTurnover_upper,astro_params_ps->ALPHA_STAR,Alpha_esc,astro_params_ps->F_STAR10,Fesc10,Mlim_Fstar,Mlim_Fesc);
         GSL_ERROR(status);
     }
 
@@ -2667,10 +2835,8 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
         .Mdrop = MassTurnover,
         // !!! SLTK: paramters are taken from astro_params
         // .pl_star = Alpha_star,
-        .pl_star = astro_params_ps->ALPHA_STAR,
         .pl_esc = Alpha_esc,
         // .frac_star = Fstar10,
-        .frac_star = astro_params_ps->F_STAR10,
         .frac_esc = Fesc10,
         .LimitMass_Fstar = Mlim_Fstar,
         .LimitMass_Fesc = Mlim_Fesc,
@@ -2776,9 +2942,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     // !!! SLTK: struct to be passed to SFR efficiency 
     struct parameters_SFR_efficiency parameters_SFReff = {
         .Mdrop = parameters_gsl_SFR_con.Mdrop,
-        .pl_star = parameters_gsl_SFR_con.pl_star,
         .pl_esc = parameters_gsl_SFR_con.pl_esc,
-        .frac_star = parameters_gsl_SFR_con.frac_star,
         .frac_esc = parameters_gsl_SFR_con.frac_esc,
         .LimitMass_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar,
         .LimitMass_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc,
@@ -2799,7 +2963,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     //     Fstar = pow(M/1e10,Alpha_star);
 
     // !!! SLTK: compute M*Fstar and SFR and distinguish when to use it 
-    Fstaresc_M = SFR_efficiency_function(lnM, &parameters_SFReff);
+    Fstaresc_M = SFR_efficiency_function(lnM, 1, &parameters_SFReff);
     if (eff_or_SFR == 0){
         use_quantity = Fstaresc_M ;
     }
@@ -2970,10 +3134,8 @@ float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sig
         .Mdrop = MassTurnover,
         // !!! SLTK: parameters are from the astro_params
         // .pl_star = Alpha_star,
-        .pl_star = astro_params_ps->ALPHA_STAR,
         .pl_esc = Alpha_esc,
         // .frac_star = Fstar10,
-        .frac_star = astro_params_ps->F_STAR10,
         .frac_esc = Fesc10,
         .LimitMass_Fstar = Mlim_Fstar,
         .LimitMass_Fesc = Mlim_Fesc,
@@ -3212,8 +3374,13 @@ void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_de
         Mturns_MINI[i] = pow(10., log10Mturn_min_MINI + (float)i/((float)NMTURN-1.)*(log10Mturn_max_MINI-log10Mturn_min_MINI));
     }
 
+// !!! SLTK: removed parameters in astro_par
+// #pragma omp parallel shared(log10_Nion_spline,growthf,Mmax,sigma2,log10_overdense_spline_SFR,Mturns,Mturns_MINI,\
+//                             Alpha_star,Alpha_star_mini,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,ln_10,log10_Nion_spline_MINI,Mcrit_atom,\
+//                             Fstar7_MINI,Fesc7_MINI,Mlim_Fstar_MINI,Mlim_Fesc_MINI) \
+//                     private(i,j) num_threads(user_params_ps->N_THREADS)
 #pragma omp parallel shared(log10_Nion_spline,growthf,Mmax,sigma2,log10_overdense_spline_SFR,Mturns,Mturns_MINI,\
-                            Alpha_star,Alpha_star_mini,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,ln_10,log10_Nion_spline_MINI,Mcrit_atom,\
+                            Alpha_star_mini,Alpha_esc,Fesc10,Mlim_Fstar,Mlim_Fesc,ln_10,log10_Nion_spline_MINI,Mcrit_atom,\
                             Fstar7_MINI,Fesc7_MINI,Mlim_Fstar_MINI,Mlim_Fesc_MINI) \
                     private(i,j) num_threads(user_params_ps->N_THREADS)
     {
@@ -3366,8 +3533,13 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
         Mturns_MINI[i] = pow(10., log10Mturn_min_MINI + (float)i/((float)NMTURN-1.)*(log10Mturn_max_MINI-log10Mturn_min_MINI));
     }
 
-#pragma omp parallel shared(prev_log10_Nion_spline,growthf,Mmax,sigma2,prev_log10_overdense_spline_SFR,Mturns,Alpha_star,Alpha_star_mini,\
-                            Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,prev_log10_Nion_spline_MINI,Mturns_MINI,Mcrit_atom,\
+// !!! SLTK: removed parameters in astro_par
+// #pragma omp parallel shared(prev_log10_Nion_spline,growthf,Mmax,sigma2,prev_log10_overdense_spline_SFR,Mturns,Alpha_star,Alpha_star_mini,\
+//                             Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,prev_log10_Nion_spline_MINI,Mturns_MINI,Mcrit_atom,\
+//                             Fstar7_MINI,Fesc7_MINI,Mlim_Fstar_MINI,Mlim_Fesc_MINI) \
+//                     private(i,j) num_threads(user_params_ps->N_THREADS)
+#pragma omp parallel shared(prev_log10_Nion_spline,growthf,Mmax,sigma2,prev_log10_overdense_spline_SFR,Mturns,Alpha_star_mini,\
+                            Alpha_esc,Fesc10,Mlim_Fstar,Mlim_Fesc,prev_log10_Nion_spline_MINI,Mturns_MINI,Mcrit_atom,\
                             Fstar7_MINI,Fesc7_MINI,Mlim_Fstar_MINI,Mlim_Fesc_MINI) \
                     private(i,j) num_threads(user_params_ps->N_THREADS)
     {
@@ -3419,9 +3591,13 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
         }
     }
 
-
+// !!! SLTK: removed parameters in astro_par
+// #pragma omp parallel shared(prev_Nion_spline,growthf,Mmin,Mmax,sigma2,prev_Overdense_spline_SFR,Mturns,\
+//                             Alpha_star,Alpha_star_mini,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,prev_Nion_spline_MINI,Mturns_MINI,\
+//                             Mcrit_atom,Fstar7_MINI,Fesc7_MINI,Mlim_Fstar_MINI,Mlim_Fesc_MINI) \
+//                     private(i,j) num_threads(user_params_ps->N_THREADS)
 #pragma omp parallel shared(prev_Nion_spline,growthf,Mmin,Mmax,sigma2,prev_Overdense_spline_SFR,Mturns,\
-                            Alpha_star,Alpha_star_mini,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,prev_Nion_spline_MINI,Mturns_MINI,\
+                            Alpha_star_mini,Alpha_esc,Fesc10,Mlim_Fstar,Mlim_Fesc,prev_Nion_spline_MINI,Mturns_MINI,\
                             Mcrit_atom,Fstar7_MINI,Fesc7_MINI,Mlim_Fstar_MINI,Mlim_Fesc_MINI) \
                     private(i,j) num_threads(user_params_ps->N_THREADS)
     {
@@ -3488,12 +3664,13 @@ void initialise_Nion_Ts_spline(
     }
 
 // !!! SLTK: changed parameters that are in astro_params
-    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, astro_params_ps->ALPHA_STAR, astro_params_ps->F_STAR10);
-    Mlim_Fesc = Mass_limit_bisection(Mmin, Mmax, Alpha_esc, Fesc10);
+// !!! note that we use here the middle point in the z bin
+    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, 0, (zmin+zmax)/2.);
+    Mlim_Fesc = Mass_limit_bisection(Mmin, Mmax, 1, (zmin+zmax)/2.);
 
 // !!! SLTK: removed parameters that are in astro_params
 // #pragma omp parallel shared(z_val,Nion_z_val,zmin,zmax, MassTurn, Alpha_star, Alpha_esc, Fstar10, Fesc10, Mlim_Fstar, Mlim_Fesc) private(i) num_threads(user_params_ps->N_THREADS)
-#pragma omp parallel shared(z_val,Nion_z_val,zmin,zmax, MassTurn, Alpha_esc, Fesc10, Mlim_Fstar, Mlim_Fesc) private(i) num_threads(user_params_ps->N_THREADS)
+#pragma omp parallel shared(z_val,Nion_z_val,zmin,zmax, MassTurn, Alpha_esc, Mlim_Fstar, Mlim_Fesc) private(i) num_threads(user_params_ps->N_THREADS)
     {
 #pragma omp for
         for (i=0; i<Nbin; i++){
@@ -3528,16 +3705,26 @@ void initialise_Nion_Ts_spline_MINI(
       Nion_z_val_MINI = calloc(Nbin*NMTURN,sizeof(double));
     }
 
-    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, Alpha_star, Fstar10);
-    Mlim_Fesc = Mass_limit_bisection(Mmin, Mmax, Alpha_esc, Fesc10);
-    Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
-    Mlim_Fesc_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_esc, Fesc7_MINI * pow(1e3, Alpha_esc));
+    // !!! SLTK
+// !!! note that we use here the middle point in the z bin
+    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, 0, (zmin+zmax)/2);
+    Mlim_Fesc = Mass_limit_bisection(Mmin, Mmax, 1, (zmin+zmax)/2);
+    // !!! SLTK [TO CHANGE WITH POPIII]
+    // Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
+    Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, 2, (zmin+zmax)/2);
+    // !!! SLTK [TO CHANGE WITH POPIII]
+    // Mlim_Fesc_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_esc, Fesc7_MINI * pow(1e3, Alpha_esc));
+    Mlim_Fesc_MINI = Mass_limit_bisection(Mmin, Mmax,3, (zmin+zmax)/2);
     float MassTurnover[NMTURN];
     for (i=0;i<NMTURN;i++){
         MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (float)i/((float)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
     }
 
-#pragma omp parallel shared(z_val,Nion_z_val,Nbin,zmin,zmax,Mmin,Alpha_star,Alpha_star_mini,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,\
+// !!! SLTK: removed parameters in astro_par
+// #pragma omp parallel shared(z_val,Nion_z_val,Nbin,zmin,zmax,Mmin,Alpha_star,Alpha_star_mini,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,\
+//                             Nion_z_val_MINI,MassTurnover,Fstar7_MINI, Fesc7_MINI, Mlim_Fstar_MINI, Mlim_Fesc_MINI) \
+//                     private(i,j,Mcrit_atom_val) num_threads(user_params_ps->N_THREADS)
+#pragma omp parallel shared(z_val,Nion_z_val,Nbin,zmin,zmax,Mmin,Alpha_star_mini,Alpha_esc,Fesc10,Mlim_Fstar,Mlim_Fesc,\
                             Nion_z_val_MINI,MassTurnover,Fstar7_MINI, Fesc7_MINI, Mlim_Fstar_MINI, Mlim_Fesc_MINI) \
                     private(i,j,Mcrit_atom_val) num_threads(user_params_ps->N_THREADS)
     {
@@ -3586,9 +3773,13 @@ void initialise_SFRD_spline(int Nbin, float zmin, float zmax, float MassTurn, fl
       SFRD_val = calloc(Nbin,sizeof(double));
     }
 
-    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, Alpha_star, Fstar10);
+// !!! SLTK
+// !!! note that we use here the middle point in the z bin
+    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, 0,(zmin+zmax)/2.);
 
-#pragma omp parallel shared(z_X_val,SFRD_val,zmin,zmax, MassTurn, Alpha_star, Fstar10, Mlim_Fstar) private(i) num_threads(user_params_ps->N_THREADS)
+// !!! SLTK: removed parameters in astro_par
+// #pragma omp parallel shared(z_X_val,SFRD_val,zmin,zmax, MassTurn, Alpha_star, Fstar10, Mlim_Fstar) private(i) num_threads(user_params_ps->N_THREADS)
+#pragma omp parallel shared(z_X_val,SFRD_val,zmin,zmax, MassTurn, Mlim_Fstar) private(i) num_threads(user_params_ps->N_THREADS)
     {
 #pragma omp for
         for (i=0; i<Nbin; i++){
@@ -3620,15 +3811,23 @@ void initialise_SFRD_spline_MINI(int Nbin, float zmin, float zmax, float Alpha_s
       SFRD_val_MINI = calloc(Nbin*NMTURN,sizeof(double));
     }
 
-    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, Alpha_star, Fstar10);
-    Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
+// !!! SLTK    
+// !!! note that we use here the middle point in the z bin
+    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, 0, (zmin+zmax)/2.);
+    // !!! SLTK: [CHANGE WITH POPIII] !!!
+    // Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
+    Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, 2, (zmin+zmax)/2.);
 
     float MassTurnover[NMTURN];
     for (i=0;i<NMTURN;i++){
         MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (float)i/((float)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
     }
 
-#pragma omp parallel shared(z_X_val,zmin,zmax,Nbin,SFRD_val,Mmin, Alpha_star,Alpha_star_mini,Fstar10,Mlim_Fstar,\
+// !!! SLTK: removed parameters in astro_params
+// #pragma omp parallel shared(z_X_val,zmin,zmax,Nbin,SFRD_val,Mmin, Alpha_star,Alpha_star_mini,Fstar10,Mlim_Fstar,\
+//                             SFRD_val_MINI,MassTurnover,Fstar7_MINI,Mlim_Fstar_MINI) \
+//                     private(i,j,Mcrit_atom_val) num_threads(user_params_ps->N_THREADS)
+#pragma omp parallel shared(z_X_val,zmin,zmax,Nbin,SFRD_val,Mmin, Alpha_star_mini,Mlim_Fstar,\
                             SFRD_val_MINI,MassTurnover,Fstar7_MINI,Mlim_Fstar_MINI) \
                     private(i,j,Mcrit_atom_val) num_threads(user_params_ps->N_THREADS)
     {
@@ -3691,7 +3890,7 @@ void initialise_SFRD_Conditional_table(
     Mmin = MassTurnover/50.;
     Mmax = RtoM(R[Nfilter-1]);
     // !!! SLTK: changed parameters that are in astro_params
-    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, astro_params_ps->ALPHA_STAR, astro_params_ps->F_STAR10);
+    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, 0, z);
 
     Mmin = log(Mmin);
 
@@ -3805,8 +4004,11 @@ void initialise_SFRD_Conditional_table_MINI(
 
     Mmin = global_params.M_MIN_INTEGRAL;
     Mmax = RtoM(R[Nfilter-1]);
-    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, Alpha_star, Fstar10);
-    Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
+    // !!! SLTK
+    Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, 0, z);
+    // !!! SLRK : [CHANGE WITH POPIII]
+    // Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
+    Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, 2,z);
 
     float MassTurnover[NMTURN];
     for (i=0;i<NMTURN;i++){
@@ -3851,7 +4053,11 @@ void initialise_SFRD_Conditional_table_MINI(
             overdense_low_table[i] = pow(10.,overdense_val);
         }
 
-#pragma omp parallel shared(log10_SFRD_z_low_table,growthf,Mmax,sigma2,overdense_low_table,Mcrit_atom,Alpha_star,Alpha_star_mini,Fstar10,Mlim_Fstar,\
+// !!! SLTK: removed parameters that are in astro_params_ps
+// #pragma omp parallel shared(log10_SFRD_z_low_table,growthf,Mmax,sigma2,overdense_low_table,Mcrit_atom,Alpha_star,Alpha_star_mini,Fstar10,Mlim_Fstar,\
+//                             log10_SFRD_z_low_table_MINI,MassTurnover,Fstar7_MINI,Mlim_Fstar_MINI,ln_10) \
+//                     private(i,k) num_threads(user_params_ps->N_THREADS)
+#pragma omp parallel shared(log10_SFRD_z_low_table,growthf,Mmax,sigma2,overdense_low_table,Mcrit_atom,Alpha_star_mini,Mlim_Fstar,\
                             log10_SFRD_z_low_table_MINI,MassTurnover,Fstar7_MINI,Mlim_Fstar_MINI,ln_10) \
                     private(i,k) num_threads(user_params_ps->N_THREADS)
         {
@@ -3900,7 +4106,7 @@ void initialise_SFRD_Conditional_table_MINI(
 // #pragma omp parallel shared(SFRD_z_high_table,growthf,Mmin,Mmax,sigma2,overdense_high_table,Mcrit_atom,Alpha_star,Alpha_star_mini,Fstar10,\
 //                             Mlim_Fstar,SFRD_z_high_table_MINI,MassTurnover,Fstar7_MINI,Mlim_Fstar_MINI) \
 //                     private(i,k) num_threads(user_params_ps->N_THREADS)
-#pragma omp parallel shared(SFRD_z_high_table,growthf,Mmin,Mmax,sigma2,overdense_high_table,Mcrit_atom,Alpha_star_mini,Fstar10,\
+#pragma omp parallel shared(SFRD_z_high_table,growthf,Mmin,Mmax,sigma2,overdense_high_table,Mcrit_atom,Alpha_star_mini,\
                             Mlim_Fstar,SFRD_z_high_table_MINI,MassTurnover,Fstar7_MINI,Mlim_Fstar_MINI) \
                     private(i,k) num_threads(user_params_ps->N_THREADS)
         {
@@ -4000,22 +4206,23 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
     z_arr = calloc(Nmax,sizeof(double));
     Q_arr = calloc(Nmax,sizeof(double));
 
-    //set the minimum source mass
     if (flag_options->USE_MASS_DEPENDENT_ZETA) {
         // !!! SLTK: removed Fstar10*Fesc since it is already included in Ngeneral (division M: that is already taken care from dNgeneral)
         // however, the definition of Nion uses f*, not SFR --> tstar not need to rescale
         // ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
         ION_EFF_FACTOR = global_params.Pop2_ion ;
 
-        M_MIN = astro_params->M_TURN/50.;
-        Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR, astro_params->F_STAR10);
-        Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC, astro_params->F_ESC10);
-        if(user_params->FAST_FCOLL_TABLES){
-          initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
-        }
-        else{
-          initialiseSigmaMInterpTable(M_MIN,1e20);
-        }
+    // !!! SLTK: we moved the mass determination inside the loop to be z dependent
+        // M_MIN = astro_params->M_TURN/50.;
+        // !!! SLTK 
+        // // Mlim_Fstar = Mass_limit_bisection(M_MIN,global_params.M_MAX_INTEGRAL, 0);
+        // Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL,1);
+        // if(user_params->FAST_FCOLL_TABLES){
+        //   initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
+        // }
+        // else{
+        //   initialiseSigmaMInterpTable(M_MIN,1e20);
+        // }
     }
     else {
         ION_EFF_FACTOR = astro_params->HII_EFF_FACTOR;
@@ -4056,6 +4263,24 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
             zi = 1./a - 1.;
             z0 = 1./(a+delta_a) - 1.;
             z1 = 1./(a-delta_a) - 1.;
+
+            // !!! SLTK : set the minimum source mass as function of z
+            if (flag_options->USE_MASS_DEPENDENT_ZETA) {
+
+                M_MIN = astro_params->M_TURN/50.;
+                // !!! SLTK 
+                Mlim_Fstar = Mass_limit_bisection(M_MIN,global_params.M_MAX_INTEGRAL, 0,zi);
+                Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL,1,zi);
+                if(user_params->FAST_FCOLL_TABLES){
+                initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
+                }
+                else{
+                initialiseSigmaMInterpTable(M_MIN,1e20);
+                }
+            }
+            else {
+                ION_EFF_FACTOR = astro_params->HII_EFF_FACTOR;
+            }
 
             // Ionizing emissivity (num of photons per baryon)
             if (flag_options->USE_MASS_DEPENDENT_ZETA) {

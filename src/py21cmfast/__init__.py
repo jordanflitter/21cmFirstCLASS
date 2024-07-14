@@ -36,6 +36,7 @@ from .wrapper import (
     UserParams,
     # !!! SLTK: added HMF and we changed the luminosity function to the wrapper
     brightness_temperature,
+    compute_wSFR,
     compute_HMF,
     compute_luminosity_function,
     compute_tau,

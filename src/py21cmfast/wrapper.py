@@ -830,9 +830,8 @@ def compute_tau(*, redshifts, global_xHI, user_params=None, cosmo_params=None):
     # Run the C code
     return lib.ComputeTau(user_params(), cosmo_params(), len(redshifts), z, xHI)
 
-import matplotlib.pyplot as plt
-# !!! SLTK: conversion from halo mass to UV magnitude 
-def Muv_of_Mh(*,
+# !!! SLTK: get SFR from the C code
+def compute_wSFR(*,
               Mh: np.ndarray,
               redshifts: np.array,
               user_params=None,
@@ -847,9 +846,56 @@ def Muv_of_Mh(*,
     astro_params = AstroParams(astro_params)
     flag_options = FlagOptions(flag_options)
 
-    Mh = np.asarray(Mh)
-    redshifts = np.asarray(redshifts)
 
+    redshifts = np.array(redshifts, dtype="float32")
+
+    SFR = np.zeros(len(redshifts) * np.shape(Mh)[1])
+
+    SFR.shape = (len(redshifts), np.shape(Mh)[1])
+
+    c_Mh_SFR = ffi.cast("double *", ffi.from_buffer(Mh))
+    c_SFR = ffi.cast("double *", ffi.from_buffer(SFR))
+    errcode = lib.output_wSFR(
+        user_params(),
+        cosmo_params(),
+        astro_params(),
+        flag_options(),
+        len(redshifts),
+        ffi.cast("float *", ffi.from_buffer(redshifts)),
+        np.shape(Mh)[1],
+        c_Mh_SFR,
+        c_SFR,
+    )
+
+    _process_exitcode(
+        errcode,
+        lib.output_wSFR,
+        (
+            user_params,
+            cosmo_params,
+            astro_params,
+            flag_options,
+            len(redshifts),
+        ),
+    )
+
+    return SFR
+
+# !!! SLTK: conversion from halo mass to UV magnitude 
+def Muv_of_Mh(*,
+              Mh: np.ndarray,
+              redshifts: np.array,
+              user_params=None,
+              cosmo_params=None,
+              astro_params=None,
+              flag_options=None,
+              ):
+    """Compute the UV magnitude of a halo of a given halo mass array at a given redshift.
+    """
+
+    SFR = compute_wSFR(Mh = Mh,redshifts = redshifts, user_params=user_params, cosmo_params=cosmo_params, astro_params=astro_params,flag_options=flag_options)
+
+    '''
     # !!! MUN21
     if astro_params.SFR_MODEL == 0:
 
@@ -874,7 +920,7 @@ def Muv_of_Mh(*,
         Mpivot = pow(10,astro_params.Mp)
 
         # in this model we re-label epsilon_0 -> Fstar10 , gamma_high -> Alpha_star this already contains the Omb/OmM factor
-        epsilon = 2*pow(10,astro_params.F_STAR10) / (pow(Mh / Mpivot, astro_params.ALPHA_STAR_LOWM) + pow(Mh / Mpivot, astro_params.ALPHA_STAR))
+        epsilon = 2*pow(10,astro_params.F_STAR10) / (pow(Mh / Mpivot, astro_params.ALPHA_STAR_HIGHM) + pow(Mh / Mpivot, astro_params.ALPHA_STAR))
 
         epsilon[epsilon >= 1.] = 1.
 
@@ -891,12 +937,12 @@ def Muv_of_Mh(*,
         redshifts.shape = (len(redshifts), 1)
         eps_star = pow((1+redshifts)/7,astro_params.EPS_STAR_S_G) * pow(10,astro_params.F_STAR10)
 
-        Mpivot = pow((1+redshifts)/7.,astro_params.alpha_z_M_GALLUMI) * pow(10,astro_params.Mp)
+        Mpivot = pow((1+redshifts)/7.,astro_params.M_C_S_G) * pow(10,astro_params.Mp)
         M_c = pow((1+redshifts)/7,astro_params.M_C_S_G) * pow(10,astro_params.Mp) 
 
-        Fstar = eps_star / (pow(Mh/M_c,astro_params.ALPHA_STAR_LOWM) + pow(Mh/M_c,astro_params.ALPHA_STAR))
+        Fstar = eps_star / (pow(Mh/M_c,astro_params.ALPHA_STAR_HIGHM) + pow(Mh/M_c,astro_params.ALPHA_STAR))
     
-        Fstar[Fstar >= 1.] = 1.
+        Fstar[Fstar/(cosmo_params.OMb / cosmo_params.OMm) >= 1.] = 1./(cosmo_params.OMb / cosmo_params.OMm)
 
         M_star = Fstar * Mh # GALLUMI already includes OMb/OMm in epsilon
 
@@ -911,6 +957,7 @@ def Muv_of_Mh(*,
     else: 
         print('SFR MODEL not implemented yet!')
         return -1
+    '''
 
     Kuv = 1.15e-28  # M_sun * sec /yr / erg
 
@@ -1013,10 +1060,13 @@ def compute_luminosity_function(*,
                     - erf((m_uv_z - m_uv - width / 2.0) / (sigma_uv * np.sqrt(2)))
             )
 
-            if astro_params.SFR_MODEL == 0 or astro_params.SFR_MODEL == 2:
+            if astro_params.SFR_MODEL == 0 or astro_params.SFR_MODEL == 2 :
                 f_duty = np.exp(-M_turn/ Mh_HMF[i])
             elif astro_params.SFR_MODEL == 1:
                 f_duty = np.exp(-M_turn*pow((1+redshifts[i])/7.,-1.5)/Mh_HMF[i])
+            else:
+                print('f_duty not defined for this model, we set it to 1')
+                f_duty = 1.
 
             # fduty is used to estimate the minimum mass for the integration
             #ind  = np.argmin(np.abs(0.9 - f_duty))

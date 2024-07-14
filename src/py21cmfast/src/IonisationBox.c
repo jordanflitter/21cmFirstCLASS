@@ -518,8 +518,10 @@ LOG_SUPER_DEBUG("Calculating and outputting Mcrit boxes for atomic and molecular
             Mturnover                 = pow(10., box->log10_Mturnover_ave);
             Mturnover_MINI            = pow(10., box->log10_Mturnover_MINI_ave);
             M_MIN           = global_params.M_MIN_INTEGRAL;
-            Mlim_Fstar_MINI = Mass_limit_bisection(M_MIN, 1e16, astro_params->ALPHA_STAR_MINI, astro_params->F_STAR7_MINI * pow(1e3,astro_params->ALPHA_STAR_MINI));
-            Mlim_Fesc_MINI  = Mass_limit_bisection(M_MIN, 1e16, astro_params->ALPHA_ESC, astro_params->F_ESC7_MINI * pow(1e3, astro_params->ALPHA_ESC));
+// !!! SLTK [CHANGE WITH POPIII]
+            // Mlim_Fstar_MINI = Mass_limit_bisection(M_MIN, 1e16, astro_params->ALPHA_STAR_MINI, astro_params->F_STAR7_MINI * pow(1e3,astro_params->ALPHA_STAR_MINI));
+            Mlim_Fstar_MINI = Mass_limit_bisection(M_MIN, 1e16, 2, redshift);
+            Mlim_Fesc_MINI  = Mass_limit_bisection(M_MIN, 1e16, 3, redshift);
 LOG_SUPER_DEBUG("average turnover masses are %.2f and %.2f for ACGs and MCGs", box->log10_Mturnover_ave, box->log10_Mturnover_MINI_ave);
         }
         else{
@@ -528,8 +530,8 @@ LOG_SUPER_DEBUG("average turnover masses are %.2f and %.2f for ACGs and MCGs", b
             box->log10_Mturnover_ave = log10(Mturnover);
             box->log10_Mturnover_MINI_ave = log10(Mturnover);
         }
-        Mlim_Fstar = Mass_limit_bisection(M_MIN, 1e16, astro_params->ALPHA_STAR, astro_params->F_STAR10);
-        Mlim_Fesc  = Mass_limit_bisection(M_MIN, 1e16, astro_params->ALPHA_ESC, astro_params->F_ESC10);
+        Mlim_Fstar = Mass_limit_bisection(M_MIN, 1e16, 0, redshift);
+        Mlim_Fesc  = Mass_limit_bisection(M_MIN, 1e16, 1, redshift);
     }
     else {
 

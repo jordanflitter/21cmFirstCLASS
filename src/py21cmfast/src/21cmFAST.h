@@ -101,7 +101,7 @@ struct AstroParams{
 
     // !!! SLTK: parameters for SFR_MODEL with double power law
     float Mp;
-    float ALPHA_STAR_LOWM;
+    float ALPHA_STAR_HIGHM;
 
     // !!! SLTK: parameters for SFR_MODEL = 1
     float Mdot12_YUE;
@@ -244,6 +244,10 @@ int ObtainPhotonConsData(double *z_at_Q_data, double *Q_data, int *Ndata_analyti
 // !!! SLTK: added function to compute halo mass function
 int ComputeHMF_API(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params, struct FlagOptions *flag_options,
                     int NUM_OF_REDSHIFT_FOR_HMF, float *z_HMF, double *M_h_z, double *HMF);
+// !!! SLTK: added function to extract SFR in the wrapper
+
+int output_wSFR(struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,
+struct FlagOptions *flag_options, int NUM_OF_REDSHIFT_FOR_SFR, float *z_SFR, int NUM_OF_Mh_FOR_SFR, double *M_h_z, double *SFR);
 
 // !!! SLTK: removed since it is now computed from the wrapper
 // int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,

@@ -38,10 +38,10 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK: 13/07/24')
-print('We defined the SF efficiency function using Fstar*M*fduty*Fesc. We defined the SFR function using 1/(tstar*H).\n'
+print('!!! SLTK: 14/07/24')
+print('We defined the SF efficiency function and the SFR function; we redefined how Mass_limit(_bisection) is computed.\n'
       'SFRD and Nion call separately either the SFR and the efficiency when using Fcoll.\n',
-      'We added to ps.c function to compute the HMF and to the wrapper functions to compute HMF and LF.',
+      'We added to ps.c function to compute SFR, HMF and to the wrapper functions to extract SFR, HMF and to compute LF.',
       '\n\n',
       'Added SFR model from Bin Yue and model II of GALLUMI.'
       '\n\n',
@@ -1297,7 +1297,7 @@ class AstroParams(StructWithDefaults):
         'sigma_Muv': 0.45, # !!! SLTK: to compute the luminosity function
         # !!! SLTK: parameters for SFR_MODEL with double power law
         "Mp":12.1, 
-        "ALPHA_STAR_LOWM":-0.49, 
+        "ALPHA_STAR_HIGHM":0.58, 
 
         # !!! SLTK: parameters for SFR_MODEL = 1
         "Mdot12_YUE":24.1,

@@ -443,19 +443,24 @@ LOG_SUPER_DEBUG("initalised Ts Interp Arrays");
         if (flag_options->USE_MINI_HALOS){
             M_MIN = (global_params.M_MIN_INTEGRAL)/50.;
 
-            Mlim_Fstar = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR, astro_params->F_STAR10);
-            Mlim_Fesc = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC, astro_params->F_ESC10);
+            // !!! SLTK
+            Mlim_Fstar = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, 0, redshift);
+            Mlim_Fesc = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, 1, redshift);
 
-            Mlim_Fstar_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR_MINI,
-                                                   astro_params->F_STAR7_MINI * pow(1e3, astro_params->ALPHA_STAR_MINI));
-            Mlim_Fesc_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC,
-                                                  astro_params->F_ESC7_MINI * pow(1e3, astro_params->ALPHA_ESC));
+            // !!! SLTK [CHANGE WITH POPIII]
+            // Mlim_Fstar_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR_MINI,
+                                                //    astro_params->F_STAR7_MINI * pow(1e3, astro_params->ALPHA_STAR_MINI));
+            // Mlim_Fesc_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC,
+                                                //   astro_params->F_ESC7_MINI * pow(1e3, astro_params->ALPHA_ESC));
+// 
+            Mlim_Fstar_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, 2, redshift);
+            Mlim_Fesc_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, 3, redshift);
         }
         else{
             M_MIN = (astro_params->M_TURN)/50.;
-
-            Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR, astro_params->F_STAR10);
-            Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC, astro_params->F_ESC10);
+            // !!! SLTK
+            Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, 0, redshift);
+            Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, 1, redshift);
         }
     }
     else {
