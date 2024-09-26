@@ -123,7 +123,7 @@ from .outputs import (
     _OutputStructZ,
 )
 # JordanFlitter: import the module to genereate ICs from CLASS
-from .generate_ICs import run_ICs
+from .generate_ICs import run_ICs 
 logger = logging.getLogger(__name__)
 
 # JordanFlitter: I added some logics to prevent conflict between inputs
@@ -522,6 +522,7 @@ def _set_default_globals():
                                    1.06439206e+05, 1.02869905e+05, 1.01731069e+05, 1.01643363e+05,
                                    1.00434901e+05, 1.00051594e+05, 1.01830295e+05, 1.02021246e+05,
                                    1.05040039e+05]
+
     global_params.T_VCB_KIN_TRANSFER = [0.00000000e+00, 3.11899486e-10, 5.02290006e-10, 8.40004934e-10,
                                         1.59596557e-09, 3.21130599e-09, 6.42766947e-09, 1.28234813e-08,
                                         2.55891459e-08, 5.10576226e-08, 1.01876989e-07, 2.03270550e-07,
@@ -1049,10 +1050,7 @@ def compute_luminosity_function(*,
 
     for i, m_uv_z in enumerate(Muv_mean):
 
-        #if astro_params.SFR_MODEL == 0:
         width = 0.5 if redshifts[i] < 8 else 0.8
-        #elif astro_params.SFR_MODEL == 1:
-        #    width = 1. 
 
         for j, m_uv in enumerate(m_uv_z):
             P_Muv_integrated = 0.5 * (
@@ -1060,7 +1058,7 @@ def compute_luminosity_function(*,
                     - erf((m_uv_z - m_uv - width / 2.0) / (sigma_uv * np.sqrt(2)))
             )
 
-            if astro_params.SFR_MODEL == 0 or astro_params.SFR_MODEL == 2 :
+            if astro_params.SFR_MODEL == 0 or astro_params.SFR_MODEL == 2 or astro_params.SFR_MODEL == 3:
                 f_duty = np.exp(-M_turn/ Mh_HMF[i])
             elif astro_params.SFR_MODEL == 1:
                 f_duty = np.exp(-M_turn*pow((1+redshifts[i])/7.,-1.5)/Mh_HMF[i])
@@ -1072,6 +1070,7 @@ def compute_luminosity_function(*,
             #ind  = np.argmin(np.abs(0.9 - f_duty))
             #print(f'minimal halo mass: {np.log10(Mh_HMF[i][ind])} \n minial Muv: {Muv_mean[i][ind]} ')
 
+            # func = HMF[i] * f_duty * P_Muv_integrated / width
             func = HMF[i] * f_duty * P_Muv_integrated / width
 
             LF[i, j] = np.trapz(func, Mh_HMF[i])
@@ -3857,6 +3856,7 @@ def run_lightcone(
                 # JordanFlitter: during the dark ages we ALWAYS compute the density field at each iteration,
                 #                instead of having a giant list that contains all the density boxes.
                 #                See comment above for DO_PERTURBS_WITH_TS
+
                 pf2 = perturb_field(
                       redshift=z,
                       init_boxes=init_box,
@@ -3868,7 +3868,6 @@ def run_lightcone(
                       write=write, # JordanFlitter: added that input so writing to the cache can be disabled (BUG)
                       hooks=hooks,
                 )
-
                 # JordanFlitter: during the dark ages we ALWAYS compute the spin temperature at each iteration,
                 #                even if USE_TS_FLUCT = False
                 st2 = spin_temperature(

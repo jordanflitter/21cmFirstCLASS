@@ -141,6 +141,14 @@ int ComputeInitialConditions(
 
     float f_pixel_factor;
 
+    // !!! SLFK: parameters used only in NG conditions
+    float delta_k_NG, avg_hires_potential_sq,avg_hires_potential_sq_1;
+    double error, lower_limit, upper_limit;
+    gsl_function F;
+    double rel_tol  = FRACT_FLOAT_ERR*10; //<- relative tolerance
+    gsl_integration_workspace * w = gsl_integration_workspace_alloc (1000);
+    double kstart, kend;
+
     gsl_rng * r[user_params->N_THREADS];
     gsl_rng * rseed = gsl_rng_alloc(gsl_rng_mt19937); // An RNG for generating seeds for multithreading
 
@@ -211,13 +219,14 @@ int ComputeInitialConditions(
     fftwf_complex *HIRES_box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
     fftwf_complex *HIRES_box_saved = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
 
+    // !!! SLKF: allocate array for k-space and real-space potential
+    fftwf_complex *HIRES_potential_box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+    fftwf_complex *HIRES_NGpotential_box_saved = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+
     // allocate array for the k-space and real-space boxes for vcb
     fftwf_complex *HIRES_box_vcb_saved;
     // HIRES_box_vcb_saved may be needed if FFTW_Wisdom doesn't exist -- currently unused
     // but I am not going to allocate it until I am certain I needed it.
-
-
-
 
     // find factor of HII pixel size / deltax pixel size
     f_pixel_factor = user_params->DIM/(float)user_params->HII_DIM;
@@ -227,11 +236,16 @@ int ComputeInitialConditions(
     // ************ CREATE K-SPACE GAUSSIAN RANDOM FIELD *********** //
 
     init_ps();
+    // !!! SLKF: needed to use growth in NG
+    if (!user_params_ps->USE_DICKE_GROWTH_FACTOR || user_params_ps->EVOLVE_BARYONS) {
+        init_CLASS_GROWTH_FACTOR();
+    }
 
-#pragma omp parallel shared(HIRES_box,r) \
+#pragma omp parallel shared(HIRES_box,r,HIRES_potential_box) \
                     private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag,p,a,b,p_vcb) num_threads(user_params->N_THREADS)
     {
 #pragma omp for
+
         for (n_x=0; n_x<user_params->DIM; n_x++){
             // convert index to numerical value for this component of the k-mode: k = (2*pi/L) * n
             if (n_x>MIDDLE)
@@ -250,14 +264,15 @@ int ComputeInitialConditions(
                 for (n_z=0; n_z<=MIDDLE; n_z++){
                     // convert index to numerical value for this component of the k-mode: k = (2*pi/L) * n
                     k_z = n_z * DELTA_K;
-
+                    
                     // now get the power spectrum; remember, only the magnitude of k counts (due to issotropy)
                     // this could be used to speed-up later maybe
                     k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
-                    p = power_in_k(k_mag);
 
                     // ok, now we can draw the values of the real and imaginary part
                     // of our k entry from a Gaussian distribution
+
+                    // !!! SLKF: NG conditions, instead of delta first of all generate potential box
                     if(user_params->NO_RNG) {
                         a = 1.0;
                         b = -1.0;
@@ -267,12 +282,147 @@ int ComputeInitialConditions(
                         b = gsl_ran_ugaussian(r[omp_get_thread_num()]);
                     }
 
-                    HIRES_box[C_INDEX(n_x, n_y, n_z)] = sqrt(VOLUME*p/2.0) * (a + b*I);
+                    if (user_params->NG_FIELD){
 
+                        // !!! SLKF: in this case, we are generating the FT potential, which has to be then converted 
+                        // p is gravitational potential power spectrum, namely Delta^2_phi_G
+                        p = power_in_k_potential(k_mag);
+                        HIRES_potential_box[C_INDEX(n_x, n_y, n_z)] =  sqrt(VOLUME * p/2.) * (a + b*I); 
+                    }
+
+                    else{
+                        // original 21cmFAST - see https://iopscience.iop.org/article/10.1086/521806/pdf
+                        p = power_in_k(k_mag);
+                        HIRES_box[C_INDEX(n_x, n_y, n_z)] = sqrt(VOLUME*p/2.0) * (a + b*I);
+                    }
+                    }
                 }
             }
         }
-    }
+
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// -------------------------- BEGIN NG CASE ----------------------------------
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+
+        if (user_params->NG_FIELD){
+
+        // !!! SLKF: convert the phi_G box in real space
+        // *****  Adjust the complex conjugate relations for a real array  ***** //
+        adj_complex_conj(HIRES_potential_box,user_params,cosmo_params);
+
+        // // FFT back to real space
+        int stat = dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_potential_box);
+        if(stat>0) Throw(stat);
+        LOG_DEBUG("FFT'd hires potential boxes.");
+
+        #pragma omp parallel shared(boxes,HIRES_potential_box) private(i,j,k) num_threads(user_params->N_THREADS)
+            {
+        #pragma omp for
+                for (i=0; i<user_params->DIM; i++){
+                    for (j=0; j<user_params->DIM; j++){
+                        for (k=0; k<user_params->DIM; k++){
+                            *((float *)boxes->hires_potential + R_INDEX(i,j,k)) = *((float *)HIRES_potential_box + R_FFT_INDEX(i,j,k))/VOLUME;
+                        }
+                    }
+                }
+            }
+
+        // !!! SLKF: compute average Phi_G 
+        avg_hires_potential_sq = 0.;
+        #pragma omp parallel shared(boxes) private(i,j,k) num_threads(user_params->N_THREADS)
+                {
+        #pragma omp for
+            for (i=0; i<user_params->DIM; i++){
+            for (j=0; j<user_params->DIM; j++){
+                for (k=0; k<user_params->DIM; k++){
+                    avg_hires_potential_sq +=  pow(boxes->hires_potential[R_INDEX(i,j,k)],2) / TOT_NUM_PIXELS;
+                }}}}
+
+        // !!! SLKF ??? POSSIBLE CHANGE TO IMPLEMENT HERE: try to compute using the integral similar to sigma_M 
+        // kstart = fmax(1.0e-99, KBOT_CLASS);
+        // kend = fmin(350.0, KTOP_CLASS);
+        // lower_limit = kstart;//log(kstart);
+        // upper_limit = kend;//log(kend);
+        // F.function = &integrate_potential;
+        // F.params = &k;
+        // int status;
+        // gsl_set_error_handler_off();
+        // status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol,1000, GSL_INTEG_GAUSS61, w, &avg_hires_potential_sq, &error);
+        // printf("avg_box_old = %e \n", avg_hires_potential_sq_1);
+        // printf("avg_box = %e \n", avg_hires_potential_sq);
+        // if(status!=0) {
+        //     LOG_ERROR("gsl integration error occured!");
+        //     LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,avg_hires_potential_sq,error);
+        //     GSL_ERROR(status);
+        // }
+        // gsl_integration_workspace_free (w);
+
+
+        // // !!! SLKF: compute Phi_G = phi_G + fnl*(phi_G**2 + <phi_G**2>)
+        #pragma omp parallel shared(boxes) private(i,j,k) num_threads(user_params->N_THREADS)
+                {
+        #pragma omp for
+            for (i=0; i<user_params->DIM; i++){
+            for (j=0; j<user_params->DIM; j++){
+                for (k=0; k<user_params->DIM; k++){
+                    boxes->hires_potentialNG[R_INDEX(i,j,k)] = boxes->hires_potential[R_INDEX(i,j,k)] + cosmo_params->F_NL*(pow(boxes->hires_potential[R_INDEX(i,j,k)],2) - avg_hires_potential_sq);
+        }}}
+        }
+
+        #pragma omp parallel shared(HIRES_NGpotential_box_saved,boxes) private(i,j,k) num_threads(user_params->N_THREADS)
+                    {
+        #pragma omp for
+                        for (i=0; i<user_params->DIM; i++){
+                            for (j=0; j<user_params->DIM; j++){
+                                for (k=0; k<user_params->DIM; k++){
+                                    *((float *)HIRES_NGpotential_box_saved + R_FFT_INDEX(i,j,k)) = boxes->hires_potentialNG[R_INDEX(i,j,k)];
+                                }
+                            }
+                        }
+                    }
+
+
+        // // !!! SLKF: transform Phi_G in k space 
+        dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS,HIRES_NGpotential_box_saved);
+
+        // !!! SLKF: compute delta based on Phi_G
+        #pragma omp parallel shared(HIRES_box,HIRES_NGpotential_box_saved) \
+                            private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag) num_threads(user_params->N_THREADS)
+            {
+        #pragma omp for
+
+        // !!! SLKF: include non gaussian conditions, they are estimated as delta
+        // so far we have generate the FT box of the potential, now we need to move it in real space, take the avg and then convert again to FT and estimate delta
+            for (n_x=0; n_x<user_params->DIM; n_x++){
+                if (n_x>MIDDLE)
+                    k_x =(n_x-user_params->DIM) * DELTA_K;  
+                else
+                    k_x = n_x * DELTA_K;
+
+                for (n_y=0; n_y<user_params->DIM; n_y++){
+                    if (n_y>MIDDLE)
+                        k_y =(n_y-user_params->DIM) * DELTA_K;
+                    else
+                        k_y = n_y * DELTA_K;
+                    for (n_z=0; n_z<=MIDDLE; n_z++){
+                        
+                        k_z = n_z * DELTA_K;
+                        k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
+
+                        delta_k_NG = 2*pow(C_KMS,2) * pow(k_mag,2) / (3*pow(cosmo_params->hlittle*100,2)*cosmo_params->OMm) ; // to be checked: the potential in CLASS already includes the transfer function?
+                        HIRES_box[C_INDEX(n_x, n_y, n_z)] =   delta_k_NG * HIRES_NGpotential_box_saved[C_INDEX(n_x, n_y, n_z)] ; 
+                    }
+        }}}
+        }
+    
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+// -------------------------- END NG CASE ----------------------------------
+// ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+
     LOG_DEBUG("Drawn random fields.");
 
     // *****  Adjust the complex conjugate relations for a real array  ***** //
@@ -296,6 +446,9 @@ int ComputeInitialConditions(
             }
         }
     }
+
+    printf("boxes->hires_density = %e \n", boxes->hires_density[R_INDEX(0,0,0)]);
+    // Throw(TableGenerationError);
 
     // *** If required, let's also create a lower-resolution version of the density field  *** //
     memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
@@ -1084,6 +1237,9 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
     // deallocate
     fftwf_free(HIRES_box);
     fftwf_free(HIRES_box_saved);
+    // !!! SLKF: free memory
+    fftwf_free(HIRES_potential_box);
+    fftwf_free(HIRES_NGpotential_box_saved);
 
     free_ps();
 

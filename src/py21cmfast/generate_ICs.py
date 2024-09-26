@@ -335,11 +335,19 @@ def run_ICs(cosmo_params,user_params,global_params):
     delta_b_kin_CLASS = Transfer_kin['d_b'][:]
     theta_b_kin_CLASS = Transfer_kin['t_b'][:]*c/Mpc_to_meter # 1/sec
     theta_c_kin_CLASS = np.zeros_like(theta_b_kin_CLASS) # 1/sec
+
+    delta_phi_CLASS = Transfer_kin['phi'][:] / h #!!! SLKF potential for non gauss
+
     # Interpolate transfer functions at the desired wavenumbers
     delta_c_kin = Interpolate_transfer(delta_c_kin_CLASS,k_CLASS,k_output)
     delta_b_kin = Interpolate_transfer(delta_b_kin_CLASS,k_CLASS,k_output)
     theta_c_kin = Interpolate_transfer(theta_c_kin_CLASS,k_CLASS,k_output)
     theta_b_kin = Interpolate_transfer(theta_b_kin_CLASS,k_CLASS,k_output)
+    theta_b_kin = Interpolate_transfer(theta_b_kin_CLASS,k_CLASS,k_output)
+
+    delta_phi = Interpolate_transfer(delta_phi_CLASS,k_CLASS,k_output) # !!! SLKF potential for non gauss
+
+
     # Calculate v_cb at kinematic decoupling (as a function of k)
     v_cb_kin = (theta_b_kin-theta_c_kin)/(k_output/Mpc_to_meter)/1000. # km/sec
     # Find the transfer function of v_cb (which is consistent with 21cmFAST).
@@ -562,6 +570,10 @@ def run_ICs(cosmo_params,user_params,global_params):
         global_params.LOG_V_chi_b = list(log10_v_chi_b_avg)
         if user_params.USE_SDM_FLUCTS:
             global_params.T_V_CHI_B_ZHIGH_TRANSFER = list(T_v_chi_b_zhigh)
+
+    # SLKF: NG quantities
+    if user_params.NG_FIELD:
+        global_params.T_phi_TRANSFER = list(delta_phi)
 
     # SDGF interpolation tables
     if user_params.EVOLVE_BARYONS:

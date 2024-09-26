@@ -38,7 +38,7 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK: 14/07/24')
+print('!!! SLTK+SLKF: 26/09/24')
 print('We defined the SF efficiency function and the SFR function; we redefined how Mass_limit(_bisection) is computed.\n'
       'SFRD and Nion call separately either the SFR and the efficiency when using Fcoll.\n',
       'We added to ps.c function to compute SFR, HMF and to the wrapper functions to extract SFR, HMF and to compute LF.',
@@ -47,7 +47,10 @@ print('We defined the SF efficiency function and the SFR function; we redefined 
       '\n\n',
       'NOTE: in IonisationBox, there is only one point in which the SFRD is required instead of Nion.\n',
       'For the moment, we collect the extra factor in the ST_over_PS factor but this is based on the assumption that the ratio is mass independent.\n',
-      'Moreover, this uses the average value in the box instead of the value per cell, which introduces a variation < 2perc in Tb, < 6perc in Pk')
+      'Moreover, this uses the average value in the box instead of the value per cell, which introduces a variation < 2perc in Tb, < 6perc in Pk.\n'
+      '\n\n'
+      'Added Non Gaussian initial condition following Lidz et al. ; fcoll non Gaussian in progress.'
+      'Removed USE_INTERPOLATION_TABLES = FALSE, USE_MASS_DEPENDENT_ZETA = FALSE, USE_HALO_FIELD = TRUE cases. ')
 print('------------------------------------------\n')
 
 
@@ -546,6 +549,7 @@ global_params.T_M0_TRANSFER = [0.00000000e+00, 1.55624921e-03, 2.46648775e-03, 3
                                1.06439206e+05, 1.02869905e+05, 1.01731069e+05, 1.01643363e+05,
                                1.00434901e+05, 1.00051594e+05, 1.01830295e+05, 1.02021246e+05,
                                1.05040039e+05]
+
 global_params.T_VCB_KIN_TRANSFER = [0.00000000e+00, 3.11899486e-10, 5.02290006e-10, 8.40004934e-10,
                                     1.59596557e-09, 3.21130599e-09, 6.42766947e-09, 1.28234813e-08,
                                     2.55891459e-08, 5.10576226e-08, 1.01876989e-07, 2.03270550e-07,
@@ -588,6 +592,9 @@ global_params.T_V_CHI_B_ZHIGH_TRANSFER = list(np.zeros(149))
 global_params.LOG_K_ARR_FOR_SDGF = list(np.zeros(300))
 global_params.LOG_SDGF = list(np.zeros(70*300))
 global_params.LOG_SDGF_SDM = list(np.zeros(70*300))
+
+# !!! SLKF
+global_params.T_phi_TRANSFER = list(np.zeros(149))
 
 class CosmoParams(StructWithDefaults):
     """
@@ -648,6 +655,7 @@ class CosmoParams(StructWithDefaults):
         "f_chi": 0., # JordanFlitter: added SDM fraction (this is actually -log10(f_chi))
         "sigma_SDM": 41., # JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
         "SDM_INDEX": -4., # JordanFlitter: added SDM cross section index
+        "F_NL":0., # !!! SLKF: use non gaussian initial condition
     }
 
     @property
@@ -872,6 +880,7 @@ class UserParams(StructWithDefaults):
         "CLOUD_IN_CELL": True, # JordanFlitter: added flag to use Bradley Greig's algorithm for cloud in cell in 2LPT calculations
         "EVOLVE_BARYONS": True, # JordanFlitter: added flag to use the scale-dependent growth factor to evolve the baryons density field (see arXiv: 2309.03948)
         "EVALUATE_TAU_REIO": True, # JordanFlitter: added flag to evaluate tau_reio from the simulation
+        "NG_FIELD":False, # !!! SLKF: use non gaussian initial condition
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -1040,7 +1049,7 @@ class FlagOptions(StructWithDefaults):
         If True, USE_MASS_DEPENDENT_ZETA and INHOMO_RECO must be True.
     USE_MASS_DEPENDENT_ZETA : bool, optional
         Set to True if using new parameterization. Setting to True will automatically
-        set `M_MIN_in_Mass` to True.
+        set `M_MIN_in_Mass` to True. !!! SLKF : REMOVED OPTION FALSE IN THE CODE, TO SIMPLIFY IT !!! 
     SUBCELL_RSDS : bool, optional
         Add sub-cell redshift-space-distortions (cf Sec 2.2 of Greig+2018).
         Will only be effective if `USE_TS_FLUCT` is True.
@@ -1112,13 +1121,11 @@ class FlagOptions(StructWithDefaults):
         if self.USE_MASS_DEPENDENT_ZETA:
             return True
 
-        else:
-            return self._M_MIN_in_Mass
-
     @property
     def USE_MASS_DEPENDENT_ZETA(self):
         """Automatically setting USE_MASS_DEPENDENT_ZETA to True if USE_MINI_HALOS."""
 
+        # !!! SLKF : REMOVED OPTION FALSE IN THE CODE, TO SIMPLIFY IT
         if self.USE_MINI_HALOS and not self._USE_MASS_DEPENDENT_ZETA:
             logger.warning(
                 "You have set USE_MINI_HALOS to True but USE_MASS_DEPENDENT_ZETA to False! "
@@ -1126,7 +1133,7 @@ class FlagOptions(StructWithDefaults):
                 )
             return True
         else:
-            return self._USE_MASS_DEPENDENT_ZETA
+            return True #self._USE_MASS_DEPENDENT_ZETA
     
     @property
     def INHOMO_RECO(self):
@@ -1307,10 +1314,11 @@ class AstroParams(StructWithDefaults):
         # !!! SLTK: parameters for SFR_MODEL = 2 and 3
         "EPS_STAR_S_G": -0.98, #-1.96,
         "M_C_S_G":2.95,
+        "Q_G": 1.5, # in the paper this is used only in model 1 and its value is 2.47 but with this we get sigma(M/Q)^2 - sigma(M)^2 <= 0  
     }
 
     # !!! SLTK: SFR_MODEL defined through strings
-    _sfr_models = ["MUN21", "YUE", "GALLUMI_II"]
+    _sfr_models = ["MUN21", "YUE", "GALLUMI_II", "GALLUMI_I"]
 
     def __init__(
         self, *args, INHOMO_RECO=FlagOptions._defaults_["INHOMO_RECO"], **kwargs

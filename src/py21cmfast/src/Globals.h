@@ -109,6 +109,7 @@ struct GlobalParams{
     float T_M0_TRANSFER[149];
     float T_VCB_KIN_TRANSFER[149];
     float T_V_CHI_B_ZHIGH_TRANSFER[149];
+    float T_phi_TRANSFER[149]; // SLFK : for NG case
     float LOG_K_ARR_FOR_SDGF[300];
     float LOG_SDGF[70*300];
     float LOG_SDGF_SDM[70*300];

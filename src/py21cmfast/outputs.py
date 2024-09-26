@@ -95,7 +95,9 @@ class InitialConditions(_OutputStruct):
 
     def prepare_for_perturb(self, flag_options: FlagOptions, force: bool = False):
         """Ensure the ICs have all the boxes loaded for perturb, but no extra."""
-        keep = ["hires_density"]
+        # !!! SLKF: added potential box
+        keep = ["hires_density","hires_potential","hires_potentialNG"]
+
 
         if not self.user_params.PERTURB_ON_HIGH_RES:
             keep.append("lowres_density")
@@ -110,6 +112,9 @@ class InitialConditions(_OutputStruct):
 
             if flag_options.USE_HALO_FIELD:
                 keep.append("hires_density")
+                # !!! SLKF: added potential box
+                keep.append("hires_potential")
+                keep.append("hires_potentialNG")
         else:
             keep.append("hires_vx")
             keep.append("hires_vy")
@@ -141,10 +146,13 @@ class InitialConditions(_OutputStruct):
             "lowres_vx": shape,
             "lowres_vy": shape,
             "lowres_vz": shape,
+        # !!! SLKF: added potential box
             "hires_density": hires_shape,
             "hires_vx": hires_shape,
             "hires_vy": hires_shape,
             "hires_vz": hires_shape,
+            "hires_potential": hires_shape,
+            "hires_potentialNG": hires_shape,
         }
 
         if self.user_params.USE_2LPT:
@@ -241,7 +249,8 @@ class PerturbedField(_OutputStructZ):
             )
 
         # Always require hires_density
-        required += ["hires_density"]
+        # !!! SLKF: added potential box
+        required += ["hires_density","hires_potential","hires_potentialNG"]
 
         if self.user_params.PERTURB_ON_HIGH_RES:
             required += ["hires_vx", "hires_vy", "hires_vz"]
@@ -345,7 +354,8 @@ class HaloField(_AllParamsBox):
     def get_required_input_arrays(self, input_box: _BaseOutputStruct) -> List[str]:
         """Return all input arrays required to compute this object."""
         if isinstance(input_box, InitialConditions):
-            return ["hires_density"]
+        # !!! SLKF: added potential box
+            return ["hires_density","hires_potential","hires_potentialNG"]
         else:
             raise ValueError(
                 f"{type(input_box)} is not an input required for HaloField!"

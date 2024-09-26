@@ -20,7 +20,7 @@ struct CosmoParams{
     float f_chi; // JordanFlitter: added SDM fraction (this is actually -log10(f_chi))
     float sigma_SDM; // JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
     float SDM_INDEX; // JordanFlitter: added SDM cross section index
-
+    float F_NL; // !!! SLKF: non gaussian conditions
 };
 
 struct UserParams{
@@ -61,6 +61,7 @@ struct UserParams{
     bool CLOUD_IN_CELL; // JordanFlitter: added flag to use Bradley Greig's algorithm for cloud in cell in 2LPT calculations
     bool EVOLVE_BARYONS; // JordanFlitter: added flag to use the scale-dependent growth factor to evolve the baryons density field (see arXiv: 2309.03948)
     bool EVALUATE_TAU_REIO; // JordanFlitter: added flag to evaluate tau_reio from the simulation
+    bool NG_FIELD; // !!! SLKF: non gaussian conditions
 };
 
 struct AstroParams{
@@ -108,9 +109,10 @@ struct AstroParams{
     float Alpha_accrYUE;
     float z_accrYUE;
 
-    // !!! SLTK: parameters for SFR_MODEL = 2
+    // !!! SLTK: parameters for SFR_MODEL = 3
     float EPS_STAR_S_G;
     float M_C_S_G;
+    float Q_G;
 };
 
 struct FlagOptions{
@@ -132,7 +134,8 @@ struct FlagOptions{
 
 struct InitialConditions{
     float *lowres_density, *lowres_vx, *lowres_vy, *lowres_vz, *lowres_vx_2LPT, *lowres_vy_2LPT, *lowres_vz_2LPT;
-    float *hires_density, *hires_vx, *hires_vy, *hires_vz, *hires_vx_2LPT, *hires_vy_2LPT, *hires_vz_2LPT; //cw addition
+    // !!! SLKF: added potential box
+    float *hires_density, *hires_vx, *hires_vy, *hires_vz, *hires_vx_2LPT, *hires_vy_2LPT, *hires_vz_2LPT, *hires_potential, *hires_potentialNG; //cw addition
     float *lowres_vcb;
     float *lowres_xe_zhigh, *lowres_Tk_zhigh, *lowres_Tchi_zhigh, *lowres_V_chi_b_zhigh; // JordanFlitter: added new SDM boxes to the InitialConditions structure
 };
