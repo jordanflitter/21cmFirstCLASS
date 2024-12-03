@@ -209,6 +209,7 @@ def run_ICs(cosmo_params,user_params,global_params):
     Omega_c0 = Omega_m0 - Omega_b0 # CDM portion
     Omega_Lambda = 1. - Omega_m0 # Dark energy portion
     H_0 = 1e5*h/Mpc_to_meter # Hubble constant in 1/sec
+    rho_crit = 2.7754e11 * h**2 # Critical energy density in Msun/Mpc^3
 
     ################################################################################################################################################
     #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CLASS section %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -415,7 +416,19 @@ def run_ICs(cosmo_params,user_params,global_params):
             v_chi_b_avg[index] = np.sqrt(8./(3.*np.pi))*v_chi_b_rms # km/sec
         log10_v_chi_b_avg = np.log10(v_chi_b_avg)
 
-    # Scale-Dependent Growth Factor (SDGF)
+    # sigma(M,z)
+    if user_params.EVOLVE_MATTER:
+        # These is the halo mass and redshift grid for sigma(M,z)
+        log10_M_array = np.linspace(4.,20.,300) # log10(M_sun)
+        z_array_for_sigma = np.linspace(0,50,101)
+        # Initalization of the sigma matrix
+        sigma_Mz_mat = np.zeros((len(z_array_for_sigma), len(log10_M_array)))
+        for z_ind, z in enumerate(z_array_for_sigma):
+            for M_ind, M in enumerate(pow(10.,log10_M_array)):
+                R = pow(M*3./4./np.pi/Omega_m0/rho_crit,1./3.) # Mpc
+                sigma_Mz_mat[z_ind,M_ind] = CLASS_OUTPUT.sigma(R,z)
+
+    # Scale-Dependent Growth Factor (SDGF) - baryons
     if user_params.EVOLVE_BARYONS:
         # This is the wavenumber grid for our interpolation tables
         log_k_array = np.linspace(np.log10(1e-2),np.log10(2.),300)
@@ -426,18 +439,29 @@ def run_ICs(cosmo_params,user_params,global_params):
         # For each redshift entry, we evaluate the SDGF as a function of wavenumber
         for z_ind, z in enumerate(pow(10.,log_z_array)):
             # First, we start with the SDGF for baryons
-            T_b_over_c = interp1d(k_CLASS,
-                                  abs(CLASS_OUTPUT.get_transfer(z=z)['d_b']/CLASS_OUTPUT.get_transfer(z=z)['d_cdm']),
-                                  kind='cubic',bounds_error=False)(pow(10.,log_k_array))
-            D_b_kz = abs(T_b_over_c*D_z[z_ind])
+            D_b_kz = abs(interp1d(k_CLASS,
+                                  abs(CLASS_OUTPUT.get_transfer(z=z)['d_b']/CLASS_OUTPUT.get_transfer(z=0)['d_b']),
+                                  kind='cubic',bounds_error=False)(pow(10.,log_k_array)))
             log10_D_b_kz_mat[z_ind,:] = np.log10(D_b_kz)
             # Then we do the SDGF for SDM
             if user_params.SCATTERING_DM:
-                T_chi_over_c = interp1d(k_CLASS,
-                                      abs(CLASS_OUTPUT.get_transfer(z=z)['d_dmeff']/CLASS_OUTPUT.get_transfer(z=z)['d_cdm']),
-                                      kind='cubic',bounds_error=False)(pow(10.,log_k_array))
-                D_chi_kz = abs(T_chi_over_c*D_z[z_ind])
+                D_chi_kz = abs(interp1d(k_CLASS,
+                                        abs(CLASS_OUTPUT.get_transfer(z=z)['d_dmeff']/CLASS_OUTPUT.get_transfer(z=0)['d_dmeff']),
+                                        kind='cubic',bounds_error=False)(pow(10.,log_k_array)))
                 log10_D_chi_kz_mat[z_ind,:] = np.log10(D_chi_kz)
+
+    # Scale-Dependent Growth Factor (SDGF) - CDM
+    if user_params.EVOLVE_MATTER:
+        # This is the wavenumber grid for our interpolation tables
+        log_k_array = np.linspace(np.log10(1e-2),np.log10(2.),300)
+        # Initalization of the matrices
+        log10_D_c_kz_mat = np.zeros((len(log_z_array), len(log_k_array)))
+        # For each redshift entry, we evaluate the SDGF as a function of wavenumber
+        for z_ind, z in enumerate(pow(10.,log_z_array)):
+            D_c_kz = abs(interp1d(k_CLASS,
+                                  abs(CLASS_OUTPUT.get_transfer(z=z)['d_cdm']/CLASS_OUTPUT.get_transfer(z=0)['d_cdm']),
+                                  kind='cubic',bounds_error=False)(pow(10.,log_k_array)))
+            log10_D_c_kz_mat[z_ind,:] = np.log10(D_c_kz)
 
     ################################################################################################################################################
     #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% vcb correction section %%%%%%%%%%$%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -461,7 +485,7 @@ def run_ICs(cosmo_params,user_params,global_params):
         time_kin = z_to_time(z_kin,COSMO_PARAMS) # Gyr
         time_end = z_to_time(z_end,COSMO_PARAMS) # Gyr
         # Set loop arrays
-        k_arr = np.logspace(0., np.log10(3000.), 100) # 1/Mpc
+        k_arr = np.logspace(0., np.log10(1000.), 100) # 1/Mpc
         mu_arr = np.linspace(-1., 1., 21)
         T_m_vcb = np.zeros(len(k_arr))
         T_m_0 = np.zeros(len(k_arr))
@@ -563,12 +587,21 @@ def run_ICs(cosmo_params,user_params,global_params):
         if user_params.USE_SDM_FLUCTS:
             global_params.T_V_CHI_B_ZHIGH_TRANSFER = list(T_v_chi_b_zhigh)
 
+    # sigma(M,z)
+    if user_params.EVOLVE_MATTER:
+        global_params.LOG_M_ARR = list(log10_M_array)
+        global_params.Z_ARRAY_FOR_SIGMA = list(z_array_for_sigma)
+        global_params.SIGMA_MZ = list(sigma_Mz_mat.T.flatten())
+
     # SDGF interpolation tables
     if user_params.EVOLVE_BARYONS:
         global_params.LOG_K_ARR_FOR_SDGF = list(log_k_array)
-        global_params.LOG_SDGF = list(log10_D_b_kz_mat.T.flatten())
+        global_params.LOG_SDGF_BARYONS = list(log10_D_b_kz_mat.T.flatten())
         if user_params.SCATTERING_DM:
             global_params.LOG_SDGF_SDM = list(log10_D_chi_kz_mat.T.flatten())
+    if user_params.EVOLVE_MATTER:
+        global_params.LOG_K_ARR_FOR_SDGF = list(log_k_array)
+        global_params.LOG_SDGF_CDM = list(log10_D_c_kz_mat.T.flatten())
 
     # Return the lensed C_ell's
     return CLASS_OUTPUT.lensed_cl(3000)

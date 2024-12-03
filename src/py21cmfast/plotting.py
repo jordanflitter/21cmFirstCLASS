@@ -184,8 +184,10 @@ def coeval_sliceplot(
         )
     coeval_slice = np.take(coeval_box, slice_index, axis=slice_axis)
     # We find the "minimum" and "maximum" values of the slice. We take percentile to handle outliers
-    min_value = np.percentile(coeval_slice,1)
-    max_value = np.percentile(coeval_slice,99)
+    if not "vmin" in kwargs.keys():
+        kwargs["vmin"] = np.percentile(coeval_slice,1)
+    if not "vmax" in kwargs.keys():
+        kwargs["vmax"] = np.percentile(coeval_slice,99)
 
     # Now, we set the colormap for the plot.
     # If we don't want to plot the brightness temperature, then any other quantity is positive by definition
@@ -197,15 +199,15 @@ def coeval_sliceplot(
             kwargs["cmap"]="viridis"
         else:
             # There are zero values! We'll have blue for negative temperatures and red for positive ones
-            if min_value < 0 and max_value > 0:
-                mid_point = abs(min_value)/(abs(min_value)+abs(max_value))
+            if kwargs["vmin"] < 0 and kwargs["vmax"] > 0:
+                mid_point = abs(kwargs["vmin"])/(abs(kwargs["vmin"])+abs(kwargs["vmax"]))
                 colors_list = [(0, "cyan"),
                                (mid_point/2., "blue"),
                                (mid_point, "black"),
                                ((1.+mid_point)/2., "red"),
                                (1, "yellow")]
             # All values are negative! We'll have only blue colors
-            elif max_value < 0:
+            elif kwargs["vmax"] < 0:
                 colors_list = [(0, "cyan"),
                                (0.5, "blue"),
                                (1, "black")]
@@ -272,8 +274,7 @@ def coeval_sliceplot(
     plt.sca(ax)
 
     # Plot the slice!
-    plt.imshow(coeval_slice,aspect='auto',vmin=min_value,vmax=max_value,
-               origin='lower',extent=(0, lightcone.user_params.BOX_LEN) * 2,**kwargs)
+    plt.imshow(coeval_slice,aspect='auto',origin='lower',extent=(0, lightcone.user_params.BOX_LEN) * 2,**kwargs)
 
     # Add colorbar
     if cbar:

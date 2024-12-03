@@ -334,7 +334,7 @@ class GlobalParams(StructInstanceWrapper):
         Transfer function of the relative velocity between baryons and SDM at Z_HIGH_MAX for interpolation tables.
     LOG_K_ARR_FOR_SDGF: float array of size 300
         Logarithm of wavenumber grid for scale-dependent growth factor (SDGF) interpolation tables.
-    LOG_SDGF: float array of size 70*300
+    LOG_SDGF_BARYONS: float array of size 70*300
         Logarithm of the baryons SDGF for interpolation tables.
     LOG_SDGF_SDM: float array of size 70*300
         Logarithm of the scattering dark matter (SDM) SDGF for interpolation tables.
@@ -573,8 +573,12 @@ global_params.T_VCB_KIN_TRANSFER = [0.00000000e+00, 3.11899486e-10, 5.02290006e-
                                     3.25460580e-04]
 global_params.T_V_CHI_B_ZHIGH_TRANSFER = list(np.zeros(149))
 global_params.LOG_K_ARR_FOR_SDGF = list(np.zeros(300))
-global_params.LOG_SDGF = list(np.zeros(70*300))
+global_params.LOG_SDGF_BARYONS = list(np.zeros(70*300))
+global_params.LOG_SDGF_CDM = list(np.zeros(70*300))
 global_params.LOG_SDGF_SDM = list(np.zeros(70*300))
+global_params.LOG_M_ARR = list(np.zeros(300))
+global_params.Z_ARRAY_FOR_SIGMA = list(np.zeros(101))
+global_params.SIGMA_MZ = list(np.zeros(300*101))
 
 class CosmoParams(StructWithDefaults):
     """
@@ -748,6 +752,16 @@ class UserParams(StructWithDefaults):
         Whether to compute the optical depth to reionization, tau_reio, from the 21cmFAST simulation. If set to True, tau_reio is evaluated
         from the output of 21cmFAST. Then, if RUN_CLASS is also set to True, CLASS runs the second time, after the 21cmFAST simulation is over
         to calculate the CMB power spectrum, C_ell, with the updated value of tau_reio. Default is True.
+    EVOLVE_MATTER: bool, optional
+        Whether to evolve properly the CDM density field and the total matter density field. If set to True,
+        the CDM field is evolved with the scale-dependent growth factor (SDGF) that is evaluated from CLASS (see arXiv: 2411.00089),
+        while sigma(M,z) and its derivative are computed with the appropriate SDGF of the total matter density field.
+        Otherwise, the scale-independent growth factor (SIGF) will be considered, and sigma will scale with the SIGF,
+        as commonly approximated. Default is True.
+    LINEAR_DELTA_IN_EPS: bool, optional
+        Whether to use delta_m from linear theory in the EPS formalism. Can be set to True, only if EVOLVE_BARYONS is set to True,
+        in which case delta_b is evaluated from non-linear 2LPT. If set to False, delta_m is computed similarly to delta_b, whether
+        it is computed from linear theory or not. Default is True.
     FUZZY_DM: bool, optional
         Whether to consider fuzzy dark matter (FDM) in the simulation. If set to True,
         AxionCAMB is called in order to generate initial conditions that are consistent
@@ -859,6 +873,8 @@ class UserParams(StructWithDefaults):
         "CLOUD_IN_CELL": True, # JordanFlitter: added flag to use Bradley Greig's algorithm for cloud in cell in 2LPT calculations
         "EVOLVE_BARYONS": True, # JordanFlitter: added flag to use the scale-dependent growth factor to evolve the baryons density field (see arXiv: 2309.03948)
         "EVALUATE_TAU_REIO": True, # JordanFlitter: added flag to evaluate tau_reio from the simulation
+        "EVOLVE_MATTER": True, # JordanFlitter: added flag to properly evolve the CDM density field (and the total matter field)
+        "LINEAR_DELTA_IN_EPS": True, # JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]

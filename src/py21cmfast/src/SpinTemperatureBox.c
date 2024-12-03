@@ -6,7 +6,8 @@ double ***fcoll_R_grid, ***dfcoll_dz_grid;
 double **grid_dens, **density_gridpoints;
 double *Sigma_Tmin_grid, *ST_over_PS_arg_grid, *dstarlya_dt_prefactor, *zpp_edge, *sigma_atR;
 double *dstarlyLW_dt_prefactor, *dstarlya_dt_prefactor_MINI, *dstarlyLW_dt_prefactor_MINI;
-float **delNL0_rev,**delNL0;
+// JordanFlitter: added baryons variables
+float **delNL0_rev,**delNL0, **delNL0_rev_baryons,**delNL0_baryons;
 float *R_values, *delNL0_bw, *delNL0_Offset, *delNL0_LL, *delNL0_UL, *delNL0_ibw, *log10delNL0_diff;
 float *log10delNL0_diff_UL,*min_densities, *max_densities, *zpp_interp_table;
 short **dens_grid_int_vals;
@@ -92,7 +93,8 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     float zpp_evolve_gridpoint2, grad1, grad2, grad3, grad4, delNL0_bw_val;
     float OffsetValue, DensityValueLow, min_density, max_density;
 
-    double curr_delNL0, inverse_val,prefactor_1,prefactor_2,dfcoll_dz_val, density_eval1;
+    // JordanFlitter: added a baryons variable
+    double curr_delNL0, inverse_val,prefactor_1,prefactor_2,dfcoll_dz_val, density_eval1, curr_delNL0_baryons;
     double density_eval2, grid_sigmaTmin, grid_dens_val, dens_grad, dens_width;
     double prefactor_2_MINI, dfcoll_dz_val_MINI;
 
@@ -110,8 +112,8 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
 
     double ave_fcoll, ave_fcoll_inv, dfcoll_dz_val_ave, ION_EFF_FACTOR;
     double ave_fcoll_MINI, ave_fcoll_inv_MINI, dfcoll_dz_val_ave_MINI, ION_EFF_FACTOR_MINI;
-
-    float curr_dens, min_curr_dens, max_curr_dens;
+    // JordanFlitter: added baryons variable
+    float curr_dens, min_curr_dens, max_curr_dens, curr_dens_baryons;
 
     float curr_vcb;
     min_curr_dens = max_curr_dens = 0.;
@@ -188,6 +190,12 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     // Initialise arrays to be used for the Ts.c computation //
     fftwf_complex *box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
     fftwf_complex *unfiltered_box = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    // JordanFlitter: need to allocate memory for baryons boxes
+    fftwf_complex *box_baryons, *unfiltered_box_baryons;
+    if (user_params->EVOLVE_BARYONS){
+        box_baryons = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+        unfiltered_box_baryons = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    }
     fftwf_complex *log10_Mcrit_LW_unfiltered, *log10_Mcrit_LW_filtered;
     if (flag_options->USE_MINI_HALOS){
         log10_Mcrit_LW_unfiltered = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
@@ -201,7 +209,7 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
 LOG_SUPER_DEBUG("initialized");
 
 // JordanFlitter: we need init_CLASS_GROWTH_FACTOR() if the following conditions are satisfied
-if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS) {
+if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS || user_params->EVOLVE_MATTER) {
     init_CLASS_GROWTH_FACTOR();
 }
 
@@ -269,6 +277,19 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
                 delNL0 = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
                 for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
                     delNL0[i] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                }
+            }
+            // JordanFlitter: allocate memory for baryons
+            if (user_params->EVOLVE_BARYONS) {
+                if(user_params->MINIMIZE_MEMORY) {
+                    delNL0_baryons = (float **)calloc(1,sizeof(float *));
+                    delNL0_baryons[0] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                }
+                else {
+                    delNL0_baryons = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+                    for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
+                        delNL0_baryons[i] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                    }
                 }
             }
 
@@ -382,6 +403,13 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
             delNL0_rev = (float **)calloc(HII_TOT_NUM_PIXELS,sizeof(float *));
             for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
                 delNL0_rev[i] = (float *)calloc((float)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+            }
+            // JordanFlitter: allocate memory for baryons
+            if (user_params->EVOLVE_BARYONS) {
+                delNL0_rev_baryons = (float **)calloc(HII_TOT_NUM_PIXELS,sizeof(float *));
+                for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
+                    delNL0_rev_baryons[i] = (float *)calloc((float)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                }
             }
         }
 
@@ -811,7 +839,7 @@ LOG_SUPER_DEBUG("Treating as the first box");
                         // Make a copy of delta_SDM at k space
                         memcpy(delta_SDM_derivative, delta_SDM, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
                     }
-                    #pragma omp parallel shared(zp,perturbed_field_redshift,delta_baryons,delta_baryons_derivative,delta_SDM,delta_SDM_derivative) private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag) num_threads(user_params->N_THREADS)
+                    #pragma omp parallel shared(zp,prev_zp,delta_baryons,delta_baryons_derivative,delta_SDM,delta_SDM_derivative) private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag) num_threads(user_params->N_THREADS)
                             {
                     #pragma omp for
                                 for (n_x=0; n_x<user_params->HII_DIM; n_x++){
@@ -828,8 +856,8 @@ LOG_SUPER_DEBUG("Treating as the first box");
                                             k_z = n_z * DELTA_K;
                                             k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
-                                            *((fftwf_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF(zp,k_mag,0)/SDGF(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
-                                            *((fftwf_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_dz(zp,k_mag)/SDGF(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                            *((fftwf_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_BARYONS(zp,k_mag,0)/SDGF_BARYONS(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                            *((fftwf_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_BARYONS_dz(zp,k_mag)/SDGF_BARYONS(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
                                             if (user_params->SCATTERING_DM){
                                                 *((fftwf_complex *)delta_SDM + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_SDM(zp,k_mag,0)/SDGF_SDM(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
                                                 *((fftwf_complex *)delta_SDM_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_SDM_dz(zp,k_mag)/SDGF_SDM(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
@@ -1133,13 +1161,18 @@ LOG_SUPER_DEBUG("Looping through R");
         if(this_spin_temp->first_box || (fabs(initialised_redshift - perturbed_field_redshift) > 0.0001) ) {
 
             // allocate memory for the nonlinear density field
-#pragma omp parallel shared(unfiltered_box,perturbed_field) private(i,j,k) num_threads(user_params->N_THREADS)
+            // JordanFlitter: added baryons boxes to shared variables
+#pragma omp parallel shared(unfiltered_box,perturbed_field,unfiltered_box_baryons) private(i,j,k) num_threads(user_params->N_THREADS)
             {
 #pragma omp for
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
                             *((float *)unfiltered_box + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->density[HII_R_INDEX(i,j,k)];
+                            // JordanFlitter: we extract also the baryons density field
+                            if (user_params->EVOLVE_BARYONS){
+                                *((float *)unfiltered_box_baryons + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->baryons_density[HII_R_INDEX(i,j,k)];
+                            }
                         }
                     }
                 }
@@ -1148,15 +1181,24 @@ LOG_SUPER_DEBUG("Allocated unfiltered box");
 
             ////////////////// Transform unfiltered box to k-space to prepare for filtering /////////////////
             dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, unfiltered_box);
+            // JordanFlitter: we FFT also the baryons box
+            if (user_params->EVOLVE_BARYONS){
+              dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, unfiltered_box_baryons);
+            }
 LOG_SUPER_DEBUG("Done FFT on unfiltered box");
 
             // remember to add the factor of VOLUME/TOT_NUM_PIXELS when converting from real space to k-space
             // Note: we will leave off factor of VOLUME, in anticipation of the inverse FFT below
-#pragma omp parallel shared(unfiltered_box) private(ct) num_threads(user_params->N_THREADS)
+            // JordanFlitter: added baryons boxes to shared variables
+#pragma omp parallel shared(unfiltered_box,unfiltered_box_baryons) private(ct) num_threads(user_params->N_THREADS)
             {
 #pragma omp for
                 for (ct=0; ct<HII_KSPACE_NUM_PIXELS; ct++){
                     unfiltered_box[ct] /= (float)HII_TOT_NUM_PIXELS;
+                    // JordanFlitter: we do the same for the baryons box
+                    if (user_params->EVOLVE_BARYONS){
+                        unfiltered_box_baryons[ct] /= (float)HII_TOT_NUM_PIXELS;
+                    }
                 }
             }
 
@@ -1167,25 +1209,34 @@ LOG_SUPER_DEBUG("normalised unfiltered box");
 
                 R_values[R_ct] = R;
 
-                if(!flag_options->USE_MASS_DEPENDENT_ZETA) {
-                    sigma_atR[R_ct] = sigma_z0(RtoM(R));
-                }
-
                 // copy over unfiltered box
                 memcpy(box, unfiltered_box, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                // JordanFlitter: we copy also the baryons box
+                if (user_params->EVOLVE_BARYONS){
+                    memcpy(box_baryons, unfiltered_box_baryons, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                }
 
                 if (R_ct > 0){ // don't filter on cell size
                     filter_box(box, 1, global_params.HEAT_FILTER, R);
+                    // JordanFlitter: we filter also the baryons box
+                    if (user_params->EVOLVE_BARYONS){
+                        filter_box(box_baryons, 1, global_params.HEAT_FILTER, R);
+                    }
                 }
                 // now fft back to real space
                 dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, box);
+                // JordanFlitter: we do the same for the baryons box
+                if (user_params->EVOLVE_BARYONS){
+                    dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, box_baryons);
+                }
 LOG_ULTRA_DEBUG("Executed FFT for R=%f", R);
 
                 min_density = 0.0;
                 max_density = 0.0;
 
                 // copy over the values
-#pragma omp parallel shared(box,inverse_growth_factor_z,delNL0,delNL0_rev) private(i,j,k,curr_delNL0) num_threads(user_params->N_THREADS)
+                // JordanFlitter: I added shared and private variables for baryons
+#pragma omp parallel shared(box,inverse_growth_factor_z,delNL0,delNL0_rev,box_baryons,delNL0_baryons,delNL0_rev_baryons) private(i,j,k,curr_delNL0,curr_delNL0_baryons) num_threads(user_params->N_THREADS)
                 {
 #pragma omp for reduction(max:max_density) reduction(min:min_density)
                     for (i=0;i<user_params->HII_DIM; i++){
@@ -1207,6 +1258,26 @@ LOG_ULTRA_DEBUG("Executed FFT for R=%f", R);
                                 }
                                 else {
                                     delNL0_rev[HII_R_INDEX(i,j,k)][R_ct] = curr_delNL0;
+                                }
+                                // JordanFlitter: we do the same for baryons
+                                if (user_params->EVOLVE_BARYONS){
+                                    curr_delNL0_baryons = *((float *)box_baryons + HII_R_FFT_INDEX(i,j,k));
+
+                                    if (curr_delNL0_baryons <= -1){ // correct for aliasing in the filtering step
+                                        curr_delNL0_baryons = -1+FRACT_FLOAT_ERR;
+                                    }
+
+                                    // and linearly extrapolate to z=0
+                                    curr_delNL0_baryons *= inverse_growth_factor_z;
+
+                                    if(flag_options->USE_MASS_DEPENDENT_ZETA) {
+                                        if(!user_params->MINIMIZE_MEMORY) {
+                                            delNL0_baryons[R_ct][HII_R_INDEX(i,j,k)] = curr_delNL0_baryons;
+                                        }
+                                    }
+                                    else {
+                                        delNL0_rev_baryons[HII_R_INDEX(i,j,k)][R_ct] = curr_delNL0_baryons;
+                                    }
                                 }
 
                                 if(curr_delNL0 < min_density) {
@@ -1377,19 +1448,20 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
                             zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(float)i/((float)zpp_interp_points_SFR-1.0);
 
                             if(flag_options->M_MIN_in_Mass) {
-                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf(M_MIN,  M_MIN_WDM));
+                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf(M_MIN,  M_MIN_WDM),zpp_grid); // JordanFlitter: added redshift argument
                                 ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf(M_MIN,  M_MIN_WDM));
                             }
                             else {
-                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
+                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM),zpp_grid); // JordanFlitter: added redshift argument
                                 ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
                             }
                         }
                     }
 
                 // Create the interpolation tables for the derivative of the collapsed fraction and the collapse fraction itself
+                // JordanFlitter: added R_values to shared list
 #pragma omp parallel shared(fcoll_R_grid,dfcoll_dz_grid,Sigma_Tmin_grid,determine_zpp_min,determine_zpp_max,\
-                            grid_dens,sigma_atR) \
+                            grid_dens,sigma_atR,R_values) \
                     private(ii,i,j,zpp_grid,grid_sigmaTmin,grid_dens_val) num_threads(user_params->N_THREADS)
                     {
 #pragma omp for
@@ -1397,6 +1469,8 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
                             for(i=0;i<zpp_interp_points_SFR;i++) {
 
                                 zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(float)i/((float)zpp_interp_points_SFR-1.0);
+                                // JordanFlitter: moved calculation of sigma_atR here, and added redshift argument
+                                sigma_atR[ii] = sigma_z0(RtoM(R_values[ii]),zpp_grid);
                                 grid_sigmaTmin = Sigma_Tmin_grid[i];
 
                                 for(j=0;j<dens_Ninterp;j++) {
@@ -1452,6 +1526,10 @@ LOG_SUPER_DEBUG("got density gridpoints");
                 }
                 zpp_edge[R_ct] = prev_zpp - (R_values[R_ct] - prev_R)*CMperMPC / drdz(prev_zpp); // cell size
                 zpp = (zpp_edge[R_ct]+prev_zpp)*0.5; // average redshift value of shell: z'' + 0.5 * dz''
+
+                // JordanFlitter: I moved zpp_for_evolve_list[R_ct] to here, in order to initialize the SFRD conditional tables properly
+                zpp_for_evolve_list[R_ct] = zpp;
+
                 zpp_growth[R_ct] = dicke(zpp);
                 if (flag_options->USE_MINI_HALOS){
                     Mcrit_atom_interp_table[R_ct] = atomic_cooling_threshold(zpp);
@@ -1462,13 +1540,15 @@ LOG_SUPER_DEBUG("got density gridpoints");
                 if (!flag_options->USE_MINI_HALOS){
                     initialise_SFRD_Conditional_table(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
                                                      max_densities,zpp_growth,R_values, astro_params->M_TURN,
-                                                     astro_params->ALPHA_STAR, astro_params->F_STAR10, user_params->FAST_FCOLL_TABLES);
+                                                     astro_params->ALPHA_STAR, astro_params->F_STAR10, user_params->FAST_FCOLL_TABLES,
+                                                     zpp_for_evolve_list); // JordanFlitter: added redshift argument
                 }
                 else{
                     initialise_SFRD_Conditional_table_MINI(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
                                                           max_densities,zpp_growth,R_values,Mcrit_atom_interp_table,
                                                           astro_params->ALPHA_STAR, astro_params->ALPHA_STAR_MINI, astro_params->F_STAR10,
-                                                          astro_params->F_STAR7_MINI, user_params->FAST_FCOLL_TABLES);
+                                                          astro_params->F_STAR7_MINI, user_params->FAST_FCOLL_TABLES,
+                                                          zpp_for_evolve_list); // JordanFlitter: added redshift argument
                 }
             }
         }
@@ -1786,10 +1866,10 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                 }
                 else {
                     if(flag_options->M_MIN_in_Mass) {
-                        sigma_Tmin[R_ct] = sigma_z0(fmaxf(M_MIN, M_MIN_WDM));
+                        sigma_Tmin[R_ct] = sigma_z0(fmaxf(M_MIN, M_MIN_WDM),zpp); // JordanFlitter: added redshift argument
                     }
                     else {
-                        sigma_Tmin[R_ct] = sigma_z0(fmaxf((float)TtoM(zpp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM));
+                        sigma_Tmin[R_ct] = sigma_z0(fmaxf((float)TtoM(zpp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM),zpp); // JordanFlitter: added redshift argument
                     }
 
                     ST_over_PS[R_ct] = dzpp_for_evolve * pow(1+zpp, -(astro_params->X_RAY_SPEC_INDEX));
@@ -2223,8 +2303,8 @@ LOG_SUPER_DEBUG("looping over box...");
                                     k_z = n_z * DELTA_K;
                                     k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
-                                    *((fftwf_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF(zp,k_mag,0)/SDGF(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
-                                    *((fftwf_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_dz(zp,k_mag)/SDGF(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                    *((fftwf_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_BARYONS(zp,k_mag,0)/SDGF_BARYONS(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                    *((fftwf_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_BARYONS_dz(zp,k_mag)/SDGF_BARYONS(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
                                     if (user_params->SCATTERING_DM){
                                         *((fftwf_complex *)delta_SDM + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_SDM(zp,k_mag,0)/SDGF_SDM(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
                                         *((fftwf_complex *)delta_SDM_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_SDM_dz(zp,k_mag)/SDGF_SDM(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
@@ -2316,7 +2396,7 @@ LOG_SUPER_DEBUG("looping over box...");
 
                 if(!user_params->USE_INTERPOLATION_TABLES) {
                     Mmax = RtoM(R_values[R_ct]);
-                    sigmaMmax = sigma_z0(Mmax);
+                    sigmaMmax = sigma_z0(Mmax,zpp_for_evolve_list[R_ct]); // JordanFlitter: added redshift argument
                 }
 
                 if(user_params->USE_INTERPOLATION_TABLES) {
@@ -2344,16 +2424,29 @@ LOG_SUPER_DEBUG("looping over box...");
 
                     // copy over unfiltered box
                     memcpy(box, unfiltered_box, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                    // JordanFlitter: we copy also the baryons box
+                    if (user_params->EVOLVE_BARYONS){
+                        memcpy(box_baryons, unfiltered_box_baryons, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                    }
 
                     if (R_ct > 0){ // don't filter on cell size
                         filter_box(box, 1, global_params.HEAT_FILTER, R_values[R_ct]);
+                        // JordanFlitter: we filter also the baryons box
+                        if (user_params->EVOLVE_BARYONS){
+                            filter_box(box_baryons, 1, global_params.HEAT_FILTER, R);
+                        }
                     }
                     // now fft back to real space
                     dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, box);
+                    // JordanFlitter: we do the same for the baryons box
+                    if (user_params->EVOLVE_BARYONS){
+                        dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, box_baryons);
+                    }
                     LOG_ULTRA_DEBUG("Executed FFT for R=%f", R_values[R_ct]);
 
                     // copy over the values
-#pragma omp parallel shared(box,inverse_growth_factor_z,delNL0) private(i,j,k,curr_delNL0) num_threads(user_params->N_THREADS)
+                    // JordanFlitter: I added shared and private variables for baryons
+#pragma omp parallel shared(box,inverse_growth_factor_z,delNL0,box_baryons,delNL0_baryons) private(i,j,k,curr_delNL0,curr_delNL0_baryons) num_threads(user_params->N_THREADS)
                     {
 #pragma omp for
                         for (i=0;i<user_params->HII_DIM; i++){
@@ -2380,17 +2473,32 @@ LOG_SUPER_DEBUG("looping over box...");
                                     }
 
                                     delNL0[0][HII_R_INDEX(i,j,k)] = curr_delNL0;
+
+                                    // JordanFlitter: we do something similar with baryons
+                                    if (user_params->EVOLVE_BARYONS) {
+                                        curr_delNL0_baryons = *((float *)box_baryons + HII_R_FFT_INDEX(i,j,k));
+
+                                        if (curr_delNL0_baryons <= -1){ // correct for aliasing in the filtering step
+                                            curr_delNL0_baryons = -1+FRACT_FLOAT_ERR;
+                                        }
+
+                                        // and linearly extrapolate to z=0
+                                        curr_delNL0_baryons *= inverse_growth_factor_z;
+
+                                        delNL0_baryons[0][HII_R_INDEX(i,j,k)] = curr_delNL0_baryons;
+                                    }
                                 }
                             }
                         }
                     }
                 }
 
+// JordanFlitter: added shared and private variables for baryons
 #pragma omp parallel shared(delNL0,zpp_growth,SFRD_z_high_table,fcoll_interp_high_min,fcoll_interp_high_bin_width_inv,log10_SFRD_z_low_table,\
                             fcoll_int_boundexceeded_threaded,log10_Mcrit_LW,SFRD_z_high_table_MINI,\
-                            log10_SFRD_z_low_table_MINI,del_fcoll_Rct,del_fcoll_Rct_MINI,Mmax,sigmaMmax,Mcrit_atom_interp_table,Mlim_Fstar,Mlim_Fstar_MINI) \
+                            log10_SFRD_z_low_table_MINI,del_fcoll_Rct,del_fcoll_Rct_MINI,Mmax,sigmaMmax,Mcrit_atom_interp_table,Mlim_Fstar,Mlim_Fstar_MINI,delNL0_baryons) \
                     private(box_ct,curr_dens,fcoll,dens_val,fcoll_int,log10_Mcrit_LW_val,log10_Mcrit_LW_int,log10_Mcrit_LW_diff,\
-                            fcoll_MINI_left,fcoll_MINI_right,fcoll_MINI) \
+                            fcoll_MINI_left,fcoll_MINI_right,fcoll_MINI,curr_dens_baryons) \
                     num_threads(user_params->N_THREADS)
                 {
 #pragma omp for reduction(+:ave_fcoll,ave_fcoll_MINI)
@@ -2401,6 +2509,15 @@ LOG_SUPER_DEBUG("looping over box...");
                         }
                         else {
                             curr_dens = delNL0[R_ct][box_ct]*zpp_growth[R_ct];
+                        }
+                        // JordanFlitter: we can use the baryons density field
+                        if (user_params->EVOLVE_BARYONS){
+                            if(user_params->MINIMIZE_MEMORY) {
+                                curr_dens_baryons = delNL0_baryons[0][box_ct]*zpp_growth[R_ct];
+                            }
+                            else {
+                                curr_dens_baryons = delNL0_baryons[R_ct][box_ct]*zpp_growth[R_ct];
+                            }
                         }
 
                         if (flag_options->USE_MINI_HALOS && user_params->USE_INTERPOLATION_TABLES){
@@ -2420,7 +2537,9 @@ LOG_SUPER_DEBUG("looping over box...");
                                         fcoll_MINI = 0;
                                     }
                                     else {
-                                        dens_val = (log10f(curr_dens+1.) - fcoll_interp_min)*fcoll_interp_bin_width_inv;
+                                        // JordanFlitter: There used to be a log10f here. I changed it to log10 for better precision,
+                                        //                and to avoid the "I have overstepped my allocated memory..." error message
+                                        dens_val = (log10(curr_dens+1.) - fcoll_interp_min)*fcoll_interp_bin_width_inv;
 
                                         fcoll_int = (int)floorf( dens_val );
 
@@ -2530,29 +2649,43 @@ LOG_SUPER_DEBUG("looping over box...");
                                 if (flag_options->USE_MINI_HALOS){
 
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,curr_dens,Mcrit_atom_interp_table[R_ct],
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES);
+                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,
+                                                              zpp_for_evolve_list[R_ct]); // JordanFlitter: added redshift argument
 
                                     fcoll_MINI = Nion_ConditionalM_MINI(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,\
                                                            curr_dens,pow(10,log10_Mcrit_LW[R_ct][box_ct]),Mcrit_atom_interp_table[R_ct],\
-                                                           astro_params->ALPHA_STAR_MINI,0.,astro_params->F_STAR7_MINI,1.,Mlim_Fstar_MINI, 0., user_params->FAST_FCOLL_TABLES);
+                                                           astro_params->ALPHA_STAR_MINI,0.,astro_params->F_STAR7_MINI,1.,Mlim_Fstar_MINI, 0., user_params->FAST_FCOLL_TABLES,
+                                                           zpp_for_evolve_list[R_ct]); // JordanFlitter: added redshift argument
                                     fcoll_MINI *= pow(10.,10.);
 
                                 }
                                 else {
                                     fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(M_MIN),log(Mmax),sigmaMmax,Deltac,curr_dens,astro_params->M_TURN,
-                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES);
+                                                              astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,
+                                                              zpp_for_evolve_list[R_ct]); // JordanFlitter: added redshift argument
                                 }
                                 fcoll *= pow(10.,10.);
                             }
 
                             ave_fcoll += fcoll;
 
-                            del_fcoll_Rct[box_ct] = (1.+curr_dens)*fcoll;
+                            // JordanFlitter: we can use the baryons density field
+                            if (user_params->EVOLVE_BARYONS){
+                                del_fcoll_Rct[box_ct] = (1.+curr_dens_baryons)*fcoll;
+                            }
+                            else {
+                                del_fcoll_Rct[box_ct] = (1.+curr_dens)*fcoll;
+                            }
 
                             if (flag_options->USE_MINI_HALOS){
                                 ave_fcoll_MINI += fcoll_MINI;
-
-                                del_fcoll_Rct_MINI[box_ct] = (1.+curr_dens)*fcoll_MINI;
+                                // JordanFlitter: we can use the baryons density field
+                                if (user_params->EVOLVE_BARYONS){
+                                    del_fcoll_Rct_MINI[box_ct] = (1.+curr_dens_baryons)*fcoll_MINI;
+                                }
+                                else {
+                                    del_fcoll_Rct_MINI[box_ct] = (1.+curr_dens)*fcoll_MINI;
+                                }
                             }
                         }
 
@@ -3143,7 +3276,7 @@ LOG_SUPER_DEBUG("looping over box...");
                             freq_int_lya_tbl_diff,freq_int_lya_tbl,dstarlya_dt_prefactor,const_zp_prefactor,prefactor_1,growth_factor_zp,dzp,\
                             dt_dzp,dgrowth_factor_dzp,dcomp_dzp_prefactor,this_spin_temp,xc_inverse,TS_prefactor,xa_tilde_prefactor,Trad_fast_inv,\
                             dstarlya_cont_dt_prefactor,dstarlya_inj_dt_prefactor,\
-                            rec_data,delta_baryons,delta_baryons_derivative,delta_SDM,delta_SDM_derivative) \
+                            rec_data,delta_baryons,delta_baryons_derivative,delNL0_rev_baryons,delta_SDM,delta_SDM_derivative) \
                     private(box_ct,x_e,T,xHII_call,m_xHII_low,inverse_val,dxheat_dt,dxion_source_dt,dxlya_dt,dstarlya_dt,curr_delNL0,R_ct,\
                             dfcoll_dz_val,dxion_sink_dt,dxe_dzp,dadia_dzp,dspec_dzp,dcomp_dzp,J_alpha_tot,T_inv,T_inv_sq,xc_fast,xi_power,\
                             xa_tilde_fast_arg,TS_fast,TSold_fast,xa_tilde_fast,prev_Ts,tau21,xCMB,eps_CMB,dCMBheat_dzp,dstarlya_cont_dt,dstarlya_inj_dt,\
@@ -3210,16 +3343,32 @@ LOG_SUPER_DEBUG("looping over box...");
                                 if( dens_grid_int_vals[box_ct][R_ct] < 0 || (dens_grid_int_vals[box_ct][R_ct] + 1) > (dens_Ninterp  - 1) ) {
                                     table_int_boundexceeded_threaded[omp_get_thread_num()] = 1;
                                 }
-
-                                dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev[box_ct][R_ct]*zpp_growth[R_ct])*( \
-                                                    dfcoll_interp1[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
-                                                        (density_gridpoints[dens_grid_int_vals[box_ct][R_ct] + 1][R_ct] - delNL0_rev[box_ct][R_ct]) + \
-                                                    dfcoll_interp2[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
-                                                        (delNL0_rev[box_ct][R_ct] - density_gridpoints[dens_grid_int_vals[box_ct][R_ct]][R_ct]) );
+                                // JordanFlitter: we can use the baryons density field
+                                if (user_params->EVOLVE_BARYONS){
+                                    dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev_baryons[box_ct][R_ct]*zpp_growth[R_ct])*( \
+                                                        dfcoll_interp1[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
+                                                            (density_gridpoints[dens_grid_int_vals[box_ct][R_ct] + 1][R_ct] - delNL0_rev[box_ct][R_ct]) + \
+                                                        dfcoll_interp2[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
+                                                            (delNL0_rev[box_ct][R_ct] - density_gridpoints[dens_grid_int_vals[box_ct][R_ct]][R_ct]) );
+                                }
+                                else {
+                                    dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev[box_ct][R_ct]*zpp_growth[R_ct])*( \
+                                                        dfcoll_interp1[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
+                                                            (density_gridpoints[dens_grid_int_vals[box_ct][R_ct] + 1][R_ct] - delNL0_rev[box_ct][R_ct]) + \
+                                                        dfcoll_interp2[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
+                                                            (delNL0_rev[box_ct][R_ct] - density_gridpoints[dens_grid_int_vals[box_ct][R_ct]][R_ct]) );
+                                }
                             }
                             else {
-                                dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev[box_ct][R_ct]*zpp_growth[R_ct])*( \
-                                                dfcoll_dz(zpp_for_evolve_list[R_ct], sigma_Tmin[R_ct], delNL0_rev[box_ct][R_ct], sigma_atR[R_ct]) );
+                                // JordanFlitter: we can use the baryons density field
+                                if (user_params->EVOLVE_BARYONS){
+                                    dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev_baryons[box_ct][R_ct]*zpp_growth[R_ct])*( \
+                                                    dfcoll_dz(zpp_for_evolve_list[R_ct], sigma_Tmin[R_ct], delNL0_rev[box_ct][R_ct], sigma_atR[R_ct]) );
+                                }
+                                else {
+                                    dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev[box_ct][R_ct]*zpp_growth[R_ct])*( \
+                                                    dfcoll_dz(zpp_for_evolve_list[R_ct], sigma_Tmin[R_ct], delNL0_rev[box_ct][R_ct], sigma_atR[R_ct]) );
+                                }
                             }
 
                             dxheat_dt += dfcoll_dz_val * \
@@ -3642,6 +3791,11 @@ LOG_SUPER_DEBUG("finished loop");
 
         fftwf_free(box);
         fftwf_free(unfiltered_box);
+        // JordanFlitter: free the baryons box
+        if (user_params->EVOLVE_BARYONS){
+            fftwf_free(box_baryons);
+            fftwf_free(unfiltered_box_baryons);
+        }
 
         if (flag_options->USE_MINI_HALOS){
             fftwf_free(log10_Mcrit_LW_unfiltered);
@@ -3674,7 +3828,7 @@ LOG_SUPER_DEBUG("finished loop");
         // JordanFlitter: I moved destruct_heat to here
         destruct_heat();
         // JordanFlitter: we need destruct_CLASS_GROWTH_FACTOR() if the following conditions are satisfied
-        if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS) {
+        if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS || user_params->EVOLVE_MATTER) {
               destruct_CLASS_GROWTH_FACTOR();
         }
 
@@ -3752,6 +3906,20 @@ void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_o
         }
 
         free(delNL0);
+        // JordanFlitter: free baryons boxes
+        if (user_params->EVOLVE_BARYONS) {
+            if(user_params->MINIMIZE_MEMORY) {
+                free(delNL0_baryons[0]);
+            }
+            else {
+                for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
+                    free(delNL0_baryons[i]);
+                }
+            }
+
+            free(delNL0_baryons);
+        }
+
         // JordanFlitter: need to free the baryons boxes
         if (user_params->EVOLVE_BARYONS){
             fftwf_free(delta_baryons);
@@ -3863,7 +4031,13 @@ void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_o
             free(delNL0_rev[i]);
         }
         free(delNL0_rev);
-
+        // JordanFlitter: free baryons boxes
+        if (user_params->EVOLVE_BARYONS) {
+            for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
+                free(delNL0_rev_baryons[i]);
+            }
+            free(delNL0_rev_baryons);
+        }
     }
 
     for(i=0;i<x_int_NXHII;i++) {

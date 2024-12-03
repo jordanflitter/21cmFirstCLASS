@@ -144,13 +144,13 @@ LOG_ULTRA_DEBUG("while loop for finding halos: R = %f 0.5*Delta_R = %f RtoM(R)=%
             if(global_params.DELTA_CRIT_MODE == 1 && (user_params->HMF>0 && user_params->HMF<4)){
                 if(user_params->HMF==1) {
                     // use sheth tormen correction
-                    delta_crit = growth_factor*sheth_delc(Deltac/growth_factor, sigma_z0(M));
+                    delta_crit = growth_factor*sheth_delc(Deltac/growth_factor, sigma_z0(M, redshift)); // JordanFlitter: added redshift argument
                 }
             }
 
             // first let's check if virialized halos of this size are rare enough
             // that we don't have to worry about them (let's define 7 sigma away, as in Mesinger et al 05)
-            if ((sigma_z0(M)*growth_factor*7.) < delta_crit){
+            if ((sigma_z0(M, redshift)*growth_factor*7.) < delta_crit){ // JordanFlitter: added redshift argument
 LOG_DEBUG("Haloes too rare for M = %e! Skipping...", M);
                 R /= global_params.DELTA_R_FACTOR;
                 continue;

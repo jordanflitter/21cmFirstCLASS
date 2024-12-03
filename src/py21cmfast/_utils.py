@@ -578,7 +578,8 @@ class OutputStruct(StructWrapper, metaclass=ABCMeta):
     _filter_params = ["external_table_path", "wisdoms_path","LOG_Z_ARR","LOG_T_k","LOG_x_e",
                       "LOG_SIGF","LOG_T_chi","LOG_V_chi_b",
                       "LOG_K_ARR_FOR_TRANSFERS","T_M0_TRANSFER","T_VCB_KIN_TRANSFER","T_V_CHI_B_ZHIGH_TRANSFER",
-                      "LOG_K_ARR_FOR_SDGF","LOG_SDGF","LOG_SDGF_SDM"]
+                      "LOG_K_ARR_FOR_SDGF","LOG_SDGF_BARYONS","LOG_SDGF_CDM","LOG_SDGF_SDM",
+                      "LOG_M_ARR","Z_ARRAY_FOR_SIGMA","SIGMA_MZ"]
     _c_based_pointers = ()
     _c_compute_function = None
 

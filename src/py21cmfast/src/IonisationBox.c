@@ -70,6 +70,8 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
       float erfc_denom, erfc_denom_cell, res_xH, Splined_Fcoll, xHII_from_xrays, curr_dens, massofscaleR, ION_EFF_FACTOR, growth_factor_dz;
       float Splined_Fcoll_MINI, prev_dens, ION_EFF_FACTOR_MINI, prev_Splined_Fcoll, prev_Splined_Fcoll_MINI;
       float ave_M_coll_cell, ave_N_min_cell, pixel_volume, density_over_mean;
+      // JordanFlitter: added baryons density variable
+      float curr_dens_baryons;
 
       float curr_vcb;
 
@@ -116,7 +118,7 @@ int ComputeIonizedBox(float redshift, float prev_redshift, struct UserParams *us
       int *overdense_int_boundexceeded_threaded = calloc(user_params->N_THREADS,sizeof(int));
 LOG_SUPER_DEBUG("initing heat");
     // JordanFlitter: we need init_CLASS_GROWTH_FACTOR() if the following conditions are satisfied
-    if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS) {
+    if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS || user_params->EVOLVE_MATTER) {
         init_CLASS_GROWTH_FACTOR();
     }
     init_heat(redshift); // JordanFlitter: added a redshift argument
@@ -256,7 +258,8 @@ LOG_SUPER_DEBUG("erfc interpolation done");
     growth_factor = dicke(redshift);
     prev_growth_factor = dicke(prev_redshift);
 
-    fftwf_complex *deltax_unfiltered, *deltax_unfiltered_original, *deltax_filtered;
+    // JordanFlitter: added more baryons complex arrays
+    fftwf_complex *deltax_unfiltered, *deltax_unfiltered_original, *deltax_filtered, *deltax_unfiltered_baryons, *deltax_filtered_baryons;
     fftwf_complex *xe_unfiltered, *xe_filtered, *N_rec_unfiltered, *N_rec_filtered;
     fftwf_complex *prev_deltax_unfiltered, *prev_deltax_filtered;
     fftwf_complex *M_coll_unfiltered,*M_coll_filtered;
@@ -264,6 +267,11 @@ LOG_SUPER_DEBUG("erfc interpolation done");
     deltax_unfiltered = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
     deltax_unfiltered_original = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
     deltax_filtered = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    // JordanFlitter: allocate memory for baryons boxes
+    if (user_params->EVOLVE_BARYONS){
+        deltax_unfiltered_baryons = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+        deltax_filtered_baryons = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    }
 
     if (flag_options->USE_MINI_HALOS){
         prev_deltax_unfiltered = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
@@ -319,13 +327,18 @@ LOG_SUPER_DEBUG("erfc interpolation done");
         adjustment_factor = 1.;
     }
 
-#pragma omp parallel shared(deltax_unfiltered,perturbed_field,adjustment_factor) private(i,j,k) num_threads(user_params->N_THREADS)
+// JordanFlitter: added the baryons box to shared variables
+#pragma omp parallel shared(deltax_unfiltered,deltax_unfiltered_baryons,perturbed_field,adjustment_factor) private(i,j,k) num_threads(user_params->N_THREADS)
     {
 #pragma omp for
         for (i=0; i<user_params->HII_DIM; i++){
             for (j=0; j<user_params->HII_DIM; j++){
                 for (k=0; k<user_params->HII_DIM; k++){
                     *((float *)deltax_unfiltered + HII_R_FFT_INDEX(i,j,k)) = (perturbed_field->density[HII_R_INDEX(i,j,k)])*adjustment_factor;
+                    // JordanFlitter: we can use the baryons density field
+                    if (user_params->EVOLVE_BARYONS){
+                        *((float *)deltax_unfiltered_baryons + HII_R_FFT_INDEX(i,j,k)) = (perturbed_field->baryons_density[HII_R_INDEX(i,j,k)])*adjustment_factor;
+                    }
                 }
             }
         }
@@ -334,6 +347,10 @@ LOG_SUPER_DEBUG("erfc interpolation done");
 LOG_SUPER_DEBUG("density field calculated");
 
     // keep the unfiltered density field in an array, to save it for later
+    // JordanFlitterTODO: I think that deltax_unfiltered_original should be defined from deltax_unfiltered_baryons (when EVOLVE_BARYONS is True),
+    //                    and not from deltax_unfiltered. deltax_unfiltered_original is only used for calculating temp_kinetic_all_gas, but this field
+    //                    does not seem to be used elsewhere (note that the only difference between deltax_unfiltered_original and deltax_unfiltered
+    //                    is that the former does not contain the division by N^3, which is included in the latter for Fourier conventions)
     memcpy(deltax_unfiltered_original, deltax_unfiltered, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
 
     i=0;
@@ -710,6 +727,10 @@ LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll_MINI: %e", box->mean_f
         }
 
         dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, deltax_unfiltered);
+        // JordanFlitter: we can use the baryons density field
+        if (user_params->EVOLVE_BARYONS) {
+            dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, deltax_unfiltered_baryons);
+        }
 
         LOG_SUPER_DEBUG("FFTs performed");
 
@@ -738,13 +759,18 @@ LOG_SUPER_DEBUG("excursion set normalisation, mean_f_coll_MINI: %e", box->mean_f
         // remember to add the factor of VOLUME/TOT_NUM_PIXELS when converting from
         //  real space to k-space
         // Note: we will leave off factor of VOLUME, in anticipation of the inverse FFT below
-#pragma omp parallel shared(deltax_unfiltered,xe_unfiltered,N_rec_unfiltered,prev_deltax_unfiltered,\
+        // JordanFlitter: added baryons box to shared variables
+#pragma omp parallel shared(deltax_unfiltered,xe_unfiltered,N_rec_unfiltered,prev_deltax_unfiltered,deltax_unfiltered_baryons,\
                             log10_Mturnover_unfiltered,log10_Mturnover_MINI_unfiltered,M_coll_unfiltered) \
                     private(ct) num_threads(user_params->N_THREADS)
         {
 #pragma omp for
             for (ct=0; ct<HII_KSPACE_NUM_PIXELS; ct++){
                 deltax_unfiltered[ct] /= (HII_TOT_NUM_PIXELS+0.0);
+                // JordanFlitter: we can use the baryons density field
+                if (user_params->EVOLVE_BARYONS) {
+                    deltax_unfiltered_baryons[ct] /= (HII_TOT_NUM_PIXELS+0.0);
+                }
                 if(flag_options->USE_TS_FLUCT) { xe_unfiltered[ct] /= (double)HII_TOT_NUM_PIXELS; }
                 if (flag_options->INHOMO_RECO){ N_rec_unfiltered[ct] /= (double)HII_TOT_NUM_PIXELS; }
                 if(flag_options->USE_HALO_FIELD) { M_coll_unfiltered[ct] /= (double)HII_TOT_NUM_PIXELS; }
@@ -811,6 +837,10 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
             }
 
             memcpy(deltax_filtered, deltax_unfiltered, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+            // JordanFlitter: we can use the baryons density field
+            if (user_params->EVOLVE_BARYONS) {
+                memcpy(deltax_filtered_baryons, deltax_unfiltered_baryons, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+            }
 
             if(flag_options->USE_MINI_HALOS){
                 memcpy(prev_deltax_filtered, prev_deltax_unfiltered, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
@@ -831,6 +861,10 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                     filter_box(M_coll_filtered, 1, global_params.HII_FILTER, R);
                 }
                 filter_box(deltax_filtered, 1, global_params.HII_FILTER, R);
+                // JordanFlitter: we can use the baryons density field
+                if (user_params->EVOLVE_BARYONS) {
+                    filter_box(deltax_filtered_baryons, 1, global_params.HII_FILTER, R);
+                }
                 if(flag_options->USE_MINI_HALOS){
                     filter_box(prev_deltax_filtered, 1, global_params.HII_FILTER, R);
                     filter_box(log10_Mturnover_MINI_filtered, 1, global_params.HII_FILTER, R);
@@ -840,6 +874,10 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
             // Perform FFTs
             dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, deltax_filtered);
+            // JordanFlitter: we can use the baryons density field
+            if (user_params->EVOLVE_BARYONS) {
+                dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, deltax_filtered_baryons);
+            }
 
             if(flag_options->USE_MINI_HALOS){
                 dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, prev_deltax_filtered);
@@ -868,7 +906,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
             massofscaleR = RtoM(R);
 
             if(!user_params->USE_INTERPOLATION_TABLES) {
-                sigmaMmax = sigma_z0(massofscaleR);
+                sigmaMmax = sigma_z0(massofscaleR, redshift); // JordanFlitter: added redshift argument
             }
 
             if (!flag_options->USE_HALO_FIELD) {
@@ -876,7 +914,8 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                     min_density = max_density = 0.0;
 
-#pragma omp parallel shared(deltax_filtered) private(x, y, z) num_threads(user_params->N_THREADS)
+// JordanFlitter: added the baryons box to shared variables
+#pragma omp parallel shared(deltax_filtered,deltax_filtered_baryons) private(x, y, z) num_threads(user_params->N_THREADS)
                     {
 #pragma omp for reduction(max:max_density) reduction(min:min_density)
                         for (x = 0; x < user_params->HII_DIM; x++) {
@@ -885,7 +924,11 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                     // delta cannot be less than -1
                                     *((float *) deltax_filtered + HII_R_FFT_INDEX(x, y, z)) = fmaxf(
                                                 *((float *) deltax_filtered + HII_R_FFT_INDEX(x, y, z)), -1. + FRACT_FLOAT_ERR);
-
+                                    // JordanFlitter: we can do the same check for the baryons density field
+                                    if (user_params->EVOLVE_BARYONS) {
+                                        *((float *) deltax_filtered_baryons + HII_R_FFT_INDEX(x, y, z)) = fmaxf(
+                                                    *((float *) deltax_filtered_baryons + HII_R_FFT_INDEX(x, y, z)), -1. + FRACT_FLOAT_ERR);
+                                    }
                                     if (*((float *) deltax_filtered + HII_R_FFT_INDEX(x, y, z)) < min_density) {
                                                 min_density = *((float *) deltax_filtered + HII_R_FFT_INDEX(x, y, z));
                                     }
@@ -1009,7 +1052,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                 }
                 else {
 
-                    erfc_denom = 2. * (pow(sigma_z0(M_MIN), 2) - pow(sigma_z0(massofscaleR), 2));
+                    erfc_denom = 2. * (pow(sigma_z0(M_MIN,redshift), 2) - pow(sigma_z0(massofscaleR,redshift), 2)); // JordanFlitter: added redshift argument
                     if (erfc_denom < 0) { // our filtering scale has become too small
                         break;
                     }
@@ -1028,13 +1071,14 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
             // renormalize the collapse fraction so that the mean matches ST,
             // since we are using the evolved (non-linear) density field
+            // JordanFlitter: added the baryons box to shared variables
 #pragma omp parallel shared(deltax_filtered,N_rec_filtered,xe_filtered,overdense_int_boundexceeded_threaded,log10_Nion_spline,Nion_spline,erfc_denom,erfc_arg_min,\
                             erfc_arg_max,InvArgBinWidth,ArgBinWidth,ERFC_VALS_DIFF,ERFC_VALS,log10_Mturnover_filtered,log10Mturn_min,log10Mturn_bin_width_inv, \
                             log10_Mturnover_MINI_filtered,log10Mturn_bin_width_inv_MINI,log10_Nion_spline_MINI,prev_deltax_filtered,previous_ionize_box,ION_EFF_FACTOR,\
                             prev_overdense_small_bin_width, overdense_small_bin_width,overdense_small_bin_width_inv,\
                             prev_overdense_small_min,prev_overdense_small_bin_width_inv,prev_log10_Nion_spline,prev_log10_Nion_spline_MINI,prev_overdense_large_min,\
                             prev_overdense_large_bin_width_inv,prev_Nion_spline,prev_Nion_spline_MINI,box,counter,M_coll_filtered,massofscaleR,pixel_volume,sigmaMmax,\
-                            M_MIN,growth_factor,Mlim_Fstar,Mlim_Fesc,Mcrit_atom,Mlim_Fstar_MINI,Mlim_Fesc_MINI,prev_growth_factor) \
+                            M_MIN,growth_factor,Mlim_Fstar,Mlim_Fesc,Mcrit_atom,Mlim_Fstar_MINI,Mlim_Fesc_MINI,prev_growth_factor,deltax_filtered_baryons) \
                     private(x,y,z,curr_dens,Splined_Fcoll,Splined_Fcoll_MINI,dens_val,overdense_int,erfc_arg_val,erfc_arg_val_index,log10_Mturnover,\
                             log10_Mturnover_int,log10_Mturnover_MINI,log10_Mturnover_MINI_int,prev_dens,prev_Splined_Fcoll,prev_Splined_Fcoll_MINI,\
                             prev_dens_val,density_over_mean,status_int) \
@@ -1048,6 +1092,11 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                             // delta cannot be less than -1
                             *((float *) deltax_filtered + HII_R_FFT_INDEX(x, y, z)) = fmaxf(
                                                 *((float *) deltax_filtered + HII_R_FFT_INDEX(x, y, z)), -1. + FRACT_FLOAT_ERR);
+                            // JordanFlitter: we can do the same check for the baryons density field
+                            if (user_params->EVOLVE_BARYONS) {
+                                *((float *) deltax_filtered_baryons + HII_R_FFT_INDEX(x, y, z)) = fmaxf(
+                                            *((float *) deltax_filtered_baryons + HII_R_FFT_INDEX(x, y, z)), -1. + FRACT_FLOAT_ERR);
+                            }
 
                             // <N_rec> cannot be less than zero
                             if (flag_options->INHOMO_RECO) {
@@ -1099,12 +1148,14 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                               pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
                                                                               astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
+                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,
+                                                                              redshift); // JordanFlitter: added redshift argument
 
                                             Splined_Fcoll_MINI = Nion_ConditionalM_MINI(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                                     pow(10.,log10_Mturnover_MINI),Mcrit_atom,astro_params->ALPHA_STAR_MINI,
                                                                                     astro_params->ALPHA_ESC,astro_params->F_STAR7_MINI,astro_params->F_ESC7_MINI,
-                                                                                    Mlim_Fstar_MINI,Mlim_Fesc_MINI, user_params->FAST_FCOLL_TABLES);
+                                                                                    Mlim_Fstar_MINI,Mlim_Fesc_MINI, user_params->FAST_FCOLL_TABLES,
+                                                                                    redshift); // JordanFlitter: added redshift argument
                                         }
 
                                         prev_dens = *((float *)prev_deltax_filtered + HII_R_FFT_INDEX(x,y,z));
@@ -1126,12 +1177,14 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                                 prev_Splined_Fcoll = Nion_ConditionalM(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
                                                                                        pow(10.,log10_Mturnover),astro_params->ALPHA_STAR,
                                                                                        astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                                       astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
+                                                                                       astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,
+                                                                                       prev_redshift); // JordanFlitter: added redshift argument
 
                                                 prev_Splined_Fcoll_MINI = Nion_ConditionalM_MINI(prev_growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,prev_dens,
                                                                                         pow(10.,log10_Mturnover_MINI),Mcrit_atom,astro_params->ALPHA_STAR_MINI,
                                                                                         astro_params->ALPHA_ESC,astro_params->F_STAR7_MINI,astro_params->F_ESC7_MINI,
-                                                                                        Mlim_Fstar_MINI,Mlim_Fesc_MINI, user_params->FAST_FCOLL_TABLES);
+                                                                                        Mlim_Fstar_MINI,Mlim_Fesc_MINI, user_params->FAST_FCOLL_TABLES,
+                                                                                        prev_redshift); // JordanFlitter: added redshift argument
                                             }
                                         }
                                         else{
@@ -1157,7 +1210,8 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                             Splined_Fcoll = Nion_ConditionalM(growth_factor,log(M_MIN),log(massofscaleR),sigmaMmax,Deltac,curr_dens,
                                                                               astro_params->M_TURN,astro_params->ALPHA_STAR,
                                                                               astro_params->ALPHA_ESC,astro_params->F_STAR10,
-                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES);
+                                                                              astro_params->F_ESC10,Mlim_Fstar,Mlim_Fesc, user_params->FAST_FCOLL_TABLES,
+                                                                              redshift); // JordanFlitter: added redshift argument
 
                                         }
                                     }
@@ -1300,11 +1354,12 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                 Throw(ValueError);
             }
 
-
+// JordanFlitter: added the baryons box to shared variables (and also curr_dens_baryons as a private variable)
 #pragma omp parallel shared(deltax_filtered,N_rec_filtered,xe_filtered,box,ST_over_PS,pixel_mass,M_MIN,r,f_coll_min,Gamma_R_prefactor,\
-                            ION_EFF_FACTOR,ION_EFF_FACTOR_MINI,LAST_FILTER_STEP,counter,ST_over_PS_MINI,f_coll_min_MINI,Gamma_R_prefactor_MINI,TK) \
+                            ION_EFF_FACTOR,ION_EFF_FACTOR_MINI,LAST_FILTER_STEP,counter,ST_over_PS_MINI,f_coll_min_MINI,Gamma_R_prefactor_MINI,TK,\
+                            deltax_filtered_baryons) \
                     private(x,y,z,curr_dens,Splined_Fcoll,f_coll,ave_M_coll_cell,ave_N_min_cell,N_halos_in_cell,rec,xHII_from_xrays,res_xH,\
-                            Splined_Fcoll_MINI,f_coll_MINI) \
+                            Splined_Fcoll_MINI,f_coll_MINI,curr_dens_baryons) \
                     num_threads(user_params->N_THREADS)
             {
 #pragma omp for
@@ -1313,6 +1368,10 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                         for (z = 0; z < user_params->HII_DIM; z++) {
 
                             curr_dens = *((float *)deltax_filtered + HII_R_FFT_INDEX(x,y,z));
+                            // JordanFlitter: we can use the baryons density field
+                            if (user_params->EVOLVE_BARYONS) {
+                                curr_dens_baryons = *((float *)deltax_filtered_baryons + HII_R_FFT_INDEX(x,y,z));
+                            }
 
                             Splined_Fcoll = box->Fcoll[counter * HII_TOT_NUM_PIXELS + HII_R_INDEX(x,y,z)];
 
@@ -1348,7 +1407,13 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                             if (flag_options->INHOMO_RECO) {
                                 rec = (*((float *) N_rec_filtered +
                                          HII_R_FFT_INDEX(x, y, z))); // number of recombinations per mean baryon
-                                rec /= (1. + curr_dens); // number of recombinations per baryon inside <R>
+                                // JordanFlitter: we can use the baryons density field
+                                if (user_params->EVOLVE_BARYONS) {
+                                    rec /= (1. + curr_dens_baryons); // number of recombinations per baryon inside <R>
+                                }
+                                else{
+                                    rec /= (1. + curr_dens); // number of recombinations per baryon inside <R>
+                                }
                             } else {
                                 rec = 0.;
                             }
@@ -1520,7 +1585,13 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
 
                             // use the original density and redshift for the snapshot (not the adjusted redshift)
                             // Only want to use the adjusted redshift for the ionisation field
-                            curr_dens = 1.0 + (perturbed_field->density[HII_R_INDEX(x, y, z)]) / adjustment_factor;
+                            // JordanFlitter: we can use the baryons density field
+                            if (user_params->EVOLVE_BARYONS){
+                              curr_dens = 1.0 + (perturbed_field->baryons_density[HII_R_INDEX(x, y, z)]) / adjustment_factor;
+                            }
+                            else {
+                              curr_dens = 1.0 + (perturbed_field->density[HII_R_INDEX(x, y, z)]) / adjustment_factor;
+                            }
                             z_eff = pow(curr_dens, 1.0 / 3.0);
 
                             if (flag_options->PHOTON_CONS) {
@@ -1558,7 +1629,7 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
     destruct_heat();
 
     // JordanFlitter: we need destruct_CLASS_GROWTH_FACTOR() if the following conditions are satisfied
-    if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS) {
+    if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS || user_params->EVOLVE_MATTER) {
           destruct_CLASS_GROWTH_FACTOR();
     }
 
@@ -1574,6 +1645,11 @@ LOG_DEBUG("global_xH = %e",global_xH);
     fftwf_free(deltax_unfiltered);
     fftwf_free(deltax_unfiltered_original);
     fftwf_free(deltax_filtered);
+    // JordanFlitter: free memory for baryons boxes
+    if (user_params->EVOLVE_BARYONS){
+        fftwf_free(deltax_unfiltered_baryons);
+        fftwf_free(deltax_filtered_baryons);
+    }
     if(flag_options->USE_MINI_HALOS){
         fftwf_free(prev_deltax_unfiltered);
         fftwf_free(prev_deltax_filtered);

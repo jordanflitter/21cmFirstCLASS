@@ -338,6 +338,42 @@ def _configure_user_params(user_params,user_params_dic):
             except KeyError:
                 pass
             user_params.RUN_CLASS = True
+    if user_params.EVOLVE_MATTER:
+        if user_params.DO_VCB_FIT:
+            try:
+                if user_params_dic["EVOLVE_MATTER"] and user_params_dic["DO_VCB_FIT"]:
+                    logger.warning("You have set EVOLVE_MATTER to True and DO_VCB_FIT to True!")
+                    logger.warning("There is no need to DO_VCB_FIT when EVOLVE_MATTER is set to True."
+                                   " The v_cb correction to the matter power spectrum is a non-linear effect"
+                                   " that takes place at small scales, for wavenumbers greater than k=40/Mpc."
+                                   " In most normal simulations, where the cell size is ~1Mpc, we do not reach such scales."
+                                   " Plus, the v_cb correction is calibrated to z=20, but we need it during the dark ages."
+                                   " Finally, sigma(M,z) and its derivative should be taken from the linear theory when"
+                                   " they are used in the extended Press-Schechter theory.")
+                    logger.warning("Automatically setting DO_VCB_FIT to False.\n")
+            except KeyError:
+                pass
+            user_params.DO_VCB_FIT = False
+        if not user_params.RUN_CLASS:
+            try:
+                if user_params_dic["EVOLVE_MATTER"] and not user_params_dic["RUN_CLASS"]:
+                    logger.warning("You have set RUN_CLASS to False but EVOLVE_MATTER is True!")
+                    logger.warning("We need to run CLASS in order to find the scale-dependent CDM growth factor.")
+                    logger.warning("If you wish to not run CLASS set also EVOLVE_MATTER to False.")
+                    logger.warning("Automatically setting RUN_CLASS to True.\n")
+            except KeyError:
+                pass
+            user_params.RUN_CLASS = True
+        if user_params.USE_DICKE_GROWTH_FACTOR:
+            try:
+                if user_params_dic["EVOLVE_MATTER"] and user_params_dic["USE_DICKE_GROWTH_FACTOR"]:
+                    logger.warning("You have set EVOLVE_MATTER to True and USE_DICKE_GROWTH_FACTOR to True!")
+                    logger.warning("When EVOLVE_MATTER is set to True, we take the CDM scale-dependent growth factor"
+                                   " from CLASS, not from the Dicke fit.")
+                    logger.warning("Automatically setting USE_DICKE_GROWTH_FACTOR to False.\n")
+            except KeyError:
+                pass
+            user_params.USE_DICKE_GROWTH_FACTOR = False
     if user_params.EVOLVE_BARYONS:
         if not user_params.RUN_CLASS:
             try:
@@ -358,6 +394,17 @@ def _configure_user_params(user_params,user_params_dic):
             except KeyError:
                 pass
             user_params.NO_INI_MATTER_FLUCTS = False
+    if user_params.LINEAR_DELTA_IN_EPS:
+        if not user_params.EVOLVE_BARYONS:
+            try:
+                if not user_params_dic["EVOLVE_BARYONS"]:
+                    logger.warning("You have set EVOLVE_BARYONS to False but LINEAR_DELTA_IN_EPS is True!")
+                    logger.warning("In this configuration all perturbations in the density fields will be computed from linear theory.")
+                    logger.warning("Set LINEAR_DELTA_IN_EPS to False if you want to treat all matter fields the same.")
+                    logger.warning("Automatically setting EVOLVE_BARYONS to True.\n")
+            except KeyError:
+                pass
+            user_params.EVOLVE_BARYONS = True
     if user_params.RUN_CLASS:
         if not user_params.POWER_SPECTRUM == 5:
             try:
@@ -561,7 +608,7 @@ def _set_default_globals():
                                         3.25460580e-04]
     global_params.T_V_CHI_B_ZHIGH_TRANSFER = list(np.zeros(149))
     global_params.LOG_K_ARR_FOR_SDGF = list(np.zeros(300))
-    global_params.LOG_SDGF = list(np.zeros(70*300))
+    global_params.LOG_SDGF_BARYONS = list(np.zeros(70*300))
     global_params.LOG_SDGF_SDM = list(np.zeros(70*300))
     global_params.Y_He = 0.245
     global_params.VAVG = 25.86

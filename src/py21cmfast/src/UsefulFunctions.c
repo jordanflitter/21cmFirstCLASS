@@ -23,13 +23,19 @@ struct UserParams *user_params_ufunc;
 double CLASS_GROWTH_FACTOR(float z, int flag);
 
 // JordanFlitter: added scale dependent growth factor
-double SDGF(double z, double k, int flag);
+double SDGF_BARYONS(double z, double k, int flag);
+
+// JordanFlitter: added scale dependent growth factor (for CDM)
+double SDGF_CDM(double z, double k, int flag);
 
 // JordanFlitter: added scale dependent growth factor (for SDM)
 double SDGF_SDM(double z, double k, int flag);
 
+// JordanFlitter: Scale dependent growth factor (for total matter)
+double SDGF_MATTER(double z, double k);
+
 // JordanFlitter: Time derivative of the scale-dependent growth function at z
-double dSDGFdt(double z, double k);
+double dSDGF_BARYONS_dt(double z, double k);
 
 // JordanFlitter: Initilize CLASS growth factor
 int init_CLASS_GROWTH_FACTOR();
@@ -316,9 +322,9 @@ double ddickedt(double z){
 }
 
 /* // JordanFlitter: Time derivative of the scale-dependent growth function at z */
-double dSDGFdt(double z, double k){
+double dSDGF_BARYONS_dt(double z, double k){
     float dz = 1e-3;
-    return (SDGF(z+dz,k,0)-SDGF(z,k,0))/dz/dtdz(z); // lazy non-analytic form getting
+    return (SDGF_BARYONS(z+dz,k,0)-SDGF_BARYONS(z,k,0))/dz/dtdz(z); // lazy non-analytic form getting
 }
 
 /* returns the hubble "constant" (in 1/sec) at z */
@@ -1081,7 +1087,7 @@ double CLASS_GROWTH_FACTOR(float z, int flag)
 }
 
 // JordanFlitter: Scale dependent growth factor. Similar to CLASS_GROWTH_FACTOR function
-double SDGF(double z, double k, int flag)
+double SDGF_BARYONS(double z, double k, int flag)
 {
     double ans;
     static double log_z_arr[Z_ARRAY_NPTS];
@@ -1102,7 +1108,7 @@ double SDGF(double z, double k, int flag)
         }
 
         for (size_t i = 0; i < Z_ARRAY_NPTS*SDGF_K_NPTS; i++) {
-            log_SDGF_arr[i] = global_params.LOG_SDGF[i];
+            log_SDGF_arr[i] = global_params.LOG_SDGF_BARYONS[i];
         }
 
         // Set up spline table
@@ -1138,6 +1144,67 @@ double SDGF(double z, double k, int flag)
   }
   else { // Do 2D interpolation!
       ans = gsl_interp2d_eval(interp, log_z_arr, log_k_arr, log_SDGF_arr, log10_z, log10_k, log_z_acc, log_k_acc);
+  }
+
+  return pow(10.,ans);
+}
+
+// JordanFlitter: Scale dependent growth factor (for CDM). Similar to CLASS_GROWTH_FACTOR function
+double SDGF_CDM(double z, double k, int flag)
+{
+    double ans;
+    static double log_z_arr[Z_ARRAY_NPTS];
+    static double log_k_arr[SDGF_K_NPTS];
+    static double log_SDGF_CDM_arr[Z_ARRAY_NPTS*SDGF_K_NPTS];
+    static gsl_interp_accel *log_z_acc, *log_k_acc;
+    static gsl_interp2d *interp;
+
+
+    if (flag == 1) {
+
+        for (size_t i = 0; i < Z_ARRAY_NPTS; i++) {
+            log_z_arr[i] = global_params.LOG_Z_ARR[i];
+        }
+
+        for (size_t i = 0; i < SDGF_K_NPTS; i++) {
+            log_k_arr[i] = global_params.LOG_K_ARR_FOR_SDGF[i];
+        }
+
+        for (size_t i = 0; i < Z_ARRAY_NPTS*SDGF_K_NPTS; i++) {
+            log_SDGF_CDM_arr[i] = global_params.LOG_SDGF_CDM[i];
+        }
+        log_z_acc = gsl_interp_accel_alloc();
+        log_k_acc = gsl_interp_accel_alloc();
+        interp = gsl_interp2d_alloc(gsl_interp2d_bicubic, Z_ARRAY_NPTS, SDGF_K_NPTS);
+        gsl_interp2d_init(interp, log_z_arr, log_k_arr, log_SDGF_CDM_arr, Z_ARRAY_NPTS, SDGF_K_NPTS);
+
+        return 0;
+  }
+
+  if (flag == 2) {
+      // Free memory
+      gsl_interp2d_free(interp);
+      gsl_interp_accel_free(log_z_acc);
+      gsl_interp_accel_free(log_k_acc);
+      return 0;
+  }
+
+  // Convert to log10
+  double log10_z = log10(z);
+  double log10_k = log10(k);
+
+  if (log10_z > global_params.LOG_Z_ARR[Z_ARRAY_NPTS-1]) { // Called at z>1100! Bail out
+      LOG_ERROR("Called SDGF with z=%f.", z);
+      Throw 1;
+  }
+  else if ((log10_z < global_params.LOG_Z_ARR[0]) || (log10_k < global_params.LOG_K_ARR_FOR_SDGF[0])) { // approximate the SDGF to SIGF at very low redshifts or very large scales
+      ans = log10(dicke(z));
+  }
+  else if (log10_k > global_params.LOG_K_ARR_FOR_SDGF[SDGF_K_NPTS-1]) { // SDGF converges at very small scales
+      ans = gsl_interp2d_eval(interp, log_z_arr, log_k_arr, log_SDGF_CDM_arr, log10_z, global_params.LOG_K_ARR_FOR_SDGF[SDGF_K_NPTS-1], log_z_acc, log_k_acc);
+  }
+  else { // Do 2D interpolation!
+      ans = gsl_interp2d_eval(interp, log_z_arr, log_k_arr, log_SDGF_CDM_arr, log10_z, log10_k, log_z_acc, log_k_acc);
   }
 
   return pow(10.,ans);
@@ -1204,6 +1271,31 @@ double SDGF_SDM(double z, double k, int flag)
   return pow(10.,ans);
 }
 
+// JordanFlitter: Scale dependent growth factor (for total matter)
+double SDGF_MATTER(double z, double k){
+    double growth_factor;
+    if (!user_params_ufunc->SCATTERING_DM){
+        growth_factor = ((
+                         (cosmo_params_ufunc->OMm-cosmo_params_ufunc->OMb)*SDGF_CDM(z,k,0)
+                         +
+                         cosmo_params_ufunc->OMb*SDGF_BARYONS(z,k,0)
+                          )/cosmo_params_ufunc->OMm
+                        );
+    }
+    else {
+      growth_factor = ((
+                       (1.-pow(10.,-cosmo_params_ufunc->f_chi))*(cosmo_params_ufunc->OMm-cosmo_params_ufunc->OMb)*SDGF_CDM(z,k,0)
+                       +
+                       cosmo_params_ufunc->OMb*SDGF_BARYONS(z,k,0)
+                       +
+                       pow(10.,-cosmo_params_ufunc->f_chi)*(cosmo_params_ufunc->OMm-cosmo_params_ufunc->OMb)*SDGF_SDM(z,k,0)
+                        )/cosmo_params_ufunc->OMm
+                      );
+    }
+    return growth_factor;
+
+}
+
 // JordanFlitter: Initilize CLASS growth factor
 int init_CLASS_GROWTH_FACTOR()
 {
@@ -1212,12 +1304,16 @@ int init_CLASS_GROWTH_FACTOR()
             return -11;
     }
     if (user_params_ufunc->EVOLVE_BARYONS) {
-        if (SDGF(100, 100, 1) < 0)
+        if (SDGF_BARYONS(100, 100, 1) < 0)
             return -12;
         if (user_params_ufunc->SCATTERING_DM){
           if (SDGF_SDM(100, 100, 1) < 0)
               return -13;
         }
+    }
+    if (user_params_ufunc->EVOLVE_MATTER) {
+        if (SDGF_CDM(100, 100, 1) < 0)
+            return -14;
     }
 
     return 0;
@@ -1230,9 +1326,12 @@ void destruct_CLASS_GROWTH_FACTOR()
       CLASS_GROWTH_FACTOR(100.0, 2);
   }
   if (user_params_ufunc->EVOLVE_BARYONS) {
-      SDGF(100.0, 100.0, 2);
+      SDGF_BARYONS(100.0, 100.0, 2);
       if (user_params_ufunc->SCATTERING_DM){
           SDGF_SDM(100.0, 100.0, 2);
       }
+  }
+  if (user_params_ufunc->EVOLVE_MATTER) {
+      SDGF_CDM(100.0, 100.0, 2);
   }
 }

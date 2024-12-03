@@ -61,6 +61,8 @@ struct UserParams{
     bool CLOUD_IN_CELL; // JordanFlitter: added flag to use Bradley Greig's algorithm for cloud in cell in 2LPT calculations
     bool EVOLVE_BARYONS; // JordanFlitter: added flag to use the scale-dependent growth factor to evolve the baryons density field (see arXiv: 2309.03948)
     bool EVALUATE_TAU_REIO; // JordanFlitter: added flag to evaluate tau_reio from the simulation
+    bool EVOLVE_MATTER; // JordanFlitter: added flag to properly evolve the CDM density field (and the total matter field)
+    bool LINEAR_DELTA_IN_EPS; // JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
 };
 
 struct AstroParams{

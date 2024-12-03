@@ -144,7 +144,9 @@
 
 // ----------------------------------------------------------------------------------------- //
 
-
+// JordanFlitter: defined SIGMA_M_NPTS and SIGMA_Z_NPTS
+#define SIGMA_M_NPTS (int) 300
+#define SIGMA_Z_NPTS (int) 101
 
 #define NSPEC_MAX (int) 23
 #define RECFAST_NPTS (int) 501

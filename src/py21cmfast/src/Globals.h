@@ -110,8 +110,12 @@ struct GlobalParams{
     float T_VCB_KIN_TRANSFER[149];
     float T_V_CHI_B_ZHIGH_TRANSFER[149];
     float LOG_K_ARR_FOR_SDGF[300];
-    float LOG_SDGF[70*300];
+    float LOG_SDGF_BARYONS[70*300];
+    float LOG_SDGF_CDM[70*300];
     float LOG_SDGF_SDM[70*300];
+    float LOG_M_ARR[300];
+    float Z_ARRAY_FOR_SIGMA[101];
+    float SIGMA_MZ[300*101];
 };
 
 extern struct GlobalParams global_params = {
