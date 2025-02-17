@@ -116,6 +116,9 @@ struct GlobalParams{
     float LOG_M_ARR[300];
     float Z_ARRAY_FOR_SIGMA[101];
     float SIGMA_MZ[300*101];
+    // SarahLibanore : three point function at z = 0 used for NG case
+    float THREEPOINT_MnMm[300*300]; // the size is set by log M x log M
+    float THREEPOINT_DER_MnMm[300*300]; // the size is set by log M x log M
 };
 
 extern struct GlobalParams global_params = {

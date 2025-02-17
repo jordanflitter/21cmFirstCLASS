@@ -100,7 +100,7 @@ void bisection(float *x, float xlow, float xup, int *iter);
 float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
 
 double sheth_delc(double del, double sig);
-float dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2 ,float z);  // JordanFlitter: added redshift argument
+double dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2 ,float z);  // JordanFlitter: added redshift argument
 double dNion_ConditionallnM(double lnM, void *params);
 double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, double z); // JordanFlitter: added redshift argument
 double dNion_ConditionallnM_MINI(double lnM, void *params);
@@ -121,6 +121,10 @@ double dSDGF_SDM_dz(double z,double k);
 
 // JordanFlitter: 2D linear interpolation for sigma(M,z)
 float sigma_linear_2D_interpolation(float M, float z);
+
+// SarahLibanore : three point functions required in Fcoll NG corrections 
+float three_point_delta_interpolation(float Mn, float Mm);
+float three_point_delta_derivative_interpolation(float Mn, float Mm);
 
 // JordanFlitter: numerical derivative for sigma^2(M,z)
 float sigma_sq_numerical_derivative(float M, float z);
@@ -211,6 +215,7 @@ void free_ps(); /* deallocates the gsl structures from init_ps */
 // JordanFlitter: added redshift argument to sigma
 double sigma_z0(double M, double z); //calculates sigma at z=0 (no dicke)
 double power_in_k(double k); /* Returns the value of the linear power spectrum density (i.e. <|delta_k|^2>/V) at a given k mode at z=0 */
+double power_in_k_potential(double k); // SarahLibanore : primordial potential power spectrum, used for NG
 double TFmdm(double k); //Eisenstein & Hu power spectrum transfer function
 void TFset_parameters();
 
@@ -283,7 +288,6 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         spline_density  = gsl_spline_alloc (gsl_interp_cspline, CLASS_LENGTH);
         gsl_status = gsl_spline_init(spline_density, log10_kclass, Tmclass, CLASS_LENGTH);
         GSL_ERROR(gsl_status);
-
         LOG_SUPER_DEBUG("Generated CLASS Density Spline.");
 
         //Set up spline table for velocities
@@ -335,7 +339,7 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
     }
     else if (flag_int == -1) {
         gsl_spline_free (spline_density);
-        gsl_interp_accel_free(acc_density);
+        gsl_interp_accel_free(acc_density);      
         gsl_spline_free (spline_vcb);
         gsl_interp_accel_free(acc_vcb);
         if (user_params_ps->SCATTERING_DM && user_params_ps->USE_SDM_FLUCTS){
@@ -664,6 +668,19 @@ double power_in_k(double k){
 
 
     return p*TWOPI*PI*sigma_norm*sigma_norm;
+}
+
+// SarahLibanore : primordial potential power spectrum, used for NG
+double power_in_k_potential(double k){
+    double p;
+
+    if (k == 0 )
+        {p = 0;}
+    else
+        {p = 1. / pow(k,3) * cosmo_params_ps->A_s * pow(k/0.05,(cosmo_params_ps->POWER_INDEX-1.)); 
+            } // 9/25 already included in the class transfer function 
+    
+    return p*TWOPI*PI * pow(k,4); // we multiply by k^4 to ...?
 }
 
 
@@ -2183,9 +2200,19 @@ void initialiseGL_Nion_Xray(int n, float M_Min, float M_Max){
     gauleg(log(M_Min),log(M_Max),xi_SFR_Xray,wi_SFR_Xray,n);
 }
 
-float dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2, float z){  // JordanFlitter: added redshift argument
+double dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2, float z){  // JordanFlitter: added redshift argument
 
-    float sigma1, dsigmadm,dsigma_val;
+    double sigma1, dsigmadm, dsigma_val;
+    // SarahLibanore : quantity used to simplify the expressions
+    double deltagrowth_diff, sigma_diff, dfcoll_dMmin_EPS;
+    // SarahLibanore : quantity used to model the NG corrections
+    double dfcoll, dfcoll_dMmin_NG, A, B, dA_dMmin, dB_dMmin;
+    double Cval, dC_dMmin;
+    double delta_n3, delta_m3, delta_m2delta_n, delta_mdelta_n2; 
+    double ddelta_n3_dMmin, ddelta_m2delta_n_dMin, ddelta_mdelta_n2_dMin; 
+    double cothD, val, sumterm, dsumterm;
+    double dfdS, ddfdSdM, term, one, two;
+
     float MassBinLow;
     int MassBin;
 
@@ -2216,20 +2243,87 @@ float dNdM_conditional(float growthf, float M1, float M2, float delta1, float de
     sigma1 = sigma1*sigma1;
     sigma2 = sigma2*sigma2;
 
-    dsigmadm = dsigmadm/(2.0*sigma1); // This is actually sigma1^{2} as calculated above, however, it should just be sigma1. It cancels with the same factor below. Why I have decided to write it like that I don't know!
+    // SarahLibanore : define to simplify notation
+    deltagrowth_diff = ( delta1 - delta2 )/growthf;
+    if (sigma1 < sigma2)
+        {return 0.;}
+    else if (sigma1 > sigma2)
+        {sigma_diff = sigma1 - sigma2;}
+    else if (sigma1==sigma2)
+        {sigma_diff = 1.e-6;
+        }
 
-    if((sigma1 > sigma2)) {
+    // SarahLibanore : in the old version of the code the 1/sqrt(2pi) of the gaussian case was used in other functions, I moved it here
+    dfcoll_dMmin_EPS = (-(deltagrowth_diff)*dsigmadm *( exp( - pow( deltagrowth_diff, 2 )/( 2.*sigma_diff ) ) )/(pow(sigma_diff, 1.5)))/sqrt(TWOPI) ;
+   
+    // SarahLibanore : implementation of the derivative of the NG corrections in Eq 5 in 1304.8049
+    if (user_params_ps->NON_GAUSS_FCOLL & !cosmo_params_ps->F_NL == 0.)
+        {
 
-        return -(( delta1 - delta2 )/growthf)*( 2.*sigma1*dsigmadm )*( exp( - ( delta1 - delta2 )*( delta1 - delta2 )/( 2.*growthf*growthf*( sigma1 - sigma2 ) ) ) )/(pow( sigma1 - sigma2, 1.5));
-    }
-    else if(sigma1==sigma2) {
+            // condition written below Eq 5 in Lidz
+            if (delta1 <= delta2 || pow(delta1/growthf,2) < sigma2 || sigma2 == 0. )
+            // condition to avoid infty in the coth
+            //if (delta1 == delta2 || sigma2 == 0. )
+                {dfcoll_dMmin_NG = 0.;}
+            else{
+                // the three point function is computed from table at z = 0 and it must be scaled compared with sigma_0
+                delta_n3 = three_point_delta_interpolation(M1,M1); // diagonal on the matrix
+                delta_m3 = three_point_delta_interpolation(M2,M2);   // diagonal on the matrix
+                delta_m2delta_n = three_point_delta_interpolation(M1,M2); // upper triangular
+                delta_mdelta_n2 = three_point_delta_interpolation(M2,M1); // lower triangular
 
-        return -(( delta1 - delta2 )/growthf)*( 2.*sigma1*dsigmadm )*( exp( - ( delta1 - delta2 )*( delta1 - delta2 )/( 2.*growthf*growthf*( 1.e-6 ) ) ) )/(pow( 1.e-6, 1.5));
+                ddelta_n3_dMmin = three_point_delta_derivative_interpolation(M1,M1); // diagonal in the matrix
+                ddelta_m2delta_n_dMin = three_point_delta_derivative_interpolation(M1,M2); // upper triangular
+                ddelta_mdelta_n2_dMin = three_point_delta_derivative_interpolation(M2,M1); // lower triangular
 
-    }
-    else {
-        return 0.;
-    }
+            A = (delta_n3 - delta_m3 + 3.*delta_m2delta_n - 3.*delta_mdelta_n2) ;
+            B = (delta_m3 + delta_mdelta_n2 - 2*delta_m2delta_n) ;
+            Cval = delta_m2delta_n - delta_m3; 
+
+            dA_dMmin = (ddelta_n3_dMmin + 3.*ddelta_m2delta_n_dMin - 3.*ddelta_mdelta_n2_dMin);
+            dB_dMmin = (ddelta_mdelta_n2_dMin - 2.*ddelta_m2delta_n_dMin) ;
+            dC_dMmin = ddelta_m2delta_n_dMin ;
+
+            dfdS = (deltagrowth_diff/sqrt(TWOPI)/pow(sigma_diff,3/2.)) * exp(-pow(deltagrowth_diff,2)/2./sigma_diff);
+
+            ddfdSdM = dfdS * dsigmadm / 2. / sigma_diff * (pow(deltagrowth_diff,2.)/sigma_diff - 3.);
+
+            // DERIVATIVE OF THE EXPRESSION IN D'ALOSIO 
+
+            //val = delta1 / growthf * deltagrowth_diff / sigma2 ; 
+            //cothD = (exp(val) + exp(-val)) / (exp(val) - exp(-val)); 
+
+            //sumterm = A/3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B/sigma2 * (delta1/growthf - deltagrowth_diff * cothD) + C * sigma_diff / sigma2 / deltagrowth_diff * (pow(delta1/growthf, 2.) - sigma2 - 2.*delta1/growthf * deltagrowth_diff * (cothD - 1.));
+
+            //dsumterm = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) - A / 3. * dsigmadm + dB_dMmin / sigma2 * (delta1/growthf - deltagrowth_diff * cothD) +  (pow(delta1/growthf, 2.) - sigma2 - 2.*delta1/growthf * deltagrowth_diff * (cothD - 1.)) * (dC_dMmin * sigma_diff + C )/ sigma2 / deltagrowth_diff;
+
+            //dfcoll_dMmin_NG = - (ddfdSdM * sumterm + dfdS * dsumterm) ; // the - comes from the definition of Fcoll
+
+            // DERIVATIVE OF THE EXPRESSION IN LIDZ
+   
+            term = delta2 / growthf / sigma2;
+    
+            one = A / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B * term;
+    
+            two = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) - A / 3. * dsigmadm * (deltagrowth_diff / pow(sigma_diff,2.)) + dB_dMmin * term ;
+    
+            dfcoll_dMmin_NG = - (ddfdSdM * one + dfdS * two);
+            
+            }
+    //printf("GAUSS=%e, NON GAUSS=%e\n",dfcoll_dMmin_EPS,dfcoll_dMmin_NG);
+         }
+
+    else
+        {dfcoll_dMmin_NG = 0.;}
+
+    if (abs(dfcoll_dMmin_NG) < 1E-50)
+    {dfcoll_dMmin_NG = 0.;}
+
+    dfcoll = dfcoll_dMmin_EPS + dfcoll_dMmin_NG ;
+    //printf("dfcoll=%e\n",dfcoll);
+
+    return dfcoll ;
+    
 }
 
 void initialiseGL_Nion(int n, float M_Min, float M_Max){
@@ -2273,7 +2367,7 @@ double dNion_ConditionallnM_MINI(double lnM, void *params) {
     else
         Fesc = pow(M/1e7,Alpha_esc);
 
-    return M*exp(-MassTurnover/M)*exp(-M/MassTurnover_upper)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z)/sqrt(2.*PI);  // JordanFlitter: added redshift argument
+    return M*exp(-MassTurnover/M)*exp(-M/MassTurnover_upper)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z);  // JordanFlitter: added redshift argument
 }
 
 double dNion_ConditionallnM(double lnM, void *params) {
@@ -2309,7 +2403,7 @@ double dNion_ConditionallnM(double lnM, void *params) {
     else
         Fesc = pow(M/1e10,Alpha_esc);
 
-    return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z)/sqrt(2.*PI);  // JordanFlitter: added redshift argument
+    return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z);  // JordanFlitter: added redshift argument
 }
 
 
@@ -2420,14 +2514,14 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol,
-                         1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    //status = gsl_integration_qng (&F, lower_limit, upper_limit,  rel_tol, 0, w, &result, &error);
 
     if(status!=0) {
-        LOG_ERROR("gsl integration error occured!");
+        LOG_ERROR("SL problem, gsl integration error occured!");
         LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
-        LOG_ERROR("data: growthf=%e M1=%e M2=%e sigma2=%e delta1=%e delta2=%e",growthf,M1,M2,sigma2,delta1,delta2);
-        LOG_ERROR("data: MassTurnover=%e Alpha_star=%e Alpha_esc=%e Fstar10=%e Fesc10=%e Mlim_Fstar=%e Mlim_Fesc=%e",MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc);
+        //LOG_ERROR("data: growthf=%e M1=%e M2=%e sigma2=%e delta1=%e delta2=%e",growthf,M1,M2,sigma2,delta1,delta2);
+        //LOG_ERROR("data: MassTurnover=%e Alpha_star=%e Alpha_esc=%e Fstar10=%e Fesc10=%e Mlim_Fstar=%e Mlim_Fesc=%e",MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc);
         GSL_ERROR(status);
     }
 
@@ -2480,7 +2574,7 @@ float Nion_ConditionallnM_GL_MINI(float lnM, struct parameters_gsl_SFR_con_int_ 
     else
         Fesc = pow(M/1e7,Alpha_esc);
 
-    return M*exp(-MassTurnover/M)*exp(-M/MassTurnover_upper)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z)/sqrt(2.*PI);  // JordanFlitter: added redshift argument
+    return M*exp(-MassTurnover/M)*exp(-M/MassTurnover_upper)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z);  // JordanFlitter: added redshift argument
 }
 
 float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con){
@@ -2515,7 +2609,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
     else
         Fesc = pow(M/1e10,Alpha_esc);
 
-    return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z)/sqrt(2.*PI); // JordanFlitter: added redshift argument
+    return M*exp(-MassTurnover/M)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z); // JordanFlitter: added redshift argument
 
 }
 
@@ -4612,6 +4706,131 @@ float sigma_linear_2D_interpolation(float M, float z) {
         sigma = (sigma2*(log_M-log_M1)+sigma1*(log_M2-log_M))/(log_M2-log_M1);
         return sigma;
     }
+}
+
+// SarahLibanore : linear interpolation for the three point function at z = 0
+// it's a 1d interpolation if nnn or mmm , while a 2d interpolation for nmm and nnm
+float three_point_delta_interpolation(float Mn,float Mm) {
+
+        int Mn_ind, Mm_ind;
+        float log_Mn, log_Mm;
+        float dlog10_M, log_Mm1, log_Mm2, log_Mn1, log_Mn2;
+        float dnn, dnm, dmn, dmm, dd1, dd2, ddd;
+
+        // Convert to log
+        log_Mn = log10(Mn); // could also be Mm 
+        if (log_Mn < global_params.LOG_M_ARR[0]){
+            LOG_ERROR("Attempted to compute three point function for Mn=%e, but minimum M in the interpolation table is", Mn, pow(10.,global_params.LOG_M_ARR[0]));
+            Throw(ValueError);
+            return -1;
+        }
+        // SIGMA_M_NPTS is the size of the M array, the same between computation of sigma and of three point function 
+        else if (log_Mn > global_params.LOG_M_ARR[SIGMA_M_NPTS-1]){
+            LOG_ERROR("Attempted to compute three point function for Mn=%e, but maximum M in the interpolation table is", Mn, pow(10.,global_params.LOG_M_ARR[SIGMA_M_NPTS-1]));
+            Throw(ValueError);
+            return -1;
+        }
+
+     // 2d - nnm or nmm or nnn or mmm 
+    // we refer to M3 since that is the one most likely to be different
+    log_Mm = log10(Mm);
+    if (log_Mm < global_params.LOG_M_ARR[0]){
+        LOG_ERROR("Attempted to compute three point function for Mm=%e, but minimum M in the interpolation table is", Mm, pow(10.,global_params.LOG_M_ARR[0]));
+        Throw(ValueError);
+        return -1;
+    }
+    // SIGMA_M_NPTS is the size of the M array, the same between computation of sigma and of three point function 
+    else if (log_Mm > global_params.LOG_M_ARR[SIGMA_M_NPTS-1]){
+        LOG_ERROR("Attempted to compute three point function for Mm=%e, but maximum M in the interpolation table is", Mm, pow(10.,global_params.LOG_M_ARR[SIGMA_M_NPTS-1]));
+        Throw(ValueError);
+        return -1;
+    }
+
+    // Compute differentials
+    dlog10_M = global_params.LOG_M_ARR[1] - global_params.LOG_M_ARR[0];
+    
+    // Find four nearest neighbours
+    Mn_ind = (int)floor( (log_Mn-global_params.LOG_M_ARR[0])/dlog10_M );
+    Mm_ind = (int)floor( (log_Mm-global_params.LOG_M_ARR[0])/dlog10_M );
+    
+    log_Mn1 = global_params.LOG_M_ARR[Mn_ind];
+    log_Mn2 = global_params.LOG_M_ARR[Mn_ind+1];
+    log_Mm1 = global_params.LOG_M_ARR[Mm_ind];
+    log_Mm2 = global_params.LOG_M_ARR[Mm_ind+1];
+
+    dnn = global_params.THREEPOINT_MnMm[Mm_ind+SIGMA_M_NPTS*Mn_ind];
+    dnm = global_params.THREEPOINT_MnMm[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
+    dmn = global_params.THREEPOINT_MnMm[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
+    dmm = global_params.THREEPOINT_MnMm[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
+
+    // Do 2D linear interpolation
+    dd1 = (dmn*(log_Mm-log_Mm1)+dnn*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
+    dd2 = (dmm*(log_Mm-log_Mm1)+dnm*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
+    ddd = (dd2*(log_Mn-log_Mn1)+dd1*(log_Mn2-log_Mn))/(log_Mn2-log_Mn1);
+
+    return ddd;
+}
+
+// SarahLibanore : 2D linear interpolation for the derivative of the three point function 
+float three_point_delta_derivative_interpolation(float Mn, float Mm){
+
+        int Mn_ind, Mm_ind;
+        float log_Mn, log_Mm;
+        float dlog10_M, log_Mm1, log_Mm2, log_Mn1, log_Mn2;
+        float dnn, dnm, dmn, dmm, dd1, dd2, dd3_dM;
+
+        // Convert to log
+        log_Mn = log10(Mn); // could also be Mm 
+        if (log_Mn < global_params.LOG_M_ARR[0]){
+            LOG_ERROR("Attempted to compute three point function for M=%e, but minimum M in the interpolation table is", Mn, pow(10.,global_params.LOG_M_ARR[0]));
+            Throw(ValueError);
+            return -1;
+        }
+        // SIGMA_M_NPTS is the size of the M array, the same between computation of sigma and of three point function 
+        else if (log_Mn > global_params.LOG_M_ARR[SIGMA_M_NPTS-1]){
+            LOG_ERROR("Attempted to compute three point function for M=%e, but maximum M in the interpolation table is", Mn, pow(10.,global_params.LOG_M_ARR[SIGMA_M_NPTS-1]));
+            Throw(ValueError);
+            return -1;
+        }
+
+     // 2d - nnm or nmm or nnn or mmm 
+    // we refer to M3 since that is the one most likely to be different
+    log_Mm = log10(Mm);
+    if (log_Mm < global_params.LOG_M_ARR[0]){
+        LOG_ERROR("Attempted to compute three point function for M=%e, but minimum M in the interpolation table is", Mm, pow(10.,global_params.LOG_M_ARR[0]));
+        Throw(ValueError);
+        return -1;
+    }
+    // SIGMA_M_NPTS is the size of the M array, the same between computation of sigma and of three point function 
+    else if (log_Mm > global_params.LOG_M_ARR[SIGMA_M_NPTS-1]){
+        LOG_ERROR("Attempted to compute three point function for M=%e, but maximum M in the interpolation table is", Mm, pow(10.,global_params.LOG_M_ARR[SIGMA_M_NPTS-1]));
+        Throw(ValueError);
+        return -1;
+    }
+
+    // Compute differentials
+    dlog10_M = global_params.LOG_M_ARR[1] - global_params.LOG_M_ARR[0];
+    
+    // Find four nearest neighbours
+    Mn_ind = (int)floor( (log_Mn-global_params.LOG_M_ARR[0])/dlog10_M );
+    Mm_ind = (int)floor( (log_Mm-global_params.LOG_M_ARR[0])/dlog10_M );
+    
+    log_Mn1 = global_params.LOG_M_ARR[Mn_ind];
+    log_Mn2 = global_params.LOG_M_ARR[Mn_ind+1];
+    log_Mm1 = global_params.LOG_M_ARR[Mm_ind];
+    log_Mm2 = global_params.LOG_M_ARR[Mm_ind+1];
+
+    dnn = global_params.THREEPOINT_DER_MnMm[Mm_ind+SIGMA_M_NPTS*Mn_ind];
+    dnm = global_params.THREEPOINT_DER_MnMm[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
+    dmn = global_params.THREEPOINT_DER_MnMm[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
+    dmm = global_params.THREEPOINT_DER_MnMm[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
+
+    // Do 2D linear interpolation
+    dd1 = (dmn*(log_Mm-log_Mm1)+dnn*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
+    dd2 = (dmm*(log_Mm-log_Mm1)+dnm*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
+    dd3_dM = (dd2*(log_Mn-log_Mn1)+dd1*(log_Mn2-log_Mn))/(log_Mn2-log_Mn1);
+
+    return dd3_dM;
 }
 
 // JordanFlitter: numerical derivative for sigma^2(M,z)

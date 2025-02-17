@@ -20,7 +20,7 @@ struct CosmoParams{
     float f_chi; // JordanFlitter: added SDM fraction (this is actually -log10(f_chi))
     float sigma_SDM; // JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
     float SDM_INDEX; // JordanFlitter: added SDM cross section index
-
+    float F_NL; // SarahLibanore: local non gaussianity
 };
 
 struct UserParams{
@@ -63,6 +63,8 @@ struct UserParams{
     bool EVALUATE_TAU_REIO; // JordanFlitter: added flag to evaluate tau_reio from the simulation
     bool EVOLVE_MATTER; // JordanFlitter: added flag to properly evolve the CDM density field (and the total matter field)
     bool LINEAR_DELTA_IN_EPS; // JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
+    bool NON_GAUSS_IC; // SarahLibanore: flag to use fNL in initial conditions
+    bool NON_GAUSS_FCOLL; // SarahLibanore: flag to use fNL in collapsed fraction
 };
 
 struct AstroParams{

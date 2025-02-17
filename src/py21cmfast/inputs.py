@@ -579,6 +579,9 @@ global_params.LOG_SDGF_SDM = list(np.zeros(70*300))
 global_params.LOG_M_ARR = list(np.zeros(300))
 global_params.Z_ARRAY_FOR_SIGMA = list(np.zeros(101))
 global_params.SIGMA_MZ = list(np.zeros(300*101))
+# SarahLibanore: three point function and derivative to add NG corrections to Fcoll
+global_params.THREEPOINT_MnMm = list(np.zeros(300*300))
+global_params.THREEPOINT_DER_MnMm = list(np.zeros(300*300))
 
 class CosmoParams(StructWithDefaults):
     """
@@ -621,6 +624,8 @@ class CosmoParams(StructWithDefaults):
     SDM_INDEX : float, optional
         The power-law index of the cross-section between the SDM particle and its target particles,
         see SDM_TARGET_TYPE in user_params.
+    F_NL : float, optional
+        fNL for local non Gaussianity
     """
 
     _ffi = ffi
@@ -639,6 +644,7 @@ class CosmoParams(StructWithDefaults):
         "f_chi": 0., # JordanFlitter: added SDM fraction (this is actually -log10(f_chi))
         "sigma_SDM": 41., # JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
         "SDM_INDEX": -4., # JordanFlitter: added SDM cross section index
+        "F_NL":0, # SarahLibanore: local non gaussianity
     }
 
     @property
@@ -832,6 +838,10 @@ class UserParams(StructWithDefaults):
     CLOUD_IN_CELL: bool, optional
         Whether to use Bradley Greig's "cloud in cell" algorithm in 2LPT calculations. If set to True, mass will be redistributed to
         its 8 nearest neighbors during the 2LPT calculations. Otherwise, there will be no such redistribution. Default is True.
+    NON_GAUSS_IC : bool, optional
+        If True, initial conditions are drawn using the potential and introducing non Gaussian corrections
+    NON_GAUSS_FCOLL : bool, optional
+        If True, non Gaussian corrections are applied to the collapsed fraction (see  Eq 5 in 1304.8049)
 
     """
 
@@ -875,6 +885,8 @@ class UserParams(StructWithDefaults):
         "EVALUATE_TAU_REIO": True, # JordanFlitter: added flag to evaluate tau_reio from the simulation
         "EVOLVE_MATTER": True, # JordanFlitter: added flag to properly evolve the CDM density field (and the total matter field)
         "LINEAR_DELTA_IN_EPS": True, # JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
+        "NON_GAUSS_IC": False, # SarahLibanore: flag to use fNL in initial conditions
+        "NON_GAUSS_FCOLL": False, # SarahLibanore: flag to use fNL in collapsed fraction
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -1020,6 +1032,17 @@ class UserParams(StructWithDefaults):
             return False
         else:
             return self._FAST_FCOLL_TABLES
+
+    # SarahLibanore : for the moment we only implement NG corrections to Fcoll through the python code in analogy with the case of sigma_z0 with USE_INTERPOLATION_TABLES and EVOLVE_MATTER. Other cases should be modeled in the C code, TO DO
+    @property
+    def NON_GAUSS_FCOLL(self):
+        """Check that USE_INTERPOLATION_TABLES and EVOLVE_MATTER are True."""
+        if self._NON_GAUSS_FCOLL and not (self.USE_INTERPOLATION_TABLES and self.EVOLVE_MATTER):
+            logger.warning("Non Gaussian corrections to Fcoll for now are only implemented if USE_INTERPOLATION_TABLES and EVOLVE_MATTER are True."
+                "NON_GAUSS_FCOLL is set to False." )
+            return False
+        else:
+            return self._NON_GAUSS_FCOLL
 
 
 class FlagOptions(StructWithDefaults):

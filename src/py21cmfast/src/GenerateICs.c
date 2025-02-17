@@ -134,6 +134,8 @@ int ComputeInitialConditions(
     float p_vcb, vcb_i;
     // JordanFlitter: new variables for SDM
     float p_SDM, delta_SDM_i;
+    // SarahLibanore: quantities needed for NG case
+    float avg_pot2, pot_to_delta, Cv;
 
     float f_pixel_factor;
 
@@ -212,9 +214,6 @@ int ComputeInitialConditions(
     // HIRES_box_vcb_saved may be needed if FFTW_Wisdom doesn't exist -- currently unused
     // but I am not going to allocate it until I am certain I needed it.
 
-
-
-
     // find factor of HII pixel size / deltax pixel size
     f_pixel_factor = user_params->DIM/(float)user_params->HII_DIM;
 
@@ -250,8 +249,7 @@ int ComputeInitialConditions(
                     // now get the power spectrum; remember, only the magnitude of k counts (due to issotropy)
                     // this could be used to speed-up later maybe
                     k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
-                    p = power_in_k(k_mag);
-
+                
                     // ok, now we can draw the values of the real and imaginary part
                     // of our k entry from a Gaussian distribution
                     if(user_params->NO_RNG) {
@@ -263,17 +261,96 @@ int ComputeInitialConditions(
                         b = gsl_ran_ugaussian(r[omp_get_thread_num()]);
                     }
 
-                    HIRES_box[C_INDEX(n_x, n_y, n_z)] = sqrt(VOLUME*p/2.0) * (a + b*I);
-
+                    // SarahLibanore: non gaussian potential will determine the density in the NG case
+                    if (user_params->NON_GAUSS_IC){
+                        p = power_in_k_potential(k_mag);
+                        HIRES_box[C_INDEX(n_x, n_y, n_z)] = sqrt(VOLUME*p/2.0) * (a + b*I);
+                    }
+                    else{
+                        p = power_in_k(k_mag);
+                        HIRES_box[C_INDEX(n_x, n_y, n_z)] = sqrt(VOLUME*p/2.0) * (a + b*I);
+                    }
                 }
             }
         }
     }
     LOG_DEBUG("Drawn random fields.");
 
-    // *****  Adjust the complex conjugate relations for a real array  ***** //
-    adj_complex_conj(HIRES_box,user_params,cosmo_params);
+    // SarahLibanore transform potential to density and introduce non gaussianity
+    if (user_params->NON_GAUSS_IC){
 
+        // we created the gaussian potential box in FT
+        adj_complex_conj(HIRES_box,user_params,cosmo_params);
+
+        // FFT back to real space
+        int stat = dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
+        if(stat>0) Throw(stat);
+        LOG_DEBUG("FFT'd hires boxes.");
+        for (i=0; i<user_params->DIM; i++){
+                            for (j=0; j<user_params->DIM; j++){
+                                for (k=0; k<user_params->DIM; k++){
+                                    *((float *)HIRES_box + R_FFT_INDEX(i,j,k)) /= VOLUME ;
+                    }}}
+
+        // compute <phi^2>
+        avg_pot2 = 0.;
+        for (i=0; i<user_params->DIM; i++){
+                    for (j=0; j<user_params->DIM; j++){
+                        for (k=0; k<user_params->DIM; k++){
+                            avg_pot2 += pow(*((float *)HIRES_box + R_FFT_INDEX(i,j,k)),2)/TOT_NUM_PIXELS ;
+            }}}
+
+        // introduce LOCAL NG correction in real space
+        for (i=0; i<user_params->DIM; i++){
+                    for (j=0; j<user_params->DIM; j++){
+                        for (k=0; k<user_params->DIM; k++){
+                            *((float *)HIRES_box + R_FFT_INDEX(i,j,k)) += cosmo_params_ps->F_NL*(pow(*((float *)HIRES_box + R_FFT_INDEX(i,j,k)),2) - avg_pot2);
+                        }}}
+
+        // Perform FFTs
+        dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
+
+        // convert potential to density in FFT space with NG contribution
+        #pragma omp parallel shared(HIRES_box) \
+                    private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag,pot_to_delta,Cv) num_threads(user_params->N_THREADS)
+    {
+#pragma omp for
+        for (n_x=0; n_x<user_params->DIM; n_x++){
+            // convert index to numerical value for this component of the k-mode: k = (2*pi/L) * n
+            if (n_x>MIDDLE)
+                k_x =(n_x-user_params->DIM) * DELTA_K;  // wrap around for FFT convention
+            else
+                k_x = n_x * DELTA_K;
+
+            for (n_y=0; n_y<user_params->DIM; n_y++){
+                // convert index to numerical value for this component of the k-mode: k = (2*pi/L) * n
+                if (n_y>MIDDLE)
+                    k_y =(n_y-user_params->DIM) * DELTA_K;
+                else
+                    k_y = n_y * DELTA_K;
+
+                // since physical space field is real, only half contains independent modes
+                for (n_z=0; n_z<=MIDDLE; n_z++){
+                    // convert index to numerical value for this component of the k-mode: k = (2*pi/L) * n
+                    k_z = n_z * DELTA_K;
+                    k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
+
+                    if (k_mag == 0.){pot_to_delta = 0.;}
+                    else {pot_to_delta = TF_CLASS(k_mag,1,0);} // use the matter TF since it already includes the other quantities needed by the Poisson eq
+                    Cv = sqrt(1.0 - global_params.A_VCB_PM*exp( -pow(log(k_mag/global_params.KP_VCB_PM),2.0)/(2.0*global_params.SIGMAK_VCB_PM*global_params.SIGMAK_VCB_PM))); //for v=vrms
+                    // volume and Npix are required by the FFT
+                    *((fftwf_complex *)HIRES_box + C_INDEX(n_x,n_y,n_z)) *= pot_to_delta * Cv * VOLUME / TOT_NUM_PIXELS;
+
+                    }}}}
+
+    }
+
+    else{ 
+        // SarahLibanore : in the NG case, no need of doing the cc separately
+        // *****  Adjust the complex conjugate relations for a real array  ***** //
+        adj_complex_conj(HIRES_box,user_params,cosmo_params);
+    }
+    
     memcpy(HIRES_box_saved, HIRES_box, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
 
     // FFT back to real space
@@ -293,6 +370,9 @@ int ComputeInitialConditions(
         }
     }
 
+    printf("boxes->hires_density=%e\n",boxes->hires_density[R_INDEX(0,0,0)]);
+
+    //Throw(TableGenerationError);
     // *** If required, let's also create a lower-resolution version of the density field  *** //
     memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
 
@@ -1080,7 +1160,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
     // deallocate
     fftwf_free(HIRES_box);
     fftwf_free(HIRES_box_saved);
-
+    
     free_ps();
 
     for (i=0; i<user_params->N_THREADS; i++) {

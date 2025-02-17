@@ -1,6 +1,16 @@
+LICENSE
+PKG-INFO
+README.md
 build_cffi.py
 setup.py
-src/21cmFAST.egg-info/.DS_Store
+Tutorial (Jupyter notebooks)/notebook_1.ipynb
+Tutorial (Jupyter notebooks)/notebook_2.ipynb
+Tutorial (Jupyter notebooks)/notebook_3.ipynb
+Tutorial (Jupyter notebooks)/notebook_4.ipynb
+images/coeval_boxes.png
+images/densities.png
+images/lightcone_boxes.png
+images/power_spectrum.png
 src/21cmFAST.egg-info/PKG-INFO
 src/21cmFAST.egg-info/SOURCES.txt
 src/21cmFAST.egg-info/dependency_links.txt
@@ -70,6 +80,7 @@ src/py21cmfast/src/indexing.c
 src/py21cmfast/src/logger.h
 src/py21cmfast/src/ps.c
 src/py21cmfast/src/recombinations.c
+src/py21cmfast/src/HyRec2020/README.md
 src/py21cmfast/src/HyRec2020/energy_injection.c
 src/py21cmfast/src/HyRec2020/energy_injection.h
 src/py21cmfast/src/HyRec2020/helium.c
@@ -81,3 +92,4 @@ src/py21cmfast/src/HyRec2020/hydrogen.h
 src/py21cmfast/src/HyRec2020/hyrec.c
 src/py21cmfast/src/HyRec2020/hyrectools.c
 src/py21cmfast/src/HyRec2020/hyrectools.h
+src/py21cmfast/src/HyRec2020/readme.pdf

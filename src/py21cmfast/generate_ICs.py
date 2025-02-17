@@ -603,5 +603,124 @@ def run_ICs(cosmo_params,user_params,global_params):
         global_params.LOG_K_ARR_FOR_SDGF = list(log_k_array)
         global_params.LOG_SDGF_CDM = list(log10_D_c_kz_mat.T.flatten())
 
+    # SarahLibanore: three point function to add NG corrections to Fcoll
+    if user_params.NON_GAUSS_FCOLL:
+
+        temp = tpf(pow(10.,log10_M_array),cosmo_params,global_params,kcutoff=0.01)
+        THREEPOINT_MnMm_mat = temp[0]
+        THREEPOINT_DER_MnMm_mat = temp[1]
+
+        global_params.THREEPOINT_MnMm = list(THREEPOINT_MnMm_mat.flatten())
+        global_params.THREEPOINT_DER_MnMm = list(THREEPOINT_DER_MnMm_mat.flatten())
+
     # Return the lensed C_ell's
     return CLASS_OUTPUT.lensed_cl(3000)
+
+
+
+# SarahLibanore : compute three point functions and derivative wrt Mn for NG corrections to Fcoll 
+# The function is computed only at z = 0 
+def FM(kv,MassVector,cosmo_params,global_params,kcutoff):
+
+    rho_crit = 2.7754e11 * cosmo_params.hlittle**2
+    rhoM = rho_crit* cosmo_params.OMm
+
+    Mm = MassVector[None,None,:]
+    Rm = (3.*Mm/(4.*np.pi*rhoM))**(1/3.)
+
+    kall = pow(10.,np.array(global_params.LOG_K_ARR_FOR_TRANSFERS)) # 1/Mpc
+    k = np.asarray(kall[[kall > kcutoff][0]])
+    mu = np.linspace(-0.995, 0.995, 128) # cos theta
+
+    k_2 = k[:, None, None]
+    mu_val = mu[None,:,None]
+
+    P_k1 =  9/25. * (2*np.pi**2/kv**3) * cosmo_params.A_s * (kv/0.05)**(cosmo_params.POWER_INDEX - 1.) # 9/25 is already in the transfer function from CLASS
+    P_k2 =  9/25. * (2*np.pi**2/k_2**3) * cosmo_params.A_s * (k_2/0.05)**(cosmo_params.POWER_INDEX - 1.) # 9/25 is already in the transfer function from CLASS
+
+    x2 = k_2*Rm
+    Wm_k2 = 3.0*(np.sin(x2) - x2*np.cos(x2))/(x2)**3  # dimension k1, k2, mu, Mn, Mm
+    dWm_k2 =( 3 / np.power(x2, 2) * np.sin(x2) - 9 / np.power(x2, 4) * (np.sin(x2) - x2 * np.cos(x2)) )* (x2) / (3 * Mm)
+
+    Tm_k1 = - 5/3. * interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)(kv)
+    Tm_k2 = - 5/3. * interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)(k_2)
+
+    k_12 = np.sqrt(pow(kv,2)+pow(k_2,2) + 2*kv*k_2*mu_val)
+     
+    Tm_k12 = - 5/3. * interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)(k_12)
+
+    x12 = k_12 * (3.*MassVector[None,None,:]/(4.*np.pi*rhoM))**(1/3.)
+    sin_x12 = np.sin(x12)
+    cos_x12 = np.cos(x12)
+    Wm_k12 = 3.0*(sin_x12 - x12*cos_x12)/(x12)**3
+
+    dWm_k12 = (3 / np.power(x12, 2) * np.sin(x12) - 9 / np.power(x12, 4) * (np.sin(x12) - x12 * np.cos(x12))) * (x12) / (3 * Mm)
+
+    P_k12 =  9/25. * (2*np.pi**2/k_12**3) * cosmo_params.A_s * (k_12/0.05)**(cosmo_params.POWER_INDEX - 1.)
+
+    integrand = k_2**2 * Wm_k2 * Tm_k2 * Wm_k12 * Tm_k12 * (P_k1 * P_k2 + P_k2 * P_k12 + P_k1 * P_k12)
+    
+    integral_dk2 = np.trapz(integrand, k, axis = 0)
+    Fm = np.trapz(integral_dk2, mu, axis = 0)
+
+    Fm *= cosmo_params.F_NL * Tm_k1 / (4*np.pi**4.) 
+
+    integrand_dn2 = k_2**2 * Tm_k2 * Tm_k12 * (P_k1 * P_k2 + P_k2 * P_k12 + P_k1 * P_k12) * (dWm_k2 * Wm_k12 + Wm_k2 * dWm_k12)
+    
+    integral_dk2_dn2 = np.trapz(integrand_dn2, k, axis = 0)
+    dFm_dn2 = np.trapz(integral_dk2_dn2, mu, axis = 0)
+    
+    dFm_dn2 *= cosmo_params.F_NL * Tm_k1 / (4*np.pi**4.) 
+
+    return [Fm, dFm_dn2]
+
+# SarahLibanore : compute three point functions and derivative wrt Mn for NG corrections to Fcoll 
+# The function is computed only at z = 0 
+def tpf(MassVector,cosmo_params,global_params,kcutoff):
+
+    print('Computing three point functions to estimate the Fcoll NG corrections...')
+    kall = pow(10.,np.array(global_params.LOG_K_ARR_FOR_TRANSFERS)) # 1/Mpc
+    k = np.asarray(kall[[kall > kcutoff][0]])
+
+    rho_crit = 2.7754e11 * cosmo_params.hlittle**2
+    rhoM = rho_crit* cosmo_params.OMm  
+    
+    k_1 = k[:,None]
+
+    FM_function = lambda kv: FM(kv,MassVector=MassVector,cosmo_params=cosmo_params,global_params=global_params,kcutoff=kcutoff)
+    temp = np.apply_along_axis(FM_function, axis=-1, arr=k_1)
+    Fm = temp[:,0,:][:,None,:]
+    dFm_dn2 = temp[:,1,:][:,None,:]
+
+    k_1 = k[:,None,None]
+    Mn = MassVector[None,:,None]
+    Rn = (3.*Mn/(4.*np.pi*rhoM))**(1/3.)
+    x1 = k_1*Rn
+    Wn_k1 = 3.0*(np.sin(x1) - x1*np.cos(x1))/(x1)**3 
+    dWn_k1 = (3 / np.power(x1, 2) * np.sin(x1) - 9 / np.power(x1, 4) * (np.sin(x1) - x1 * np.cos(x1))) * (x1) / (3 * Mn)
+    
+    integrand = k_1 ** 2 * Wn_k1 * Fm
+
+    ddd = np.trapz(integrand,k,axis=0)
+    ddd[np.where(ddd < 0.)] = 0.
+
+    integrand_dnm2 = k_1 ** 2 * dWn_k1 * Fm
+    integrand_dmn2 = k_1 ** 2 * Wn_k1 * dFm_dn2
+    integrand_dn3 = k_1 ** 2 * (dWn_k1 * Fm + Wn_k1 * dFm_dn2)
+
+    der_dnm2 = np.trapz(integrand_dnm2,k,axis=0)
+    der_dmn2 = np.trapz(integrand_dmn2,k,axis=0)
+    der_dn3 = np.trapz(integrand_dn3,k,axis=0)
+
+    der_ddd = np.zeros((len(MassVector),len(MassVector)))
+    # Fill the diagonal with nnn
+    np.fill_diagonal(der_ddd, np.diag(der_dn3))
+
+    # Fill below the diagonal (i > j) with n2m
+    der_ddd[np.tril_indices(len(MassVector), -1)] = der_dmn2[np.tril_indices(len(MassVector), -1)]
+
+    # Fill above the diagonal (i < j) with nm2
+    der_ddd[np.triu_indices(len(MassVector), 1)] = der_dnm2[np.triu_indices(len(MassVector), 1)]
+
+    return ddd, der_ddd
+# %%
