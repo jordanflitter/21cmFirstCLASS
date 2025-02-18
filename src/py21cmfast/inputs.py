@@ -38,7 +38,7 @@ Planck18 = Planck15.clone(
 )
 
 print('\n------------------------------------------')
-print('!!! SLTK+SLKF: 26/09/24')
+print('!!! SLTK: 16/02/25')
 print('We defined the SF efficiency function and the SFR function; we redefined how Mass_limit(_bisection) is computed.\n'
       'SFRD and Nion call separately either the SFR and the efficiency when using Fcoll.\n',
       'We added to ps.c function to compute SFR, HMF and to the wrapper functions to extract SFR, HMF and to compute LF.',
@@ -49,7 +49,6 @@ print('We defined the SF efficiency function and the SFR function; we redefined 
       'For the moment, we collect the extra factor in the ST_over_PS factor but this is based on the assumption that the ratio is mass independent.\n',
       'Moreover, this uses the average value in the box instead of the value per cell, which introduces a variation < 2perc in Tb, < 6perc in Pk.\n'
       '\n\n'
-      'Added Non Gaussian initial condition following Lidz et al. ; fcoll non Gaussian in progress.'
       'Removed USE_INTERPOLATION_TABLES = FALSE, USE_MASS_DEPENDENT_ZETA = FALSE, USE_HALO_FIELD = TRUE cases. ')
 print('------------------------------------------\n')
 
@@ -593,8 +592,6 @@ global_params.LOG_K_ARR_FOR_SDGF = list(np.zeros(300))
 global_params.LOG_SDGF = list(np.zeros(70*300))
 global_params.LOG_SDGF_SDM = list(np.zeros(70*300))
 
-# !!! SLKF
-global_params.T_phi_TRANSFER = list(np.zeros(149))
 
 class CosmoParams(StructWithDefaults):
     """
@@ -655,7 +652,6 @@ class CosmoParams(StructWithDefaults):
         "f_chi": 0., # JordanFlitter: added SDM fraction (this is actually -log10(f_chi))
         "sigma_SDM": 41., # JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
         "SDM_INDEX": -4., # JordanFlitter: added SDM cross section index
-        "F_NL":0., # !!! SLKF: use non gaussian initial condition
     }
 
     @property
@@ -880,7 +876,6 @@ class UserParams(StructWithDefaults):
         "CLOUD_IN_CELL": True, # JordanFlitter: added flag to use Bradley Greig's algorithm for cloud in cell in 2LPT calculations
         "EVOLVE_BARYONS": True, # JordanFlitter: added flag to use the scale-dependent growth factor to evolve the baryons density field (see arXiv: 2309.03948)
         "EVALUATE_TAU_REIO": True, # JordanFlitter: added flag to evaluate tau_reio from the simulation
-        "NG_FIELD":False, # !!! SLKF: use non gaussian initial condition
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]
@@ -1049,7 +1044,7 @@ class FlagOptions(StructWithDefaults):
         If True, USE_MASS_DEPENDENT_ZETA and INHOMO_RECO must be True.
     USE_MASS_DEPENDENT_ZETA : bool, optional
         Set to True if using new parameterization. Setting to True will automatically
-        set `M_MIN_in_Mass` to True. !!! SLKF : REMOVED OPTION FALSE IN THE CODE, TO SIMPLIFY IT !!! 
+        set `M_MIN_in_Mass` to True. !!! SLTK : REMOVED OPTION FALSE IN THE CODE, TO SIMPLIFY IT !!! 
     SUBCELL_RSDS : bool, optional
         Add sub-cell redshift-space-distortions (cf Sec 2.2 of Greig+2018).
         Will only be effective if `USE_TS_FLUCT` is True.
@@ -1125,7 +1120,7 @@ class FlagOptions(StructWithDefaults):
     def USE_MASS_DEPENDENT_ZETA(self):
         """Automatically setting USE_MASS_DEPENDENT_ZETA to True if USE_MINI_HALOS."""
 
-        # !!! SLKF : REMOVED OPTION FALSE IN THE CODE, TO SIMPLIFY IT
+        # !!! SLTK : REMOVED OPTION FALSE IN THE CODE, TO SIMPLIFY IT
         if self.USE_MINI_HALOS and not self._USE_MASS_DEPENDENT_ZETA:
             logger.warning(
                 "You have set USE_MINI_HALOS to True but USE_MASS_DEPENDENT_ZETA to False! "

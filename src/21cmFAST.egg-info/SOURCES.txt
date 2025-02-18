@@ -7,6 +7,11 @@ Tutorial (Jupyter notebooks)/notebook_1.ipynb
 Tutorial (Jupyter notebooks)/notebook_2.ipynb
 Tutorial (Jupyter notebooks)/notebook_3.ipynb
 Tutorial (Jupyter notebooks)/notebook_4.ipynb
+Tutorial (Jupyter notebooks)/test_SFRchanges.ipynb
+Tutorial (Jupyter notebooks)/benchmark_SFR/benchmark_dndMag.pkl
+Tutorial (Jupyter notebooks)/benchmark_SFR/benchmark_dndMh.pkl
+Tutorial (Jupyter notebooks)/benchmark_SFR/benchmark_globals.pkl
+Tutorial (Jupyter notebooks)/benchmark_SFR/benchmark_pk.pkl
 images/coeval_boxes.png
 images/densities.png
 images/lightcone_boxes.png

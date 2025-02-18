@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: 21cmFAST
-Version: 0.1.dev24+gc0cd9cd.d20240623
+Version: 0.1.dev44+g3a7e69b.d20250218
 Summary: A semi-numerical cosmological simulation code for the 21cm signal
 Home-page: https://github.com/21cmFAST/21cmFAST
 Author: The 21cmFAST coredev team

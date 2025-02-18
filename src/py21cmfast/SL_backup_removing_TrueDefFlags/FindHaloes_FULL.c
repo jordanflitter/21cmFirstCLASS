@@ -65,6 +65,20 @@ LOG_DEBUG("Begin Initialisation");
         if(flag_options->USE_MASS_DEPENDENT_ZETA) {
             M_MIN = astro_params->M_TURN;
         }
+        else {
+            if(flag_options->M_MIN_in_Mass) {
+                M_MIN = (astro_params->M_TURN);
+            }
+            else {
+                //set the minimum source mass
+                if (astro_params->ION_Tvir_MIN < 9.99999e3) { // neutral IGM
+                    M_MIN = TtoM(redshift, astro_params->ION_Tvir_MIN, mu_b_neutral); //JordanFlitter: I changed the constant value to the general case
+                }
+                else { // ionized IGM
+                    M_MIN = TtoM(redshift, astro_params->ION_Tvir_MIN, mu_b_ionized); //JordanFlitter: I changed the constant value to the general case
+                }
+            }
+        }
 
         // allocate array for the k-space box
         density_field = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);

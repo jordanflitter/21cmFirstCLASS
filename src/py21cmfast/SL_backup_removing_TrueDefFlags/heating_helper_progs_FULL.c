@@ -58,6 +58,7 @@ double frecycle(int n);
 // * Returns frequency of Lyman-n, in units of Lyman-alpha * //
 double nu_n(int n);
 
+// !!! SLKF: added inputs for NG
 float dfcoll_dz(float z, float sigma_min, float del_bias, float sig_bias);
 
 // * A simple linear 2D table for quickly estimating Fcoll given a z and Tvir (for Ts.c) * //
@@ -905,22 +906,49 @@ double tauX_integrand_MINI(double zhat, void *params){
     log10_Mturn_MINI = p->log10_Mturn_MINI;
     LOG10_MTURN_INT = p->LOG10_MTURN_INT;
 
-    // !!! SLTK: removed interp_tables 
-    redshift_int_fcollz = (int)floor( ( zhat - determine_zpp_min )/zpp_bin_width );
-    redshift_table_fcollz = determine_zpp_min + zpp_bin_width*(float)redshift_int_fcollz;
+    if(user_params_hf->USE_INTERPOLATION_TABLES) {
+        redshift_int_fcollz = (int)floor( ( zhat - determine_zpp_min )/zpp_bin_width );
+        redshift_table_fcollz = determine_zpp_min + zpp_bin_width*(float)redshift_int_fcollz;
 
-    fcoll = Nion_z_val[redshift_int_fcollz] + ( zhat - redshift_table_fcollz )*( Nion_z_val[redshift_int_fcollz+1] - Nion_z_val[redshift_int_fcollz] )/(zpp_bin_width);
+        fcoll = Nion_z_val[redshift_int_fcollz] + ( zhat - redshift_table_fcollz )*( Nion_z_val[redshift_int_fcollz+1] - Nion_z_val[redshift_int_fcollz] )/(zpp_bin_width);
 
-    log10_Mturn_MINI_int_fcollz = (int)floor( ( log10_Mturn_MINI - LOG10_MTURN_MIN) / LOG10_MTURN_INT);
-    log10_Mturn_MINI_table_fcollz = LOG10_MTURN_MIN + LOG10_MTURN_INT * (float)log10_Mturn_MINI_int_fcollz;
+        log10_Mturn_MINI_int_fcollz = (int)floor( ( log10_Mturn_MINI - LOG10_MTURN_MIN) / LOG10_MTURN_INT);
+        log10_Mturn_MINI_table_fcollz = LOG10_MTURN_MIN + LOG10_MTURN_INT * (float)log10_Mturn_MINI_int_fcollz;
 
-    fcoll_MINI_left =    Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR *  log10_Mturn_MINI_int_fcollz   ] + ( zhat - redshift_table_fcollz ) / (zpp_bin_width)*\
-                                    ( Nion_z_val_MINI[redshift_int_fcollz+1+ zpp_interp_points_SFR *  log10_Mturn_MINI_int_fcollz   ] -\
-                                    Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR *  log10_Mturn_MINI_int_fcollz   ] );
-    fcoll_MINI_right =   Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR * (log10_Mturn_MINI_int_fcollz+1)] + ( zhat - redshift_table_fcollz ) / (zpp_bin_width)*\
-                                    ( Nion_z_val_MINI[redshift_int_fcollz+1+ zpp_interp_points_SFR * (log10_Mturn_MINI_int_fcollz+1)] -\
-                                    Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR * (log10_Mturn_MINI_int_fcollz+1)] );
-    fcoll_MINI = fcoll_MINI_left + (log10_Mturn_MINI - log10_Mturn_MINI_table_fcollz) / LOG10_MTURN_INT * (fcoll_MINI_right - fcoll_MINI_left);
+        fcoll_MINI_left =    Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR *  log10_Mturn_MINI_int_fcollz   ] + ( zhat - redshift_table_fcollz ) / (zpp_bin_width)*\
+                                      ( Nion_z_val_MINI[redshift_int_fcollz+1+ zpp_interp_points_SFR *  log10_Mturn_MINI_int_fcollz   ] -\
+                                        Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR *  log10_Mturn_MINI_int_fcollz   ] );
+        fcoll_MINI_right =   Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR * (log10_Mturn_MINI_int_fcollz+1)] + ( zhat - redshift_table_fcollz ) / (zpp_bin_width)*\
+                                      ( Nion_z_val_MINI[redshift_int_fcollz+1+ zpp_interp_points_SFR * (log10_Mturn_MINI_int_fcollz+1)] -\
+                                        Nion_z_val_MINI[redshift_int_fcollz  + zpp_interp_points_SFR * (log10_Mturn_MINI_int_fcollz+1)] );
+        fcoll_MINI = fcoll_MINI_left + (log10_Mturn_MINI - log10_Mturn_MINI_table_fcollz) / LOG10_MTURN_INT * (fcoll_MINI_right - fcoll_MINI_left);
+    }
+    else {
+
+        Mcrit_atom_val = atomic_cooling_threshold(zhat);
+
+            // !!! SLTK 
+        Mlim_Fstar = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL,0,zhat);
+        Mlim_Fesc = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL,1,zhat);
+
+        // !!! SLTK: added input eff_or_SFR : USE eff
+        // !!! SLTK: removed from input parameters that are in the astro_params dict
+        // fcoll = Nion_General(zhat, global_params.M_MIN_INTEGRAL, Mcrit_atom_val, astro_params_hf->ALPHA_STAR, astro_params_hf->ALPHA_ESC,
+        //                      astro_params_hf->F_STAR10, astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+        fcoll = Nion_General(zhat, global_params.M_MIN_INTEGRAL, Mcrit_atom_val, astro_params_hf->ALPHA_ESC,
+                             astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+
+        // !!! SLTK [CHANGE WITH POPIII]
+        // Mlim_Fstar_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params_hf->ALPHA_STAR_MINI,
+                                            //    astro_params_hf->F_STAR7_MINI * pow(1e3, astro_params_hf->ALPHA_STAR_MINI));
+        // Mlim_Fesc_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, astro_params_hf->ALPHA_ESC,
+                                            //   astro_params_hf->F_ESC7_MINI * pow(1e3, astro_params_hf->ALPHA_ESC));
+        Mlim_Fstar_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, 2,zhat);
+        Mlim_Fesc_MINI = Mass_limit_bisection(global_params.M_MIN_INTEGRAL, global_params.M_MAX_INTEGRAL, 3,zhat);
+
+        fcoll_MINI = Nion_General_MINI(zhat, global_params.M_MIN_INTEGRAL, pow(10.,log10_Mturn_MINI), Mcrit_atom_val, astro_params_hf->ALPHA_STAR_MINI, astro_params_hf->ALPHA_ESC,
+                          astro_params_hf->F_STAR7_MINI, astro_params_hf->F_ESC7_MINI, Mlim_Fstar_MINI, Mlim_Fesc_MINI);
+    }
 
     if ((fcoll < 1e-20) && (fcoll_MINI < 1e-20)){
         HI_filling_factor_zhat = 1;
@@ -957,11 +985,44 @@ double tauX_integrand(double zhat, void *params){
     // New in v1.4
     if (flag_options_hf->USE_MASS_DEPENDENT_ZETA) {
 
-    // !!! SLTK: removed interp_tables 
-    redshift_int_fcollz = (int)floor( ( zhat - determine_zpp_min )/zpp_bin_width );
-    redshift_table_fcollz = determine_zpp_min + zpp_bin_width*(float)redshift_int_fcollz;
+        if(user_params_hf->USE_INTERPOLATION_TABLES) {
+            redshift_int_fcollz = (int)floor( ( zhat - determine_zpp_min )/zpp_bin_width );
+            redshift_table_fcollz = determine_zpp_min + zpp_bin_width*(float)redshift_int_fcollz;
 
-    fcoll = Nion_z_val[redshift_int_fcollz] + ( zhat - redshift_table_fcollz )*( Nion_z_val[redshift_int_fcollz+1] - Nion_z_val[redshift_int_fcollz] )/(zpp_bin_width);
+            fcoll = Nion_z_val[redshift_int_fcollz] + ( zhat - redshift_table_fcollz )*( Nion_z_val[redshift_int_fcollz+1] - Nion_z_val[redshift_int_fcollz] )/(zpp_bin_width);
+        }
+        else {
+            // !!! SLTK 
+            Mlim_Fstar = Mass_limit_bisection(astro_params_hf->M_TURN/50., global_params.M_MAX_INTEGRAL, 0, zhat);
+            Mlim_Fesc = Mass_limit_bisection(astro_params_hf->M_TURN/50., global_params.M_MAX_INTEGRAL, 1,zhat);
+
+            // !!! SLTK: added input eff_or_SFR : USE eff
+            // !!! SLTK: removed from input parameters that are in the astro_params dict
+            fcoll = Nion_General(zhat, astro_params_hf->M_TURN/50., astro_params_hf->M_TURN/50., astro_params_hf->ALPHA_ESC,
+                                  astro_params_hf->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+        }
+    }
+    else {
+
+        if(user_params_hf->USE_INTERPOLATION_TABLES) {
+            z_fcoll_int1 = (int)floor(( zhat - zmin_1DTable )/zbin_width_1DTable);
+            z_fcoll_int2 = z_fcoll_int1 + 1;
+
+            z_fcoll_val1 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int1;
+            z_fcoll_val2 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int2;
+
+            fcoll = FgtrM_1DTable_linear[z_fcoll_int1] + ( zhat - z_fcoll_val1 )*( FgtrM_1DTable_linear[z_fcoll_int2] - FgtrM_1DTable_linear[z_fcoll_int1] )/( z_fcoll_val2 - z_fcoll_val1 );
+
+            fcoll = pow(10.,fcoll);
+        }
+        else {
+            if(flag_options_hf->M_MIN_in_Mass) {
+                fcoll = FgtrM(zhat, (astro_params_hf->M_TURN)/50.);
+            }
+            else {
+                fcoll = FgtrM(zhat, get_M_min_ion(zhat));
+            }
+        }
     }
     if (fcoll < 1e-20)
         HI_filling_factor_zhat = 1;
@@ -1061,16 +1122,25 @@ double tauX(double nu, double x_e, double x_e_ave, double zp, double zpp, double
     else {
         if (HI_filling_factor_zp > FRACT_FLOAT_ERR){
 
-    // !!! SLTK: removed interp_tables 
-            z_fcoll_int1 = (int)floor(( zp - zmin_1DTable )/zbin_width_1DTable);
-            z_fcoll_int2 = z_fcoll_int1 + 1;
+            if(user_params_hf->USE_INTERPOLATION_TABLES) {
+                z_fcoll_int1 = (int)floor(( zp - zmin_1DTable )/zbin_width_1DTable);
+                z_fcoll_int2 = z_fcoll_int1 + 1;
 
-            z_fcoll_val1 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int1;
-            z_fcoll_val2 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int2;
+                z_fcoll_val1 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int1;
+                z_fcoll_val2 = zmin_1DTable + zbin_width_1DTable*(float)z_fcoll_int2;
 
-            fcoll = FgtrM_1DTable_linear[z_fcoll_int1] + ( zp - z_fcoll_val1 )*( FgtrM_1DTable_linear[z_fcoll_int2] - FgtrM_1DTable_linear[z_fcoll_int1] )/( z_fcoll_val2 - z_fcoll_val1 );
+                fcoll = FgtrM_1DTable_linear[z_fcoll_int1] + ( zp - z_fcoll_val1 )*( FgtrM_1DTable_linear[z_fcoll_int2] - FgtrM_1DTable_linear[z_fcoll_int1] )/( z_fcoll_val2 - z_fcoll_val1 );
 
-            fcoll = pow(10.,fcoll);
+                fcoll = pow(10.,fcoll);
+            }
+            else {
+                if(flag_options_hf->M_MIN_in_Mass) {
+                    fcoll = FgtrM(zp, (astro_params_hf->M_TURN)/50.);
+                }
+                else {
+                    fcoll = FgtrM(zp, get_M_min_ion(zp));
+                }
+            }
 
 
             p.ion_eff = (1.0 - HI_filling_factor_zp) / fcoll * (1.0 - x_e_ave);

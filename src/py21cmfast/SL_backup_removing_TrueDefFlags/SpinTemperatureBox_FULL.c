@@ -6,7 +6,7 @@ double ***fcoll_R_grid, ***dfcoll_dz_grid;
 double **grid_dens, **density_gridpoints;
 double *Sigma_Tmin_grid, *ST_over_PS_arg_grid, *dstarlya_dt_prefactor, *zpp_edge, *sigma_atR;
 double *dstarlyLW_dt_prefactor, *dstarlya_dt_prefactor_MINI, *dstarlyLW_dt_prefactor_MINI;
-float **delNL0_rev,**delNL0; 
+float **delNL0_rev,**delNL0;
 float *R_values, *delNL0_bw, *delNL0_Offset, *delNL0_LL, *delNL0_UL, *delNL0_ibw, *log10delNL0_diff;
 float *log10delNL0_diff_UL,*min_densities, *max_densities, *zpp_interp_table;
 short **dens_grid_int_vals;
@@ -177,13 +177,15 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     float delta_baryons_local, delta_baryons_derivative_local;
     float delta_SDM_local, delta_SDM_derivative_local;
 
-    int first_loop;
-
     if(flag_options->USE_MASS_DEPENDENT_ZETA) {
         // !!! SLTK: Fstar10*Fesc10 already included in SFR function
         ION_EFF_FACTOR = global_params.Pop2_ion ;
         // ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
         ION_EFF_FACTOR_MINI = global_params.Pop3_ion * astro_params->F_STAR7_MINI * astro_params->F_ESC7_MINI;
+    }
+    else {
+        ION_EFF_FACTOR = astro_params->HII_EFF_FACTOR;
+        ION_EFF_FACTOR_MINI = 0.;
     }
 
     // Initialise arrays to be used for the Ts.c computation //
@@ -328,6 +330,63 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
             inverse_val_box = (float *)calloc(HII_TOT_NUM_PIXELS,sizeof(float));
 
         }
+        else {
+
+            if(user_params->USE_INTERPOLATION_TABLES) {
+                Sigma_Tmin_grid = (double *)calloc(zpp_interp_points_SFR,sizeof(double));
+
+                fcoll_R_grid = (double ***)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double **));
+                dfcoll_dz_grid = (double ***)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double **));
+                for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
+                    fcoll_R_grid[i] = (double **)calloc(zpp_interp_points_SFR,sizeof(double *));
+                    dfcoll_dz_grid[i] = (double **)calloc(zpp_interp_points_SFR,sizeof(double *));
+                    for(j=0;j<zpp_interp_points_SFR;j++) {
+                        fcoll_R_grid[i][j] = (double *)calloc(dens_Ninterp,sizeof(double));
+                        dfcoll_dz_grid[i][j] = (double *)calloc(dens_Ninterp,sizeof(double));
+                    }
+                }
+
+                grid_dens = (double **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
+                for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
+                    grid_dens[i] = (double *)calloc(dens_Ninterp,sizeof(double));
+                }
+
+                density_gridpoints = (double **)calloc(dens_Ninterp,sizeof(double *));
+                for(i=0;i<dens_Ninterp;i++) {
+                    density_gridpoints[i] = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                }
+                ST_over_PS_arg_grid = (double *)calloc(zpp_interp_points_SFR,sizeof(double));
+
+                delNL0_bw = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                delNL0_Offset = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                delNL0_LL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                delNL0_UL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                delNL0_ibw = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                log10delNL0_diff = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                log10delNL0_diff_UL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+
+                fcoll_interp1 = (double **)calloc(dens_Ninterp,sizeof(double *));
+                fcoll_interp2 = (double **)calloc(dens_Ninterp,sizeof(double *));
+                dfcoll_interp1 = (double **)calloc(dens_Ninterp,sizeof(double *));
+                dfcoll_interp2 = (double **)calloc(dens_Ninterp,sizeof(double *));
+                for(i=0;i<dens_Ninterp;i++) {
+                    fcoll_interp1[i] = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                    fcoll_interp2[i] = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                    dfcoll_interp1[i] = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                    dfcoll_interp2[i] = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                }
+
+                dens_grid_int_vals = (short **)calloc(HII_TOT_NUM_PIXELS,sizeof(short *));
+                for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
+                    dens_grid_int_vals[i] = (short *)calloc((float)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(short));
+                }
+            }
+
+            delNL0_rev = (float **)calloc(HII_TOT_NUM_PIXELS,sizeof(float *));
+            for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
+                delNL0_rev[i] = (float *)calloc((float)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+            }
+        }
 
         dstarlya_dt_prefactor = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
         if (flag_options->USE_MINI_HALOS){
@@ -402,6 +461,21 @@ LOG_SUPER_DEBUG("initalised Ts Interp Arrays");
             // !!! SLTK
             Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, 0, redshift);
             Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, 1, redshift);
+        }
+    }
+    else {
+
+        if(flag_options->M_MIN_in_Mass) {
+            M_MIN = (astro_params->M_TURN)/50.;
+        }
+        else {
+            //set the minimum source mass
+            if (astro_params->X_RAY_Tvir_MIN < 9.99999e3) { // neutral IGM
+                mu_for_Ts = mu_b_neutral; // JordanFlitter: I changed the constant value to the general case
+            }
+            else {  // ionized IGM
+                mu_for_Ts = mu_b_ionized; // JordanFlitter: I changed the constant value to the general case
+            }
         }
     }
 
@@ -1086,7 +1160,6 @@ LOG_SUPER_DEBUG("Done FFT on unfiltered box");
 
             // remember to add the factor of VOLUME/TOT_NUM_PIXELS when converting from real space to k-space
             // Note: we will leave off factor of VOLUME, in anticipation of the inverse FFT below
-
 #pragma omp parallel shared(unfiltered_box) private(ct) num_threads(user_params->N_THREADS)
             {
 #pragma omp for
@@ -1101,6 +1174,10 @@ LOG_SUPER_DEBUG("normalised unfiltered box");
             for (R_ct=0; R_ct<global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct++){
 
                 R_values[R_ct] = R;
+
+                if(!flag_options->USE_MASS_DEPENDENT_ZETA) {
+                    sigma_atR[R_ct] = sigma_z0(RtoM(R));
+                }
 
                 // copy over unfiltered box
                 memcpy(box, unfiltered_box, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
@@ -1136,7 +1213,9 @@ LOG_ULTRA_DEBUG("Executed FFT for R=%f", R);
                                         delNL0[R_ct][HII_R_INDEX(i,j,k)] = curr_delNL0;
                                     }
                                 }
-                                
+                                else {
+                                    delNL0_rev[HII_R_INDEX(i,j,k)][R_ct] = curr_delNL0;
+                                }
 
                                 if(curr_delNL0 < min_density) {
                                     min_density = curr_delNL0;
@@ -1164,6 +1243,12 @@ LOG_ULTRA_DEBUG("COPIED OVER VALUES");
                     }
                     else {
                         max_density = max_density*1.01;
+                    }
+
+                    if(!flag_options->USE_MASS_DEPENDENT_ZETA) {
+                        delNL0_LL[R_ct] = min_density;
+                        delNL0_Offset[R_ct] = 1.e-6 - (delNL0_LL[R_ct]);
+                        delNL0_UL[R_ct] = max_density;
                     }
 
                     min_densities[R_ct] = min_density;
@@ -1274,6 +1359,87 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
                     }
                     interpolation_tables_allocated = true;
                 }
+                else {
+                    // An interpolation table for f_coll (delta vs redshift)
+                    init_FcollTable(determine_zpp_min,determine_zpp_max);
+
+                    // Determine the sampling of the density values, for the various interpolation tables
+                    for(ii=0;ii<global_params.NUM_FILTER_STEPS_FOR_Ts;ii++) {
+                        log10delNL0_diff_UL[ii] = log10( delNL0_UL[ii] + delNL0_Offset[ii] );
+                        log10delNL0_diff[ii] = log10( delNL0_LL[ii] + delNL0_Offset[ii] );
+                        delNL0_bw[ii] = ( log10delNL0_diff_UL[ii] - log10delNL0_diff[ii] )*dens_width;
+                        delNL0_ibw[ii] = 1./delNL0_bw[ii];
+                    }
+
+                    // Gridding the density values for the interpolation tables
+                    for(ii=0;ii<global_params.NUM_FILTER_STEPS_FOR_Ts;ii++) {
+                        for(j=0;j<dens_Ninterp;j++) {
+                            grid_dens[ii][j] = log10delNL0_diff[ii] + ( log10delNL0_diff_UL[ii] - log10delNL0_diff[ii] )*dens_width*(double)j;
+                            grid_dens[ii][j] = pow(10,grid_dens[ii][j]) - delNL0_Offset[ii];
+                        }
+                    }
+
+                    // Calculate the sigma_z and Fgtr_M values for each point in the interpolation table
+#pragma omp parallel shared(determine_zpp_min,determine_zpp_max,Sigma_Tmin_grid,ST_over_PS_arg_grid,\
+                            mu_for_Ts,M_MIN,M_MIN_WDM) \
+                    private(i,zpp_grid) num_threads(user_params->N_THREADS)
+                    {
+#pragma omp for
+                        for(i=0;i<zpp_interp_points_SFR;i++) {
+                            zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(float)i/((float)zpp_interp_points_SFR-1.0);
+
+                            if(flag_options->M_MIN_in_Mass) {
+                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf(M_MIN,  M_MIN_WDM));
+                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf(M_MIN,  M_MIN_WDM));
+                            }
+                            else {
+                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
+                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
+                            }
+                        }
+                    }
+
+                // Create the interpolation tables for the derivative of the collapsed fraction and the collapse fraction itself
+#pragma omp parallel shared(fcoll_R_grid,dfcoll_dz_grid,Sigma_Tmin_grid,determine_zpp_min,determine_zpp_max,\
+                            grid_dens,sigma_atR) \
+                    private(ii,i,j,zpp_grid,grid_sigmaTmin,grid_dens_val) num_threads(user_params->N_THREADS)
+                    {
+#pragma omp for
+                        for(ii=0;ii<global_params.NUM_FILTER_STEPS_FOR_Ts;ii++) {
+                            for(i=0;i<zpp_interp_points_SFR;i++) {
+
+                                zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(float)i/((float)zpp_interp_points_SFR-1.0);
+                                grid_sigmaTmin = Sigma_Tmin_grid[i];
+
+                                for(j=0;j<dens_Ninterp;j++) {
+
+                                    grid_dens_val = grid_dens[ii][j];
+                                    fcoll_R_grid[ii][i][j] = sigmaparam_FgtrM_bias(zpp_grid, grid_sigmaTmin, grid_dens_val, sigma_atR[ii]); 
+                                    dfcoll_dz_grid[ii][i][j] = dfcoll_dz(zpp_grid, grid_sigmaTmin, grid_dens_val, sigma_atR[ii]); 
+                                }
+                            }
+                        }
+                    }
+
+                    // Determine the grid point locations for solving the interpolation tables
+                    for (box_ct=HII_TOT_NUM_PIXELS; box_ct--;){
+                        for (R_ct=global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct--;){
+                            SingleVal_int[R_ct] = (short)floor( ( log10(delNL0_rev[box_ct][R_ct] + delNL0_Offset[R_ct]) - log10delNL0_diff[R_ct] )*delNL0_ibw[R_ct]);
+                        }
+                        memcpy(dens_grid_int_vals[box_ct],SingleVal_int,sizeof(short)*global_params.NUM_FILTER_STEPS_FOR_Ts);
+                    }
+
+                    // Evaluating the interpolated density field points (for using the interpolation tables for fcoll and dfcoll_dz)
+                    for (R_ct=0; R_ct<global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct++){
+                        OffsetValue = delNL0_Offset[R_ct];
+                        DensityValueLow = delNL0_LL[R_ct];
+                        delNL0_bw_val = delNL0_bw[R_ct];
+
+                        for(i=0;i<dens_Ninterp;i++) {
+                            density_gridpoints[i][R_ct] = pow(10.,( log10( DensityValueLow + OffsetValue) + delNL0_bw_val*((float)i) )) - OffsetValue;
+                        }
+                    }
+                }
             }
 
             initialised_redshift = perturbed_field_redshift;
@@ -1311,8 +1477,6 @@ LOG_SUPER_DEBUG("got density gridpoints");
                     // initialise_SFRD_Conditional_table(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
                     //                                  max_densities,zpp_growth,R_values, astro_params->M_TURN,
                     //                                  astro_params->ALPHA_STAR, astro_params->F_STAR10, user_params->FAST_FCOLL_TABLES,zpp);
-
-                    first_loop = 1;
                     initialise_SFRD_Conditional_table(global_params.NUM_FILTER_STEPS_FOR_Ts,min_densities,
                                                      max_densities,zpp_growth,R_values, astro_params->M_TURN,
                                                      user_params->FAST_FCOLL_TABLES,zpp);
@@ -1347,6 +1511,23 @@ LOG_SUPER_DEBUG("got density gridpoints");
 
                 Splined_Fcollzp_mean = Nion_z_val[redshift_int_Nion_z] + \
                         ( zp - redshift_table_Nion_z )*( Nion_z_val[redshift_int_Nion_z+1] - Nion_z_val[redshift_int_Nion_z] )/(zpp_bin_width);
+            }
+            else {
+
+                if(flag_options->USE_MINI_HALOS) {
+                    // !!! SLTK: added input eff_or_SFR : USE eff
+            // !!! SLTK: removed from input parameters that are in the astro_params dict
+                    // Splined_Fcollzp_mean = Nion_General(zp, global_params.M_MIN_INTEGRAL, atomic_cooling_threshold(zp), astro_params->ALPHA_STAR, astro_params->ALPHA_ESC,
+                    //                                     astro_params->F_STAR10, astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+                    Splined_Fcollzp_mean = Nion_General(zp, global_params.M_MIN_INTEGRAL, atomic_cooling_threshold(zp),  astro_params->ALPHA_ESC,
+                                                        astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+                }
+                else {
+                    // !!! SLTK: added input eff_or_SFR : USE eff
+            // !!! SLTK: removed from input parameters that are in the astro_params dict
+                    Splined_Fcollzp_mean = Nion_General(zp, M_MIN, astro_params->M_TURN, astro_params->ALPHA_ESC,
+                                                 astro_params->F_ESC10, Mlim_Fstar, Mlim_Fesc,0);
+                }
             }
 
             if (flag_options->USE_MINI_HALOS){
@@ -1428,6 +1609,11 @@ LOG_SUPER_DEBUG("got density gridpoints");
                     Splined_Fcollzp_mean_MINI = Splined_Fcollzp_mean_MINI_left + \
                                 (log10_Mcrit_LW_ave - log10_Mcrit_LW_ave_table_Nion_z) / LOG10_MTURN_INT * (Splined_Fcollzp_mean_MINI_right - Splined_Fcollzp_mean_MINI_left);
                 }
+                else {
+                    Splined_Fcollzp_mean_MINI = Nion_General_MINI(zp, global_params.M_MIN_INTEGRAL, pow(10.,log10_Mcrit_LW_ave), atomic_cooling_threshold(zp),
+                                                                  astro_params->ALPHA_STAR_MINI, astro_params->ALPHA_ESC, astro_params->F_STAR7_MINI,
+                                                                  astro_params->F_ESC7_MINI, Mlim_Fstar_MINI, Mlim_Fesc_MINI);
+                }
             }
             else{
                 Splined_Fcollzp_mean_MINI = 0;
@@ -1442,6 +1628,28 @@ LOG_SUPER_DEBUG("got density gridpoints");
 
             filling_factor_of_HI_zp = 1 - ( ION_EFF_FACTOR * Splined_Fcollzp_mean + ION_EFF_FACTOR_MINI * Splined_Fcollzp_mean_MINI )/ (1.0 - x_e_ave);
 
+        }
+        else {
+
+            if(flag_options->M_MIN_in_Mass) {
+
+                if (FgtrM(zp, fmaxf(M_MIN,  M_MIN_WDM)) < 1e-15 )
+                    NO_LIGHT = 1;
+                else
+                    NO_LIGHT = 0;
+
+                M_MIN_at_zp = M_MIN;
+            }
+            else {
+
+                if (FgtrM(zp, fmaxf((float)TtoM(zp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM)) < 1e-15 )
+                    NO_LIGHT = 1;
+                else
+                    NO_LIGHT = 0;
+
+                M_MIN_at_zp = get_M_min_ion(zp);
+            }
+            filling_factor_of_HI_zp = 1 - ION_EFF_FACTOR * FgtrM_General(zp, M_MIN_at_zp) / (1.0 - x_e_ave);
         }
 
         if (filling_factor_of_HI_zp > 1) filling_factor_of_HI_zp=1;
@@ -1501,6 +1709,9 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                     ST_over_PS[R_ct] = pow(1+zpp, -astro_params->X_RAY_SPEC_INDEX)*fabs(dzpp_for_evolve);
                     ST_over_PS[R_ct] *= Splined_SFRD_zpp;
                 }
+                else {
+                    ST_over_PS[R_ct] = pow(1+zpp, -astro_params->X_RAY_SPEC_INDEX)*fabs(dzpp_for_evolve); // Multiplied by Nion later
+                }
 
                 if(flag_options->USE_MINI_HALOS){
                     memcpy(log10_Mcrit_LW_filtered, log10_Mcrit_LW_unfiltered, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
@@ -1548,11 +1759,68 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                         ST_over_PS_MINI[R_ct] = pow(1+zpp, -astro_params->X_RAY_SPEC_INDEX)*fabs(dzpp_for_evolve);
                         ST_over_PS_MINI[R_ct] *= Splined_SFRD_zpp_MINI;
                     }
+                    else {
+                        ST_over_PS_MINI[R_ct] = pow(1+zpp, -astro_params->X_RAY_SPEC_INDEX)*fabs(dzpp_for_evolve); // Multiplied by Nion later
+                    }
                 }
 
                 // !!! SLTK: remove hubble since it is in the SFR function
                 // SFR_timescale_factor[R_ct] = hubble(zpp)*fabs(dtdz(zpp));
                 SFR_timescale_factor[R_ct] = fabs(dtdz(zpp));
+
+            }
+            else {
+
+                if(user_params->USE_INTERPOLATION_TABLES) {
+                    // Determining values for the evaluating the interpolation table
+                    zpp_gridpoint1_int = (int)floor((zpp - determine_zpp_min)/zpp_bin_width);
+                    zpp_gridpoint2_int = zpp_gridpoint1_int + 1;
+
+                    if(zpp_gridpoint1_int < 0 || (zpp_gridpoint1_int + 1) > (zpp_interp_points_SFR - 1)) {
+                        LOG_ERROR("I have overstepped my allocated memory for the interpolation table fcoll_R_grid");
+//                        Throw(ParameterError);
+                        Throw(TableEvaluationError);
+                    }
+
+                    zpp_gridpoint1 = determine_zpp_min + zpp_bin_width*(float)zpp_gridpoint1_int;
+                    zpp_gridpoint2 = determine_zpp_min + zpp_bin_width*(float)zpp_gridpoint2_int;
+
+                    grad1 = ( zpp_gridpoint2 - zpp )/( zpp_gridpoint2 - zpp_gridpoint1 );
+                    grad2 = ( zpp - zpp_gridpoint1 )/( zpp_gridpoint2 - zpp_gridpoint1 );
+
+                    sigma_Tmin[R_ct] = Sigma_Tmin_grid[zpp_gridpoint1_int] + grad2*( Sigma_Tmin_grid[zpp_gridpoint2_int] - Sigma_Tmin_grid[zpp_gridpoint1_int] );
+
+                    // Evaluating the interpolation table for the collapse fraction and its derivative
+                    for(i=0;i<(dens_Ninterp-1);i++) {
+                        dens_grad = 1./( density_gridpoints[i+1][R_ct] - density_gridpoints[i][R_ct] );
+
+                        fcoll_interp1[i][R_ct] = ( ( fcoll_R_grid[R_ct][zpp_gridpoint1_int][i] )*grad1 + \
+                                              ( fcoll_R_grid[R_ct][zpp_gridpoint2_int][i] )*grad2 )*dens_grad;
+                        fcoll_interp2[i][R_ct] = ( ( fcoll_R_grid[R_ct][zpp_gridpoint1_int][i+1] )*grad1 + \
+                                              ( fcoll_R_grid[R_ct][zpp_gridpoint2_int][i+1] )*grad2 )*dens_grad;
+
+                        dfcoll_interp1[i][R_ct] = ( ( dfcoll_dz_grid[R_ct][zpp_gridpoint1_int][i] )*grad1 + \
+                                               ( dfcoll_dz_grid[R_ct][zpp_gridpoint2_int][i] )*grad2 )*dens_grad;
+                        dfcoll_interp2[i][R_ct] = ( ( dfcoll_dz_grid[R_ct][zpp_gridpoint1_int][i+1] )*grad1 + \
+                                               ( dfcoll_dz_grid[R_ct][zpp_gridpoint2_int][i+1] )*grad2 )*dens_grad;
+
+                    }
+
+                    // Using the interpolated values to update arrays of relevant quanties for the IGM spin temperature calculation
+                    ST_over_PS[R_ct] = dzpp_for_evolve * pow(1+zpp, -(astro_params->X_RAY_SPEC_INDEX));
+                    ST_over_PS[R_ct] *= ( ST_over_PS_arg_grid[zpp_gridpoint1_int] + \
+                                         grad2*( ST_over_PS_arg_grid[zpp_gridpoint2_int] - ST_over_PS_arg_grid[zpp_gridpoint1_int] ) );
+                }
+                else {
+                    if(flag_options->M_MIN_in_Mass) {
+                        sigma_Tmin[R_ct] = sigma_z0(fmaxf(M_MIN, M_MIN_WDM));
+                    }
+                    else {
+                        sigma_Tmin[R_ct] = sigma_z0(fmaxf((float)TtoM(zpp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM));
+                    }
+
+                    ST_over_PS[R_ct] = dzpp_for_evolve * pow(1+zpp, -(astro_params->X_RAY_SPEC_INDEX));
+                }
 
             }
 
@@ -1716,6 +1984,14 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                             ST_over_PS[R_ct] *= Nion_General(zpp_for_evolve_list[R_ct], M_MIN, astro_params->M_TURN, 0., 1.,Mlim_Fstar,0.,1);
                         }
                     }
+                    else {
+                        if(flag_options->M_MIN_in_Mass) {
+                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], fmaxf(M_MIN, M_MIN_WDM));
+                        }
+                        else {
+                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], fmaxf((float)TtoM(zpp_for_evolve_list[R_ct], astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM));
+                        }
+                    }
 
                     if(flag_options->USE_MINI_HALOS){
                         lower_int_limit = fmax(nu_tau_one_MINI(zp, zpp_for_evolve_list[R_ct], x_e_ave, filling_factor_of_HI_zp,
@@ -1756,6 +2032,74 @@ LOG_SUPER_DEBUG("finished looping over R_ct filter steps");
         }
 
         // Calculate fcoll for each smoothing radius
+        if(!flag_options->USE_MASS_DEPENDENT_ZETA) {
+            if(user_params->N_THREADS==1) {
+                for (box_ct=HII_TOT_NUM_PIXELS; box_ct--;){
+                    for (R_ct=global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct--;){
+
+                        if(user_params->USE_INTERPOLATION_TABLES) {
+                            if( dens_grid_int_vals[box_ct][R_ct] < 0 || (dens_grid_int_vals[box_ct][R_ct] + 1) > (dens_Ninterp  - 1) ) {
+                                table_int_boundexceeded = 1;
+                            }
+
+                            fcoll_R_array[R_ct] += ( fcoll_interp1[dens_grid_int_vals[box_ct][R_ct]][R_ct]* \
+                                            ( density_gridpoints[dens_grid_int_vals[box_ct][R_ct] + 1][R_ct] - delNL0_rev[box_ct][R_ct] ) + \
+                                            fcoll_interp2[dens_grid_int_vals[box_ct][R_ct]][R_ct]* \
+                                            ( delNL0_rev[box_ct][R_ct] - density_gridpoints[dens_grid_int_vals[box_ct][R_ct]][R_ct] ) );
+                        }
+                        else {
+                            fcoll_R_array[R_ct] += sigmaparam_FgtrM_bias(zpp_for_evolve_list[R_ct],sigma_Tmin[R_ct],delNL0_rev[box_ct][R_ct],sigma_atR[R_ct]); 
+                        }
+                    }
+                    if(table_int_boundexceeded==1) {
+                        LOG_ERROR("I have overstepped my allocated memory for one of the interpolation tables of fcoll");
+//                        Throw(ParameterError);
+                        Throw(TableEvaluationError);
+                    }
+                }
+            }
+            else {
+
+                for (R_ct=0; R_ct<global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct++){
+                    fcoll_R_for_reduction = 0.;
+
+#pragma omp parallel shared(dens_grid_int_vals,R_ct,fcoll_interp1,density_gridpoints,delNL0_rev,fcoll_interp2,\
+                            table_int_boundexceeded_threaded,zpp_for_evolve_list,sigma_Tmin,sigma_atR) \
+                    private(box_ct) num_threads(user_params->N_THREADS)
+                    {
+#pragma omp for reduction(+:fcoll_R_for_reduction)
+                        for (box_ct=0; box_ct<HII_TOT_NUM_PIXELS; box_ct++){
+
+                            if(user_params->USE_INTERPOLATION_TABLES) {
+                                if( dens_grid_int_vals[box_ct][R_ct] < 0 || (dens_grid_int_vals[box_ct][R_ct] + 1) > (dens_Ninterp  - 1) ) {
+                                    table_int_boundexceeded_threaded[omp_get_thread_num()] = 1;
+                                }
+
+                                fcoll_R_for_reduction += ( fcoll_interp1[dens_grid_int_vals[box_ct][R_ct]][R_ct]* \
+                                                      ( density_gridpoints[dens_grid_int_vals[box_ct][R_ct] + 1][R_ct] - delNL0_rev[box_ct][R_ct] ) + \
+                                                      fcoll_interp2[dens_grid_int_vals[box_ct][R_ct]][R_ct]* \
+                                                      ( delNL0_rev[box_ct][R_ct] - density_gridpoints[dens_grid_int_vals[box_ct][R_ct]][R_ct] ) );
+                            }
+                            else {
+                                fcoll_R_for_reduction += sigmaparam_FgtrM_bias(zpp_for_evolve_list[R_ct],sigma_Tmin[R_ct],delNL0_rev[box_ct][R_ct],sigma_atR[R_ct]); 
+                            }
+                        }
+                    }
+                    fcoll_R_array[R_ct] = fcoll_R_for_reduction;
+                }
+                for(i=0;i<user_params->N_THREADS;i++) {
+                    if(table_int_boundexceeded_threaded[i]==1) {
+                        LOG_ERROR("I have overstepped my allocated memory for one of the interpolation tables of fcoll");
+//                        Throw(ParameterError);
+                        Throw(TableEvaluationError);
+                    }
+                }
+            }
+
+            for (R_ct=0; R_ct<global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct++){
+                ST_over_PS[R_ct] = ST_over_PS[R_ct]/(fcoll_R_array[R_ct]/(double)HII_TOT_NUM_PIXELS);
+            }
+        }
 
         // scroll through each cell and update the temperature and residual ionization fraction
         growth_factor_zp = dicke(zp);
@@ -2007,6 +2351,11 @@ LOG_SUPER_DEBUG("looping over box...");
 
             for (R_ct=global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct--;){
 
+                if(!user_params->USE_INTERPOLATION_TABLES) {
+                    Mmax = RtoM(R_values[R_ct]);
+                    sigmaMmax = sigma_z0(Mmax);
+                }
+
                 if(user_params->USE_INTERPOLATION_TABLES) {
                     if( min_densities[R_ct]*zpp_growth[R_ct] <= -1.) {
                         fcoll_interp_min = log10(global_params.MIN_DENSITY_LOW_LIMIT);
@@ -2212,6 +2561,32 @@ LOG_SUPER_DEBUG("looping over box...");
                                         fcoll_MINI =1e10;
                                     }
                                 }
+                            }
+                            else {
+
+                                if (flag_options->USE_MINI_HALOS){
+                                    // !!! SLTK: added eff_or_SFR flag and set to SFR and z dependence
+                                    // !!! SLTK: removed inputs that are in astro_params
+                                    // fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,curr_dens,Mcrit_atom_interp_table[R_ct],
+                                    //                           astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
+                                    fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,curr_dens,Mcrit_atom_interp_table[R_ct],
+                                                              0.,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
+
+                                    fcoll_MINI = Nion_ConditionalM_MINI(zpp_growth[R_ct],log(global_params.M_MIN_INTEGRAL),log(Mmax),sigmaMmax,Deltac,\
+                                                           curr_dens,pow(10,log10_Mcrit_LW[R_ct][box_ct]),Mcrit_atom_interp_table[R_ct],\
+                                                           astro_params->ALPHA_STAR_MINI,0.,astro_params->F_STAR7_MINI,1.,Mlim_Fstar_MINI, 0., user_params->FAST_FCOLL_TABLES);
+                                    fcoll_MINI *= pow(10.,10.);
+
+                                }
+                                else {
+                                    // !!! SLTK: added eff_or_SFR flag and set to SFR and z dependence
+                                    // !!! SLTK: removed inputs that are in astro_params
+                                    // fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(M_MIN),log(Mmax),sigmaMmax,Deltac,curr_dens,astro_params->M_TURN,
+                                    //                           astro_params->ALPHA_STAR,0.,astro_params->F_STAR10,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
+                                    fcoll = Nion_ConditionalM(zpp_growth[R_ct],log(M_MIN),log(Mmax),sigmaMmax,Deltac,curr_dens,astro_params->M_TURN,
+                                                              0.,1.,Mlim_Fstar,0., user_params->FAST_FCOLL_TABLES,1,zpp);
+                                }
+                                fcoll *= pow(10.,10.);
                             }
 
                             ave_fcoll += fcoll;
@@ -2807,6 +3182,462 @@ LOG_SUPER_DEBUG("looping over box...");
                 }
             }
         }
+        else {
+        // JordanFlitter: I added more shared and private variables
+#pragma omp parallel shared(previous_spin_temp,x_int_XHII,inverse_diff,delNL0_rev,dens_grid_int_vals,ST_over_PS,zpp_growth,dfcoll_interp1,\
+                            density_gridpoints,dfcoll_interp2,freq_int_heat_tbl_diff,freq_int_heat_tbl,freq_int_ion_tbl_diff,freq_int_ion_tbl,\
+                            freq_int_lya_tbl_diff,freq_int_lya_tbl,dstarlya_dt_prefactor,const_zp_prefactor,prefactor_1,growth_factor_zp,dzp,\
+                            dt_dzp,dgrowth_factor_dzp,dcomp_dzp_prefactor,this_spin_temp,xc_inverse,TS_prefactor,xa_tilde_prefactor,Trad_fast_inv,\
+                            dstarlya_cont_dt_prefactor,dstarlya_inj_dt_prefactor,\
+                            rec_data,delta_baryons,delta_baryons_derivative,delta_SDM,delta_SDM_derivative) \
+                    private(box_ct,x_e,T,xHII_call,m_xHII_low,inverse_val,dxheat_dt,dxion_source_dt,dxlya_dt,dstarlya_dt,curr_delNL0,R_ct,\
+                            dfcoll_dz_val,dxion_sink_dt,dxe_dzp,dadia_dzp,dspec_dzp,dcomp_dzp,J_alpha_tot,T_inv,T_inv_sq,xc_fast,xi_power,\
+                            xa_tilde_fast_arg,TS_fast,TSold_fast,xa_tilde_fast,prev_Ts,tau21,xCMB,eps_CMB,dCMBheat_dzp,dstarlya_cont_dt,dstarlya_inj_dt,\
+                            E_continuum,E_injected,Ndot_alpha_cont,Ndot_alpha_inj,eps_Lya_cont,eps_Lya_inj,\
+                            T_chi,V_chi_b,dSDM_b_heat_dzp,dSDM_chi_heat_dzp,D_V_chi_b_dzp,SDM_rates,dT_b_2_dt_ext,dT_chi_2_dt_ext,dadia_dzp_SDM,\
+                            delta_baryons_local,delta_baryons_derivative_local,delta_SDM_local,delta_SDM_derivative_local) \
+                    num_threads(user_params->N_THREADS)
+            {
+#pragma omp for reduction(+:J_alpha_ave,xalpha_ave,Xheat_ave,Xion_ave,Ts_ave,Tk_ave,x_e_ave)
+                for (box_ct=0; box_ct<HII_TOT_NUM_PIXELS; box_ct++){
+
+                    x_e = previous_spin_temp->x_e_box[box_ct];
+                    T = previous_spin_temp->Tk_box[box_ct];
+                    // JordanFlitter: Extract T_chi and V_chi_b from previous boxes
+                    if (user_params->SCATTERING_DM) {
+                        T_chi = previous_spin_temp->T_chi_box[box_ct]; // K
+                        V_chi_b = 1.e5*previous_spin_temp->V_chi_b_box[box_ct]; // cm/sec
+                        // Note that in the calculations below, V_chi_b is in cm/sec. However, we always save the V_chi_b_box in km/sec
+                    }
+
+                    xHII_call = x_e;
+
+                    // Check if ionized fraction is within boundaries; if not, adjust to be within
+                    if (xHII_call > x_int_XHII[x_int_NXHII-1]*0.999) {
+                        xHII_call = x_int_XHII[x_int_NXHII-1]*0.999;
+                    } else if (xHII_call < x_int_XHII[0]) {
+                        xHII_call = 1.001*x_int_XHII[0];
+                    }
+                    //interpolate to correct nu integral value based on the cell's ionization state
+
+                    m_xHII_low = locate_xHII_index(xHII_call);
+
+                    inverse_val = (xHII_call - x_int_XHII[m_xHII_low])*inverse_diff[m_xHII_low];
+
+                    // First, let's do the trapazoidal integration over zpp
+                    dxheat_dt = 0;
+                    dxion_source_dt = 0;
+                    dxlya_dt = 0;
+                    dstarlya_dt = 0;
+
+                    // JordanFlitter: Initialize Lya flux for Lya heating
+                    if (flag_options->USE_Lya_HEATING){
+                        dstarlya_cont_dt = 0;
+                        dstarlya_inj_dt = 0;
+                    }
+                    curr_delNL0 = delNL0_rev[box_ct][0];
+
+                    // JordanFlitter: set local baryons density and its derivative
+                    //                Note we use box_ct_FFT to access the approporiate cell in the box
+                    if (user_params->EVOLVE_BARYONS){
+                        delta_baryons_local = *((float *)delta_baryons + box_ct_FFT(box_ct));
+                        delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct_FFT(box_ct));
+                        if (user_params->SCATTERING_DM) {
+                            delta_SDM_local = *((float *)delta_SDM + box_ct_FFT(box_ct));
+                            delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct_FFT(box_ct));
+                        }
+                    }
+
+                    if (!NO_LIGHT){
+                        // Now determine all the differentials for the heating/ionisation rate equations
+                        for (R_ct=global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct--;){
+
+                            if(user_params->USE_INTERPOLATION_TABLES) {
+                                if( dens_grid_int_vals[box_ct][R_ct] < 0 || (dens_grid_int_vals[box_ct][R_ct] + 1) > (dens_Ninterp  - 1) ) {
+                                    table_int_boundexceeded_threaded[omp_get_thread_num()] = 1;
+                                }
+
+                                dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev[box_ct][R_ct]*zpp_growth[R_ct])*( \
+                                                    dfcoll_interp1[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
+                                                        (density_gridpoints[dens_grid_int_vals[box_ct][R_ct] + 1][R_ct] - delNL0_rev[box_ct][R_ct]) + \
+                                                    dfcoll_interp2[dens_grid_int_vals[box_ct][R_ct]][R_ct]*\
+                                                        (delNL0_rev[box_ct][R_ct] - density_gridpoints[dens_grid_int_vals[box_ct][R_ct]][R_ct]) );
+                            }
+                            else {
+                                dfcoll_dz_val = ST_over_PS[R_ct]*(1.+delNL0_rev[box_ct][R_ct]*zpp_growth[R_ct])*( \
+                                                dfcoll_dz(zpp_for_evolve_list[R_ct], sigma_Tmin[R_ct], delNL0_rev[box_ct][R_ct], sigma_atR[R_ct]));
+                            }
+
+                            dxheat_dt += dfcoll_dz_val * \
+                                        ( (freq_int_heat_tbl_diff[m_xHII_low][R_ct])*inverse_val + freq_int_heat_tbl[m_xHII_low][R_ct] );
+                            dxion_source_dt += dfcoll_dz_val * \
+                                        ( (freq_int_ion_tbl_diff[m_xHII_low][R_ct])*inverse_val + freq_int_ion_tbl[m_xHII_low][R_ct] );
+
+                            dxlya_dt += dfcoll_dz_val * \
+                                        ( (freq_int_lya_tbl_diff[m_xHII_low][R_ct])*inverse_val + freq_int_lya_tbl[m_xHII_low][R_ct] );
+                            dstarlya_dt += dfcoll_dz_val*dstarlya_dt_prefactor[R_ct];
+                            // JordanFlitter: Lya flux for Lya heating
+                            if (flag_options->USE_Lya_HEATING){
+                              dstarlya_cont_dt += dfcoll_dz_val*dstarlya_cont_dt_prefactor[R_ct];
+                              dstarlya_inj_dt += dfcoll_dz_val*dstarlya_inj_dt_prefactor[R_ct];
+                            }
+                        }
+                    }
+
+                    // add prefactors
+                    dxheat_dt *= const_zp_prefactor;
+                    dxion_source_dt *= const_zp_prefactor;
+
+                    // JordanFlitter: we can use the baryons density field
+                    if (user_params->EVOLVE_BARYONS){
+                        dxlya_dt *= const_zp_prefactor*prefactor_1 * (1.+delta_baryons_local);
+                    }
+                    else {
+                        dxlya_dt *= const_zp_prefactor*prefactor_1 * (1.+curr_delNL0*growth_factor_zp);
+                    }
+
+                    dstarlya_dt *= prefactor_2;
+
+                    // Now we can solve the evolution equations  //
+
+                    // JordanFlitter: Lya flux for Lya heating
+                    if (flag_options->USE_Lya_HEATING){
+                      dstarlya_cont_dt *= prefactor_2;
+                      dstarlya_inj_dt *= prefactor_2;
+                    }
+
+                    // JordanFlitter: added definition of x_CMB
+                    prev_Ts = previous_spin_temp->Ts_box[box_ct];
+                    // JordanFlitter: we can use the baryons density field
+                    if (user_params->EVOLVE_BARYONS){
+                        tau21 = (3*hplank*A10_HYPERFINE*C*Lambda_21*Lambda_21/32./PI/k_B) * ((1-x_e)*No*pow(1.+zp,3.)*(1.+delta_baryons_local)) /prev_Ts/hubble(zp);
+                    }
+                    else {
+                        tau21 = (3*hplank*A10_HYPERFINE*C*Lambda_21*Lambda_21/32./PI/k_B) * ((1-x_e)*No*pow(1.+zp,3.)*(1.+curr_delNL0*growth_factor_zp)) /prev_Ts/hubble(zp);
+                    }
+                    xCMB = (1. - exp(-tau21))/tau21;
+
+                    // First let's do dxe_dzp //
+                    if (user_params->USE_HYREC){
+                        // JordanFlitter: Let's use HyRec!!
+                        // Note that we treat xe and x_H to be the same, since after recombination x_He<<xe,x_H.
+                        // Note also that Hyrec returns the derivative of n_e/n_H. Since we are interested in the derivative of n_e/(n_H+n_He),
+                        // we must multiply by n_H/(n_H+n_He)=f_H. Also, Hyrec expects an input of n_e/n_H, so we need to give it x_e/f_H=n_e/n_H
+                        // JordanFlitter: we can use the baryons density field
+                        if (user_params->EVOLVE_BARYONS){
+                            dxion_sink_dt = hyrec_dx_H_dz(rec_data, x_e/f_H, x_e/f_H, No*pow(1.+zp,3)*(1.+delta_baryons_local), zp, hubble(zp), T, Trad_fast);
+                        }
+                        else {
+                            dxion_sink_dt = hyrec_dx_H_dz(rec_data, x_e/f_H, x_e/f_H, No*pow(1.+zp,3)*(1.+curr_delNL0*growth_factor_zp), zp, hubble(zp), T, Trad_fast);
+                        }
+                        dxion_sink_dt *= f_H;
+                        dxion_sink_dt /= -dt_dzp; // Here we are only interested in the recombination rate, and not dx_e/dz (which is HyRec's output)
+                    }
+                    // JordanFlitter: we may want to use alpha_B recombination rate (and Peebles coefficient) at low redshifts because alpha_A diverges at low temperatures.
+                    // For LCDM, both recombination rates agree to an order of percent, and the brightness temperature is not sensitive to the exact modelling of the recombination rate at these redshifts.
+                    // For SDM, the brightness temperature is sensitive to the free electron fraction, even at low redshifts, becauese the temperature can reach very low values in which case Compton heating is not negligible!
+                    else if (user_params->USE_ALPHA_B) {
+                        // JordanFlitter: we can use the baryons density field
+                        if (user_params->EVOLVE_BARYONS) {
+                            dxion_sink_dt = alpha_B(T) * x_e*x_e * f_H * prefactor_1 * \
+                                            (1.+delta_baryons_local) * Peebles(x_e, Trad_fast, hubble(zp), No*pow(1.+zp,3.)*(1.+delta_baryons_local), alpha_B(T));
+                        }
+                        else{
+                            dxion_sink_dt = alpha_B(T) * x_e*x_e * f_H * prefactor_1 * \
+                                            (1.+curr_delNL0*growth_factor_zp) * Peebles(x_e, Trad_fast, hubble(zp), No*pow(1.+zp,3.)*(1.+curr_delNL0*growth_factor_zp), alpha_B(T));
+                        }
+                    }
+                    else{
+                        // JordanFlitter: we can use the baryons density field
+                        if (user_params->EVOLVE_BARYONS) {
+                            dxion_sink_dt = alpha_A(T) * global_params.CLUMPING_FACTOR * x_e*x_e * f_H * prefactor_1 * \
+                                            (1.+delta_baryons_local);
+                        }
+                        else{
+                            dxion_sink_dt = alpha_A(T) * global_params.CLUMPING_FACTOR * x_e*x_e * f_H * prefactor_1 * \
+                                            (1.+curr_delNL0*growth_factor_zp);
+                        }
+                    }
+                    dxe_dzp = dt_dzp*(dxion_source_dt - dxion_sink_dt );
+
+                    // Next, let's get the temperature components //
+                    // JordanFlitter: we can use the baryons density field
+                    if (user_params->EVOLVE_BARYONS){
+                        dadia_dzp = 2.*T/(1.0+zp) + (2.0/3.0)*T*delta_baryons_derivative_local/(1.0+delta_baryons_local);
+                    }
+                    else {
+                        // first, adiabatic term
+                        dadia_dzp = 3/(1.0+zp);
+                        if (fabs(curr_delNL0) > FRACT_FLOAT_ERR) // add adiabatic heating/cooling from structure formation
+                            dadia_dzp += dgrowth_factor_dzp/(1.0/curr_delNL0+growth_factor_zp);
+
+                        dadia_dzp *= (2.0/3.0)*T;
+                    }
+
+                    // next heating due to the changing species
+                    dspec_dzp = - dxe_dzp * T / (1+x_e);
+
+                    // next, Compton heating
+                    // JordanFlitter: there shouldn't be any f_He at the Compton heating term, as x_e=n_e/(n_H+n_He). This was verified with Mesinger
+                    dcomp_dzp = dcomp_dzp_prefactor*(x_e/(1.0+x_e))*( Trad_fast - T );
+
+                    // lastly, X-ray heating
+                    dxheat_dzp = dxheat_dt * dt_dzp * 2.0 / 3.0 / k_B / (1.0+x_e);
+                    //update quantities
+
+                    dCMBheat_dzp = 0;
+                    eps_Lya_cont = 0;
+                    eps_Lya_inj = 0;
+
+                    // JordanFlitter: defined CMB heating, following Avery Meiksin (arXiv: 2105.14516)
+                    if (flag_options->USE_CMB_HEATING) {
+                        eps_CMB = (3./4.) * (T_cmb*(1.+zp)/T21) * A10_HYPERFINE * f_H * (hplank*hplank/Lambda_21/Lambda_21/m_p) * (1.+2.*T/T21);
+                        dCMBheat_dzp = 	-eps_CMB * (2./3./k_B/(1.+x_e))/hubble(zp)/(1.+zp);
+                    }
+                    // JordanFlitter: defined Lya heating
+                    if (flag_options->USE_Lya_HEATING) {
+                      // JordanFlitter: we can use the baryons density field
+                      if (user_params->EVOLVE_BARYONS){
+                          E_continuum = Energy_Lya_heating(T, prev_Ts, taugp(zp,delta_baryons_local,x_e), 2);
+                          E_injected = Energy_Lya_heating(T, prev_Ts, taugp(zp,delta_baryons_local,x_e), 3);
+                          Ndot_alpha_cont = (4.*PI*Ly_alpha_HZ) / ((No+He_No)*pow(1.+zp,3.)*(1.+delta_baryons_local))/(1.+zp)/C * dstarlya_cont_dt_box[box_ct];
+                          Ndot_alpha_inj = (4.*PI*Ly_alpha_HZ) / ((No+He_No)*pow(1.+zp,3.)*(1.+delta_baryons_local))/(1.+zp)/C * dstarlya_inj_dt_box[box_ct];
+                      }
+                      else{
+                          E_continuum = Energy_Lya_heating(T, prev_Ts, taugp(zp,curr_delNL0*growth_factor_zp,x_e), 2);
+                          E_injected = Energy_Lya_heating(T, prev_Ts, taugp(zp,curr_delNL0*growth_factor_zp,x_e), 3);
+                          Ndot_alpha_cont = (4.*PI*Ly_alpha_HZ) / ((No+He_No)*pow(1.+zp,3.)*(1.+curr_delNL0*growth_factor_zp))/(1.+zp)/C * dstarlya_cont_dt_box[box_ct];
+                          Ndot_alpha_inj = (4.*PI*Ly_alpha_HZ) / ((No+He_No)*pow(1.+zp,3.)*(1.+curr_delNL0*growth_factor_zp))/(1.+zp)/C * dstarlya_inj_dt_box[box_ct];
+                      }
+                      if (isnan(E_continuum) || isinf(E_continuum)){
+                          E_continuum = 0.;
+                      }
+                      if (isnan(E_injected) || isinf(E_injected)){
+                          E_injected = 0.;
+                      }
+                      eps_Lya_cont = - Ndot_alpha_cont * E_continuum * (2.0 / 3.0 /k_B/ (1.0+x_e));
+                        eps_Lya_inj = - Ndot_alpha_inj * E_injected * (2.0 / 3.0 /k_B/ (1.0+x_e));
+                    }
+
+                    // JordanFlitter: Calculate heating rates and drag term in SDM universe, according to arXiv: 1509.00029
+                    if (user_params->SCATTERING_DM) {
+                        dT_b_2_dt_ext = (dxheat_dzp + dspec_dzp + (dadia_dzp-2.*T/(1.0+zp)) + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj)/dtdz(zp);
+                        // JordanFlitter: we can use the SDM density field
+                        if (user_params->EVOLVE_BARYONS){
+                            dadia_dzp_SDM = 2.*T_chi/(1.0+zp) + (2.0/3.0)*T_chi*delta_SDM_derivative_local/(1.0+delta_SDM_local);
+                        }
+                        else {
+                            dadia_dzp_SDM = 3/(1.0+zp);
+                            if (fabs(curr_delNL0) > FRACT_FLOAT_ERR) // add adiabatic heating/cooling from structure formation
+                                dadia_dzp_SDM += dgrowth_factor_dzp/(1.0/curr_delNL0+growth_factor_zp);
+
+                            dadia_dzp_SDM *= (2.0/3.0)*T_chi;
+                        }
+                        dT_chi_2_dt_ext = (dadia_dzp_SDM-2.*T_chi/(1.0+zp))/dtdz(zp);
+                        // JordanFlitter: we can use the baryons and SDM density fields
+                        if (user_params->EVOLVE_BARYONS){
+                            SDM_rates = SDM_derivatives(zp, x_e, T, T_chi, V_chi_b, delta_baryons_local, delta_SDM_local, hubble(zp),
+                                            -hubble(zp)*(1.+zp)*dcomp_dzp_prefactor*x_e/(1.+x_e), Trad_fast, dzp, dT_b_2_dt_ext,
+                                            dT_chi_2_dt_ext);
+                        }
+                        else {
+                            SDM_rates = SDM_derivatives(zp, x_e, T, T_chi, V_chi_b, curr_delNL0*growth_factor_zp, curr_delNL0*growth_factor_zp, hubble(zp),
+                                            -hubble(zp)*(1.+zp)*dcomp_dzp_prefactor*x_e/(1.+x_e), Trad_fast, dzp, dT_b_2_dt_ext,
+                                            dT_chi_2_dt_ext);
+                        }
+                        dSDM_b_heat_dzp = (2.0/3.0/k_B)*SDM_rates.Q_dot_b*dtdz(zp); // K
+                        dSDM_chi_heat_dzp = (2.0/3.0/k_B)*SDM_rates.Q_dot_chi*dtdz(zp); // K
+                        D_V_chi_b_dzp = SDM_rates.D_V_chi_b*dtdz(zp); // cm/sec
+                    }
+                    else {
+                        dSDM_b_heat_dzp = 0.;
+                        dSDM_chi_heat_dzp = 0.;
+                        D_V_chi_b_dzp = 0.;
+                    }
+
+                    x_e += ( dxe_dzp ) * dzp; // remember dzp is negative
+                    if (x_e > 1) // can do this late in evolution if dzp is too large
+                        x_e = 1 - FRACT_FLOAT_ERR;
+                    else if (x_e < 0)
+                        x_e = 0;
+                    // JordanFlitter: added CMB and Lya heating to the temperature evolution
+                    // JordanFlitter: I also added the SDM heating exchange
+                    // JordanFlitter: If epsilon_b is not small enough, or if external heating rates dominate the SDM cooling rate,
+                    //                or SDM doesn't exist, we evolve T_k with the usual ODE
+                    if (!user_params->SCATTERING_DM ||
+                        (user_params->SCATTERING_DM && ((fabs(SDM_rates.epsilon_b) > EPSILON_THRES) || (fabs(dT_b_2_dt_ext*dtdz(zp))>fabs(dSDM_b_heat_dzp))))
+                        ) {
+                        if (T < MAX_TK) {
+                            T += ( dxheat_dzp + dcomp_dzp + dspec_dzp + dadia_dzp + dCMBheat_dzp + eps_Lya_cont + eps_Lya_inj + dSDM_b_heat_dzp) * dzp;
+                        }
+                    }
+                    // JordanFlitter: Otherwise, we evolve T_k with DM TCA!
+                    else {
+                        T = SDM_rates.T_bar_chi_b + SDM_rates.Delta_T_b_chi/2.; // K
+                    }
+
+                    // JordanFlitter: evolution equations for T_chi and V_chi_b in SDM universe
+                    if (user_params->SCATTERING_DM) {
+                      // JordanFlitter: If epsilon_chi is not small enough, or if external heating rates dominate the baryon heating rate,
+                      // we evolve T_chi with the usual ODE
+                      if ((fabs(SDM_rates.epsilon_chi) > EPSILON_THRES) || (fabs(dT_chi_2_dt_ext*dtdz(zp))>fabs(dSDM_chi_heat_dzp))) {
+                          T_chi += (dadia_dzp_SDM + dSDM_chi_heat_dzp)*dzp; // K
+                      }
+                      // JordanFlitter: Otherwise, we evolve T_chi with DM TCA!
+                      else {
+                          T_chi = SDM_rates.T_bar_chi_b - SDM_rates.Delta_T_b_chi/2.; // K
+                      }
+                      V_chi_b += (V_chi_b/(1.0+zp) - D_V_chi_b_dzp)*dzp; // cm/sec
+                    }
+
+                    // JordanFlitter: I had to change the following logic for handling negative temperatures. The reason behind this change is the following.
+                    // If SDM outnumber the baryons (e.g. if f_chi~100% and the SDM mass is light), its temperature is unaffected by the interactions with the
+                    // baryons and it stays cold. The rapid interactions with baryons on the other hand, cause the baryons to be tightly coupled to the SDM,
+                    // i.e. they also want to stay cold. Yet, external X-ray heating causes the baryons to heat up. In this unique scenario, although the baryons
+                    // are tightly coupled to the cold SDM, their temperature departs from the SDM temperature, and therefore the cooling by the SDM interactions
+                    // is very strong and may lead to negative temperatures. To cure this, it is important to realize that if the SDM cooling wins the X-ray heating,
+                    // then the baryons temperature approaches the SDM temperature from above (it cannot be smaller than T_chi!)
+                    // This problem doesn't happen when the SDM number-density is comparable to the baryons number-density; in that case, both fluids are strongly
+                    // coupled to each other, effectively behaving as a single fluid, and their common temperature is increased by the X-rays.
+                    if (!user_params->SCATTERING_DM) {
+                        if (T<0){ // spurious bahaviour of the trapazoidalintegrator. generally overcooling in underdensities
+                              T = T_cmb*(1+zp);
+                        }
+                    }
+                    else {
+                        if (T<T_chi){ // T should never by smaller than T_chi!
+                              if (T_chi>0){
+                                  T = T_chi;
+                              }
+                              else {
+                                  T = previous_spin_temp->Tk_box[box_ct]; // Don't update T in that special scenario
+                              }
+                        }
+                    }
+
+                    // JordanFlitter: similar logic for T_chi and V_chi_b in case of spurious bahaviour
+                    if (user_params->SCATTERING_DM) {
+                        if (T_chi<0){ // spurious bahaviour of the trapazoidalintegrator. generally overcooling in underdensities
+                            T_chi = previous_spin_temp->T_chi_box[box_ct]; // Don't update T_chi in that special scenario
+                        }
+                        if (V_chi_b<0){ // spurious bahaviour of the trapazoidalintegrator. generally overcooling in underdensities
+                            V_chi_b = 0.;
+                        }
+                    }
+
+                    this_spin_temp->x_e_box[box_ct] = x_e;
+                    this_spin_temp->Tk_box[box_ct] = T;
+                    // JordanFlitter: update T_chi_box and V_chi_b_box
+                    if (user_params->SCATTERING_DM) {
+                      this_spin_temp->T_chi_box[box_ct] = T_chi; // K
+                      this_spin_temp->V_chi_b_box[box_ct] = 1.e-5*V_chi_b; // km/sec
+                    }
+
+                    J_alpha_tot = ( dxlya_dt + dstarlya_dt ); //not really d/dz, but the lya flux
+
+                    // Note: to make the code run faster, the get_Ts function call to evaluate the spin temperature was replaced with the code below.
+                    // Algorithm is the same, but written to be more computationally efficient
+                    T_inv = pow(T,-1.);
+                    T_inv_sq = pow(T,-2.);
+
+                    // JordanFlitter: we can use the baryons density field
+                    if (user_params->EVOLVE_BARYONS){
+                        xc_fast = (1.0+delta_baryons_local)*xc_inverse*\
+                                ( (1.0-x_e)*No*kappa_10(T,0) + x_e*N_b0*kappa_10_elec(T,0) + x_e*No*kappa_10_pH(T,0) );
+                        xi_power = TS_prefactor * cbrt((1.0+delta_baryons_local)*(1.0-x_e)*T_inv_sq);
+                    }
+                    else {
+                        xc_fast = (1.0+curr_delNL0*growth_factor_zp)*xc_inverse*\
+                                ( (1.0-x_e)*No*kappa_10(T,0) + x_e*N_b0*kappa_10_elec(T,0) + x_e*No*kappa_10_pH(T,0) );
+                        xi_power = TS_prefactor * cbrt((1.0+curr_delNL0*growth_factor_zp)*(1.0-x_e)*T_inv_sq);
+                    }
+                    xa_tilde_fast_arg = xa_tilde_prefactor*J_alpha_tot*\
+                                        pow( 1.0 + 2.98394*xi_power + 1.53583*pow(xi_power,2.) + 3.85289*pow(xi_power,3.), -1. );
+
+                    if (J_alpha_tot > 1.0e-20) { // Must use WF effect
+                        TS_fast = Trad_fast;
+                        TSold_fast = 0.0;
+                        while (fabs(TS_fast-TSold_fast)/TS_fast > 1.0e-3) {
+
+                            TSold_fast = TS_fast;
+
+                            // JordanFlitter: S_alpha correction, according to Eq. A4 in Mittal & Kulkarni (arXiv: 2009.10746),
+                            // a result that was derived from the work of Chuzhouy & Shapiro (arXiv: astro-ph/0512206). This method was used
+                            // in Driskell et al. (arXiv: 2209.04499) to account for low-temperature corrections which aren't captured by
+                            // Hirata's fit (arXiv: astro-ph/0507102), which is used in the public 21cmFAST
+                            if (user_params->USE_CS_S_ALPHA) {
+                                xa_tilde_fast = xa_tilde_prefactor*J_alpha_tot;
+
+                                /* JordanFlitter: The following commented lines are an attempt to implement Eq. (18) in arXiv:2212.08082
+                                  (which was orignally introduced in Eq. 57 in arXiv:1605.04357). Unfortunately, this implementation leads
+                                  to 15% maximum error in the brightness temperature (for some set of astrophysical parameters and models),
+                                  which is absolutely not accepted. I don't know if that discrepancy is the result of a bug in the lines below...
+
+                                xa_tilde_fast *= 1./(1.-0.402/T);
+                                xa_tilde_fast *= exp(-2.06*pow(cosmo_params->OMb * cosmo_params->hlittle/0.0327,1./3.)
+                                                          *pow(cosmo_params->OMm/0.307,-1./6.)
+                                                          *pow((1.+zp)/10.,1./2.)*pow(T/0.402,-2./3.));
+                                TS_fast = (xCMB+xa_tilde_fast+xc_fast)*pow(xCMB*Trad_fast_inv+(xa_tilde_fast+xc_fast)*T_inv,-1.);*/
+
+                                // JordanFlitter: Instead, we use tabulated values from the work of Chuzhouy & Shapiro (arXiv: astro-ph/0512206).
+                                // The numerical prefactor in the argument of S_alpha is 24*pi^2*nu_alpha*m_H*k_B^2/(A_alhpa*gamma_alpha*c*h^3) = 6.84e13 sec/(K^2 * cm^3)
+                                // Also, in this method we have a closed analytcial formula for T_s (which is why we set TSold_fast = TS_fast)
+                                // JordanFlitter: we can use the baryons density field
+                                if (user_params->EVOLVE_BARYONS){
+                                    xa_tilde_fast *= S_alpha_correction(6.84e13 * hubble(zp) * T*T / (No*pow(1.+zp,3.)*(1.+delta_baryons_local)*(1.-x_e)), 0);
+                                }
+                                else{
+                                    xa_tilde_fast *= S_alpha_correction(6.84e13 * hubble(zp) * T*T / (No*pow(1.+zp,3.)*(1.+curr_delNL0*growth_factor_zp)*(1.-x_e)), 0);
+                                }
+                                //TS_fast = (xCMB+xa_tilde_fast+xc_fast)*pow(xCMB*Trad_fast_inv+xa_tilde_fast*pow(TS_fast,-1.)*(TS_fast+0.402)/(T+0.402)+xc_fast*T_inv,-1.);
+                                TS_fast = (xCMB+xc_fast+xa_tilde_fast*T/(T+0.402))*pow(xCMB*Trad_fast_inv+xa_tilde_fast*pow(T+0.402,-1.)+xc_fast*T_inv,-1.);
+                                TSold_fast = TS_fast;
+                            }
+                            else {
+                                xa_tilde_fast = ( 1.0 - 0.0631789*T_inv + 0.115995*T_inv_sq - \
+                                               0.401403*T_inv*pow(TS_fast,-1.) + 0.336463*T_inv_sq*pow(TS_fast,-1.) )*xa_tilde_fast_arg;
+                                // JordanFlitter: modified spin temperature by xCMB
+                                TS_fast = (xCMB+xa_tilde_fast+xc_fast)*pow(xCMB*Trad_fast_inv+xa_tilde_fast*( T_inv + \
+                                                0.405535*T_inv*pow(TS_fast,-1.) - 0.405535*T_inv_sq ) + xc_fast*T_inv,-1.);
+                            }
+                        }
+                    } else { // Collisions only
+                        TS_fast = (xCMB + xc_fast)/(xCMB*Trad_fast_inv + xc_fast*T_inv);
+                        xa_tilde_fast = 0.0;
+                    }
+
+                    if(TS_fast < 0.) {
+                        // It can very rarely result in a negative spin temperature. If negative, it is a very small number.
+                        // Take the absolute value, the optical depth can deal with very large numbers, so ok to be small
+                        TS_fast = fabs(TS_fast);
+                    }
+
+                    this_spin_temp->Ts_box[box_ct] = TS_fast;
+
+                    // JordanFlitter: added Lya flux to output! (because why not)
+                    this_spin_temp->J_Lya_box[box_ct] =  J_alpha_tot;
+
+                    if(LOG_LEVEL >= DEBUG_LEVEL){
+                        J_alpha_ave += J_alpha_tot;
+                        xalpha_ave += xa_tilde_fast;
+                        Xheat_ave += ( dxheat_dzp );
+                        Xion_ave += ( dt_dzp*dxion_source_dt );
+
+                        Ts_ave += TS_fast;
+                        Tk_ave += T;
+                    }
+                    x_e_ave += x_e;
+                }
+            }
+
+            for(i=0;i<user_params->N_THREADS; i++) {
+                if(table_int_boundexceeded_threaded[i]==1) {
+                    LOG_ERROR("I have overstepped my allocated memory for one of the interpolation tables of dfcoll_dz_val");
+//                    Throw(ParameterError);
+                    Throw(TableEvaluationError);
+                }
+            }
+        }
 
         for (box_ct=0; box_ct<HII_TOT_NUM_PIXELS; box_ct++){
             if(isfinite(this_spin_temp->Ts_box[box_ct])==0) {
@@ -3022,6 +3853,63 @@ void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_o
             free(dstarlya_dt_box_MINI);
             free(dstarlyLW_dt_box_MINI);
         }
+    }
+    else {
+
+        if(user_params->USE_INTERPOLATION_TABLES) {
+            free(Sigma_Tmin_grid);
+            free(ST_over_PS_arg_grid);
+            free(delNL0_bw);
+            free(delNL0_Offset);
+            free(delNL0_LL);
+            free(delNL0_UL);
+            free(delNL0_ibw);
+            free(log10delNL0_diff);
+            free(log10delNL0_diff_UL);
+
+            for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
+                for(j=0;j<zpp_interp_points_SFR;j++) {
+                    free(fcoll_R_grid[i][j]);
+                    free(dfcoll_dz_grid[i][j]);
+                }
+                free(fcoll_R_grid[i]);
+                free(dfcoll_dz_grid[i]);
+            }
+            free(fcoll_R_grid);
+            free(dfcoll_dz_grid);
+
+            for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
+                free(grid_dens[i]);
+            }
+            free(grid_dens);
+
+            for(i=0;i<dens_Ninterp;i++) {
+                free(density_gridpoints[i]);
+            }
+            free(density_gridpoints);
+
+            for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
+                free(dens_grid_int_vals[i]);
+            }
+            free(dens_grid_int_vals);
+
+            for(i=0;i<dens_Ninterp;i++) {
+                free(fcoll_interp1[i]);
+                free(fcoll_interp2[i]);
+                free(dfcoll_interp1[i]);
+                free(dfcoll_interp2[i]);
+            }
+            free(fcoll_interp1);
+            free(fcoll_interp2);
+            free(dfcoll_interp1);
+            free(dfcoll_interp2);
+        }
+
+        for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
+            free(delNL0_rev[i]);
+        }
+        free(delNL0_rev);
+
     }
 
     for(i=0;i<x_int_NXHII;i++) {
