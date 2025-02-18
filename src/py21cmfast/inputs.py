@@ -37,6 +37,9 @@ Planck18 = Planck15.clone(
     H0=67.66,
 )
 
+print('-----------------------------------------------------')
+print('SarahLibanore: developing f_nl, C files updated with IC and fcoll in Lidz approximation on 02/28/2025')
+print('-----------------------------------------------------')
 
 class GlobalParams(StructInstanceWrapper):
     """
@@ -1032,17 +1035,6 @@ class UserParams(StructWithDefaults):
             return False
         else:
             return self._FAST_FCOLL_TABLES
-
-    # SarahLibanore : for the moment we only implement NG corrections to Fcoll through the python code in analogy with the case of sigma_z0 with USE_INTERPOLATION_TABLES and EVOLVE_MATTER. Other cases should be modeled in the C code, TO DO
-    @property
-    def NON_GAUSS_FCOLL(self):
-        """Check that USE_INTERPOLATION_TABLES and EVOLVE_MATTER are True."""
-        if self._NON_GAUSS_FCOLL and not (self.USE_INTERPOLATION_TABLES and self.EVOLVE_MATTER):
-            logger.warning("Non Gaussian corrections to Fcoll for now are only implemented if USE_INTERPOLATION_TABLES and EVOLVE_MATTER are True."
-                "NON_GAUSS_FCOLL is set to False." )
-            return False
-        else:
-            return self._NON_GAUSS_FCOLL
 
 
 class FlagOptions(StructWithDefaults):
