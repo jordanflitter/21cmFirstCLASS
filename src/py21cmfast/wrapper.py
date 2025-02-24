@@ -3188,11 +3188,12 @@ def run_lightcone(
                 CLASS_params['background_verbose'] = 0
             if user_params.SCATTERING_DM:
                 # Set SDM parameters
+                CLASS_params['N_dmeff'] = 1 # number of SDM species
                 CLASS_params['Omega_cdm'] = (1.-pow(10.,-cosmo_params.f_chi))*(cosmo_params.OMm-cosmo_params.OMb)
                 CLASS_params['Omega_dmeff'] = pow(10.,-cosmo_params.f_chi)*(cosmo_params.OMm-cosmo_params.OMb) # ratio of SDM to total DM
                 CLASS_params['m_dmeff'] = pow(10.,cosmo_params.m_chi)*1.e-9 # in GeV
                 CLASS_params['sigma_dmeff'] = pow(10.,-cosmo_params.sigma_SDM) # cross section prefactor in cm^2
-                CLASS_params['npow_dmeff'] = -4 # power-law of the cross section dependence on the relative velocity
+                CLASS_params['npow_dmeff'] = cosmo_params.SDM_INDEX # power-law of the cross section dependence on the relative velocity
                 # Type of the interacting particles with the SDM (can be 'baryons', 'ionized', 'hydrogen', 'protons' or 'electrons')
                 if user_params.SDM_TARGET_TYPE == 1:
                     CLASS_params['dmeff_target'] = 'baryons'
@@ -4098,11 +4099,12 @@ def run_lightcone(
                     CLASS_params['background_verbose'] = 0
                 if user_params.SCATTERING_DM:
                     # Set SDM parameters
+                    CLASS_params['N_dmeff'] = 1 # number of SDM species
                     CLASS_params['Omega_cdm'] = (1.-pow(10.,-cosmo_params.f_chi))*(cosmo_params.OMm-cosmo_params.OMb)
                     CLASS_params['Omega_dmeff'] = pow(10.,-cosmo_params.f_chi)*(cosmo_params.OMm-cosmo_params.OMb) # ratio of SDM to total DM
                     CLASS_params['m_dmeff'] = pow(10.,cosmo_params.m_chi)*1.e-9 # in GeV
                     CLASS_params['sigma_dmeff'] = pow(10.,-cosmo_params.sigma_SDM) # cross section prefactor in cm^2
-                    CLASS_params['npow_dmeff'] = -4 # power-law of the cross section dependence on the relative velocity
+                    CLASS_params['npow_dmeff'] = cosmo_params.SDM_INDEX # power-law of the cross section dependence on the relative velocity
                     # Type of the interacting particles with the SDM (can be 'baryons', 'ionized', 'hydrogen', 'protons' or 'electrons')
                     if user_params.SDM_TARGET_TYPE == 1:
                         CLASS_params['dmeff_target'] = 'baryons'

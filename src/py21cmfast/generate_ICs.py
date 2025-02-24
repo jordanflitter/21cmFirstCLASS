@@ -267,6 +267,7 @@ def run_ICs(cosmo_params,user_params,global_params):
         CLASS_params['background_verbose'] = 0
     if user_params.SCATTERING_DM:
         # Set SDM parameters
+        CLASS_params['N_dmeff'] = 1 # number of SDM species
         CLASS_params['Omega_dmeff'] = f_chi*Omega_c0 # ratio of SDM to total DM
         CLASS_params['m_dmeff'] = m_chi # SDM mass in GeV
         CLASS_params['sigma_dmeff'] = sigma_SDM # cross section prefactor in cm^2
