@@ -65,6 +65,7 @@ struct UserParams{
     bool LINEAR_DELTA_IN_EPS; // JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
     bool NON_GAUSS_IC; // SarahLibanore: flag to use fNL in initial conditions
     bool NON_GAUSS_FCOLL; // SarahLibanore: flag to use fNL in collapsed fraction
+    bool NG_MODEL_APPROX; //SarahLibanore: if True use Lidz approx, otherwise D'Alosio
 };
 
 struct AstroParams{

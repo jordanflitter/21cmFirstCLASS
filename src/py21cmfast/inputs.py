@@ -38,7 +38,7 @@ Planck18 = Planck15.clone(
 )
 
 print('-----------------------------------------------------')
-print('SarahLibanore: developing f_nl, C files updated with IC and fcoll in Lidz approximation on 02/28/2025')
+print('SarahLibanore: developed f_nl, C files updated with IC and fcoll in Lidz approximation and DAlosio on 05/25/2025')
 print('-----------------------------------------------------')
 
 class GlobalParams(StructInstanceWrapper):
@@ -890,6 +890,7 @@ class UserParams(StructWithDefaults):
         "LINEAR_DELTA_IN_EPS": True, # JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
         "NON_GAUSS_IC": False, # SarahLibanore: flag to use fNL in initial conditions
         "NON_GAUSS_FCOLL": False, # SarahLibanore: flag to use fNL in collapsed fraction
+        "NG_MODEL_APPROX":True # SarahLibanore: if True use Lidz approx, otherwise D'Alosio
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]

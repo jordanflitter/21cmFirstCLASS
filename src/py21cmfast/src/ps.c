@@ -2211,7 +2211,7 @@ double dNdM_conditional(float growthf, float M1, float M2, float delta1, float d
     double delta_n3, delta_m3, delta_m2delta_n, delta_mdelta_n2; 
     double ddelta_n3_dMmin, ddelta_m2delta_n_dMin, ddelta_mdelta_n2_dMin; 
     double cothD, val, sumterm, dsumterm;
-    double dfdS, ddfdSdM, term, one, two;
+    double dfdS, ddfdSdM, term, one, two, termC;
 
     float MassBinLow;
     int MassBin;
@@ -2257,14 +2257,10 @@ double dNdM_conditional(float growthf, float M1, float M2, float delta1, float d
     dfcoll_dMmin_EPS = (-(deltagrowth_diff)*dsigmadm *( exp( - pow( deltagrowth_diff, 2 )/( 2.*sigma_diff ) ) )/(pow(sigma_diff, 1.5)))/sqrt(TWOPI) ;
    
     // SarahLibanore : implementation of the derivative of the NG corrections in Eq 5 in 1304.8049
-    if (user_params_ps->NON_GAUSS_FCOLL & !cosmo_params_ps->F_NL == 0.)
-        {
-
-            // condition written below Eq 5 in Lidz
-            if (delta1 <= delta2 || pow(delta1/growthf,2) < sigma2 || sigma2 == 0. )
-            // condition to avoid infty in the coth
-            //if (delta1 == delta2 || sigma2 == 0. )
-                {dfcoll_dMmin_NG = 0.;}
+    if (user_params_ps->NON_GAUSS_FCOLL & !cosmo_params_ps->F_NL == 0.){
+            if (deltagrowth_diff == 0){
+                dfcoll_dMmin_NG = 0.;
+            }
             else{
                 // the three point function is computed from table at z = 0 and it must be scaled compared with sigma_0
                 delta_n3 = three_point_delta_interpolation(M1,M1); // diagonal on the matrix
@@ -2276,51 +2272,46 @@ double dNdM_conditional(float growthf, float M1, float M2, float delta1, float d
                 ddelta_m2delta_n_dMin = three_point_delta_derivative_interpolation(M1,M2); // upper triangular
                 ddelta_mdelta_n2_dMin = three_point_delta_derivative_interpolation(M2,M1); // lower triangular
 
-            A = (delta_n3 - delta_m3 + 3.*delta_m2delta_n - 3.*delta_mdelta_n2) ;
-            B = (delta_m3 + delta_mdelta_n2 - 2*delta_m2delta_n) ;
-            Cval = delta_m2delta_n - delta_m3; 
+                A = (delta_n3 - delta_m3 + 3.*delta_m2delta_n - 3.*delta_mdelta_n2) ;
+                B = (delta_m3 + delta_mdelta_n2 - 2*delta_m2delta_n) ;
+                Cval = delta_m2delta_n - delta_m3; 
 
-            dA_dMmin = (ddelta_n3_dMmin + 3.*ddelta_m2delta_n_dMin - 3.*ddelta_mdelta_n2_dMin);
-            dB_dMmin = (ddelta_mdelta_n2_dMin - 2.*ddelta_m2delta_n_dMin) ;
-            dC_dMmin = ddelta_m2delta_n_dMin ;
+                dA_dMmin = (ddelta_n3_dMmin + 3.*ddelta_m2delta_n_dMin - 3.*ddelta_mdelta_n2_dMin);
+                dB_dMmin = (ddelta_mdelta_n2_dMin - 2.*ddelta_m2delta_n_dMin) ;
+                dC_dMmin = ddelta_m2delta_n_dMin ;
 
-            dfdS = (deltagrowth_diff/sqrt(TWOPI)/pow(sigma_diff,3/2.)) * exp(-pow(deltagrowth_diff,2)/2./sigma_diff);
+                dfdS = (deltagrowth_diff/sqrt(TWOPI)/pow(sigma_diff,3/2.)) * exp(-pow(deltagrowth_diff,2)/2./sigma_diff);
 
-            ddfdSdM = dfdS * dsigmadm / 2. / sigma_diff * (pow(deltagrowth_diff,2.)/sigma_diff - 3.);
+                ddfdSdM = dfdS * dsigmadm / 2. / sigma_diff * (pow(deltagrowth_diff,2.)/sigma_diff - 3.);
 
-            // DERIVATIVE OF THE EXPRESSION IN D'ALOSIO 
+                // DERIVATIVE OF THE EXPRESSION IN D'ALOSIO 
 
-            //val = delta1 / growthf * deltagrowth_diff / sigma2 ; 
-            //cothD = (exp(val) + exp(-val)) / (exp(val) - exp(-val)); 
-
-            //sumterm = A/3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B/sigma2 * (delta1/growthf - deltagrowth_diff * cothD) + C * sigma_diff / sigma2 / deltagrowth_diff * (pow(delta1/growthf, 2.) - sigma2 - 2.*delta1/growthf * deltagrowth_diff * (cothD - 1.));
-
-            //dsumterm = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) - A / 3. * dsigmadm + dB_dMmin / sigma2 * (delta1/growthf - deltagrowth_diff * cothD) +  (pow(delta1/growthf, 2.) - sigma2 - 2.*delta1/growthf * deltagrowth_diff * (cothD - 1.)) * (dC_dMmin * sigma_diff + C )/ sigma2 / deltagrowth_diff;
-
-            //dfcoll_dMmin_NG = - (ddfdSdM * sumterm + dfdS * dsumterm) ; // the - comes from the definition of Fcoll
-
-            // DERIVATIVE OF THE EXPRESSION IN LIDZ
-   
-            term = delta2 / growthf / sigma2;
-    
-            one = A / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B * term;
-    
-            two = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) - A / 3. * dsigmadm * (deltagrowth_diff / pow(sigma_diff,2.)) + dB_dMmin * term ;
-    
-            dfcoll_dMmin_NG = - (ddfdSdM * one + dfdS * two);
+                if (user_params_ps->NG_MODEL_APPROX)
+                    {cothD = 1.;
+                    termC = - sigma_diff / sigma2 / deltagrowth_diff;
+                    }
+                else
+                    {val = delta1 / growthf * deltagrowth_diff / sigma2 ;
+                    cothD =  1+2/(exp(2*val) -1); 
+                    termC = - sigma_diff / pow(sigma2,2) / deltagrowth_diff * (-sigma_diff + pow(delta2/growthf,2) -2*delta1/growthf*deltagrowth_diff*(-1+cothD));
+                    }
             
+            term = delta1 / growthf - deltagrowth_diff * cothD;
+        
+            one = A / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B / sigma2 * term;
+        
+            two = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + dB_dMmin / sigma2 * term ;
+        
+            dfcoll_dMmin_NG = - (ddfdSdM * (one + Cval * termC) + dfdS * (two + dC_dMmin * termC));
+            if (dfcoll_dMmin_NG < 1E-50){
+                dfcoll_dMmin_NG = 0.;
             }
-    //printf("GAUSS=%e, NON GAUSS=%e\n",dfcoll_dMmin_EPS,dfcoll_dMmin_NG);
-         }
+            }   
+        }
 
-    else
-        {dfcoll_dMmin_NG = 0.;}
-
-    if (abs(dfcoll_dMmin_NG) < 1E-50)
-    {dfcoll_dMmin_NG = 0.;}
+    else{dfcoll_dMmin_NG = 0.;}
 
     dfcoll = dfcoll_dMmin_EPS + dfcoll_dMmin_NG ;
-    //printf("dfcoll=%e\n",dfcoll);
 
     return dfcoll ;
     
