@@ -336,8 +336,12 @@ int ComputeInitialConditions(
                     k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
                     if (k_mag == 0.){pot_to_delta = 0.;}
-                    else {pot_to_delta = TF_CLASS(k_mag,1,0);} // use the matter TF since it already includes the other quantities needed by the Poisson eq
-                    Cv = sqrt(1.0 - global_params.A_VCB_PM*exp( -pow(log(k_mag/global_params.KP_VCB_PM),2.0)/(2.0*global_params.SIGMAK_VCB_PM*global_params.SIGMAK_VCB_PM))); //for v=vrms
+                    else {pot_to_delta = TF_CLASS(k_mag,1,0) / (2./3);} // use the matter TF since it already includes the other quantities needed by the Poisson eq
+                    if(user_params_ps->USE_RELATIVE_VELOCITIES && !user_params_ps->EVOLVE_MATTER) { //jbm:Add average relvel suppression
+                        Cv = sqrt(1.0 - global_params.A_VCB_PM*exp( -pow(log(k_mag/global_params.KP_VCB_PM),2.0)/(2.0*global_params.SIGMAK_VCB_PM*global_params.SIGMAK_VCB_PM)));} //for v=vrms}
+                    else {
+                        Cv = 1.;
+                    }
                     // volume and Npix are required by the FFT
                     *((fftwf_complex *)HIRES_box + C_INDEX(n_x,n_y,n_z)) *= pot_to_delta * Cv * VOLUME / TOT_NUM_PIXELS;
 

@@ -678,10 +678,9 @@ double power_in_k_potential(double k){
         {p = 0;}
     else
         {p = 1. / pow(k,3) * cosmo_params_ps->A_s * pow(k/0.05,(cosmo_params_ps->POWER_INDEX-1.)); 
-            } // 9/25 already included in the class transfer function 
+            }  
     
-    return p*TWOPI*PI * pow(k,4); // we multiply by k^4 to ...?
-}
+    return p*TWOPI*PI * pow(k,4) * pow(2./3,2); }
 
 
 /*

@@ -38,7 +38,7 @@ Planck18 = Planck15.clone(
 )
 
 print('-----------------------------------------------------')
-print('SarahLibanore: developed f_nl, C files updated with IC and fcoll in Lidz approximation and DAlosio on 05/25/2025')
+print('SarahLibanore: developed f_nl, C files updated with IC and fcoll in Lidz approximation and DAlosio on 09/22/2025')
 print('-----------------------------------------------------')
 
 class GlobalParams(StructInstanceWrapper):
