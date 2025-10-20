@@ -854,6 +854,7 @@ class UserParams(StructWithDefaults):
         "BOX_LEN": 300.0,
         "DIM": None,
         "HII_DIM": 200,
+        "EXTRA_DIM_FNL": 1.5, # SarahLibanore: introduced for NG
         "USE_FFTW_WISDOM": False,
         "HMF": 1,
         "USE_RELATIVE_VELOCITIES": True, # JordanFlitter: changed default to True

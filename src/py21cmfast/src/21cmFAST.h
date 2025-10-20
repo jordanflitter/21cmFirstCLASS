@@ -28,6 +28,7 @@ struct UserParams{
     // Parameters taken from INIT_PARAMS.H
     int HII_DIM;
     int DIM;
+    float EXTRA_DIM_FNL; // SarahLibanore: introduced for NG
     float BOX_LEN;
     bool USE_FFTW_WISDOM;
     int HMF;
@@ -122,6 +123,7 @@ struct InitialConditions{
     float *hires_density, *hires_vx, *hires_vy, *hires_vz, *hires_vx_2LPT, *hires_vy_2LPT, *hires_vz_2LPT; //cw addition
     float *lowres_vcb;
     float *lowres_xe_zhigh, *lowres_Tk_zhigh, *lowres_Tchi_zhigh, *lowres_V_chi_b_zhigh; // JordanFlitter: added new SDM boxes to the InitialConditions structure
+    float *hires_potential; // SarahLibanore added box for NG
 };
 
 struct PerturbedField{

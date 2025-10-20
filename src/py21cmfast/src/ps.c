@@ -677,10 +677,11 @@ double power_in_k_potential(double k){
     if (k == 0 )
         {p = 0;}
     else
-        {p = 1. / pow(k,3) * cosmo_params_ps->A_s * pow(k/0.05,(cosmo_params_ps->POWER_INDEX-1.)); 
-            }  
+    // this is the primordial potential transfer function
+    // defined with 9/25 because the convention is to define it in matter domination
+        { p =  (9/25.) *cosmo_params_ps->A_s * pow(k/0.05, cosmo_params_ps->POWER_INDEX-1) /pow(k,3)*pow(k,4);}
     
-    return p*TWOPI*PI * pow(k,4) * pow(2./3,2); }
+    return p * TWOPI * PI ; }
 
 
 /*

@@ -106,6 +106,54 @@ void adj_complex_conj(fftwf_complex *HIRES_box, struct UserParams *user_params, 
     }
 }
 
+// -------------------------------------------------------------
+// -------------------------------------------------------------
+
+// SarahLibanore:
+// Padding function (Orszag 3/2 rule) for de-aliasing
+void pad_box_3over2(fftwf_complex *large_box, fftwf_complex *small_box, int D_pad, int MID_pad) {
+
+    memset(large_box, 0, sizeof(fftwf_complex) * D_pad * D_pad * (MID_pad + 1));
+
+    for (int x = 0; x < D; x++) {
+        int xh = (x <= MIDDLE) ? x : x - D + D_pad;
+
+        for (int y = 0; y < D; y++) {
+            int yh = (y <= MIDDLE) ? y : y - D + D_pad;
+
+            for (int z = 0; z <= MIDDLE; z++) {
+
+                unsigned long long idx_in  = C_INDEX(x, y, z);
+                unsigned long long idx_out = (unsigned long long)(z + (MID_pad+1llu)*((yh) + D_pad*(xh)));
+
+                large_box[idx_out] = small_box[idx_in];
+            }
+        }
+    }
+}
+
+// SarahLibanore:
+// Truncating function (Orszag 3/2 rule) for de-aliasing
+void truncate_box_3over2(fftwf_complex *cutmodes_box, fftwf_complex *allmodes_box, int D_pad, int MID_pad) {
+
+    for (int x = 0; x < D; x++) {
+        int xh = (x <= MIDDLE) ? x : x - D + D_pad;
+        for (int y = 0; y < D; y++) {
+            int yh = (y <= MIDDLE) ? y : y - D + D_pad;
+            for (int z = 0; z <= MIDDLE; z++) {
+
+                unsigned long long idx_out = C_INDEX(x, y, z);
+                unsigned long long idx_in  = (unsigned long long)(z + (MID_pad+1llu)*((yh) + D_pad*(xh)));
+
+                cutmodes_box[idx_out] = allmodes_box[idx_in] ;
+            }
+        }
+    }
+}
+// -------------------------------------------------------------
+// -------------------------------------------------------------
+
+
 // Re-write of init.c for original 21cmFAST
 
 int ComputeInitialConditions(
@@ -136,6 +184,14 @@ int ComputeInitialConditions(
     float p_SDM, delta_SDM_i;
     // SarahLibanore: quantities needed for NG case
     float avg_pot2, pot_to_delta, Cv;
+    // SarahLibanore: dealiasing
+    int D_pad = round(user_params_ps->DIM * user_params_ps->EXTRA_DIM_FNL);
+    int MID_pad = round(D_pad/2);
+    inline unsigned long long R_pad_INDEX(int x, int y, int z) {
+        return (unsigned long long)(z)
+            + D_pad * ((unsigned long long)(y)
+            + D_pad * (unsigned long long)(x));
+    }
 
     float f_pixel_factor;
 
@@ -209,6 +265,13 @@ int ComputeInitialConditions(
     fftwf_complex *HIRES_box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
     fftwf_complex *HIRES_box_saved = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
 
+    // SarahLibanore: dealiasing
+    // Allocate padded Fourier box
+    fftwf_complex *pad_k = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * D_pad * D_pad * (MID_pad + 1));
+    float *pad_r = (float*) fftwf_malloc(sizeof(float) * D_pad*D_pad*D_pad);
+    fftwf_complex *tmp_k = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+
+
     // allocate array for the k-space and real-space boxes for vcb
     fftwf_complex *HIRES_box_vcb_saved;
     // HIRES_box_vcb_saved may be needed if FFTW_Wisdom doesn't exist -- currently unused
@@ -279,36 +342,102 @@ int ComputeInitialConditions(
     // SarahLibanore transform potential to density and introduce non gaussianity
     if (user_params->NON_GAUSS_IC){
 
-        // we created the gaussian potential box in FT
-        adj_complex_conj(HIRES_box,user_params,cosmo_params);
+    // we created the gaussian potential box in FT
+    adj_complex_conj(HIRES_box,user_params,cosmo_params);
+    
+    // Padding (Orszag)
+    pad_box_3over2(pad_k, HIRES_box, D_pad, MID_pad);
 
+    // Create the FFT plan to go to real space
+    fftwf_plan plan_inverse = fftwf_plan_dft_c2r_3d(
+        D_pad, D_pad, D_pad,   // Dimensions
+        pad_k,                 // Input: complex field in Fourier space
+        pad_r,                 // Output: real field in real space
+        FFTW_ESTIMATE          // Planning mode (fast to set up)
+    );
+
+    if (!plan_inverse) {
+        fprintf(stderr, "Error: Could not create inverse FFT plan\n");
+        return;
+    }
+
+    fftwf_execute_dft_c2r(plan_inverse, pad_k, pad_r);
+
+    // Compute mean(phi²) and replace φ with (φ² - <φ²>)
+    size_t Ntot = (size_t)D_pad * D_pad * D_pad;
+    #pragma omp parallel for collapse(3)
+        for (int i = 0; i < D_pad; i++) {
+            for (int j = 0; j < D_pad; j++) {
+                for (int k = 0; k < D_pad; k++) {
+                    pad_r[R_pad_INDEX(i,j,k)] /= Ntot; // normalization for the discrete FFT
+                }
+            }
+        }
+    
+    printf("potential=%e\n",pad_r[R_pad_INDEX(0,0,0)]);
+    
+    for (size_t i = 0; i < Ntot; i++) {
+        avg_pot2 += pad_r[i] * pad_r[i];
+    }
+    avg_pot2 /= (float)Ntot;
+
+    for (size_t i = 0; i < Ntot; i++) {
+        pad_r[i] = pad_r[i] * pad_r[i] - (float)avg_pot2;
+    }            
+    printf("delta phi^2=%e\n",pad_r[R_pad_INDEX(0,0,0)]);
+
+    // FFT back to k-space
+    fftwf_plan plan_fwd = fftwf_plan_dft_r2c_3d(D_pad, D_pad, D_pad, pad_r, pad_k, FFTW_ESTIMATE);
+    fftwf_execute(plan_fwd);
+
+    // Truncate back to original resolution
+    truncate_box_3over2(tmp_k, pad_k, D_pad, MID_pad);  
+    
+    // φ_NG = φ + f_NL * tmp_k (in Fourier space)
+    size_t Npix_k = (size_t)D * D * (MIDDLE + 1);
+    for (size_t i = 0; i < Npix_k; i++) {
+        HIRES_box[i] += cosmo_params_ps->F_NL * tmp_k[i] ;
+    }  
+    adj_complex_conj(HIRES_box,user_params,cosmo_params)   ;  
+
+        // ------------------------------- //
+        // ------------------------------- //
+        // OLD VERSION 
         // FFT back to real space
-        int stat = dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
-        if(stat>0) Throw(stat);
-        LOG_DEBUG("FFT'd hires boxes.");
-        for (i=0; i<user_params->DIM; i++){
-                            for (j=0; j<user_params->DIM; j++){
-                                for (k=0; k<user_params->DIM; k++){
-                                    *((float *)HIRES_box + R_FFT_INDEX(i,j,k)) /= VOLUME ;
-                    }}}
+        // int stat = dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
+        // if(stat>0) Throw(stat);
+        // LOG_DEBUG("FFT'd hires boxes.");
+        // for (i=0; i<user_params->DIM; i++){
+        //                     for (j=0; j<user_params->DIM; j++){
+        //                         for (k=0; k<user_params->DIM; k++){
+        //                             *((float *)HIRES_box + R_FFT_INDEX(i,j,k)) /= VOLUME ;
+        //             }}}
 
-        // compute <phi^2>
-        avg_pot2 = 0.;
-        for (i=0; i<user_params->DIM; i++){
-                    for (j=0; j<user_params->DIM; j++){
-                        for (k=0; k<user_params->DIM; k++){
-                            avg_pot2 += pow(*((float *)HIRES_box + R_FFT_INDEX(i,j,k)),2)/TOT_NUM_PIXELS ;
-            }}}
+        // printf("potential=%e\n",*((float *)HIRES_box + R_FFT_INDEX(0,0,0)));
 
-        // introduce LOCAL NG correction in real space
-        for (i=0; i<user_params->DIM; i++){
-                    for (j=0; j<user_params->DIM; j++){
-                        for (k=0; k<user_params->DIM; k++){
-                            *((float *)HIRES_box + R_FFT_INDEX(i,j,k)) += cosmo_params_ps->F_NL*(pow(*((float *)HIRES_box + R_FFT_INDEX(i,j,k)),2) - avg_pot2);
-                        }}}
+        // // compute <phi^2>
+        // avg_pot2 = 0.;
+        // for (i=0; i<user_params->DIM; i++){
+        //             for (j=0; j<user_params->DIM; j++){
+        //                 for (k=0; k<user_params->DIM; k++){
+        //                     avg_pot2 += pow(*((float *)HIRES_box + R_FFT_INDEX(i,j,k)),2)/TOT_NUM_PIXELS ;
+        //     }}}
+
+        // printf("avg2=%e\n",avg_pot2);
+
+        // // introduce LOCAL NG correction in real space
+        // for (i=0; i<user_params->DIM; i++){
+        //             for (j=0; j<user_params->DIM; j++){
+        //                 for (k=0; k<user_params->DIM; k++){
+        //                     *((float *)HIRES_box + R_FFT_INDEX(i,j,k)) += cosmo_params_ps->F_NL*(pow(*((float *)HIRES_box + R_FFT_INDEX(i,j,k)),2) - avg_pot2);
+        //                 }}}
+
+        // printf("potential=%e\n",*((float *)HIRES_box + R_FFT_INDEX(0,0,0)));
 
         // Perform FFTs
-        dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
+        // dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
+        // ------------------------------- //
+        // ------------------------------- //
 
         // convert potential to density in FFT space with NG contribution
         #pragma omp parallel shared(HIRES_box) \
@@ -336,17 +465,14 @@ int ComputeInitialConditions(
                     k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
                     if (k_mag == 0.){pot_to_delta = 0.;}
-                    else {pot_to_delta = TF_CLASS(k_mag,1,0) / (2./3);} // use the matter TF since it already includes the other quantities needed by the Poisson eq
+                    else {pot_to_delta = TF_CLASS(k_mag,1,0)*5./3. ;} // the 5/3 is to go from potential to primordial curvature, that's how the transfer function in CLASS is defined
                     if(user_params_ps->USE_RELATIVE_VELOCITIES && !user_params_ps->EVOLVE_MATTER) { //jbm:Add average relvel suppression
                         Cv = sqrt(1.0 - global_params.A_VCB_PM*exp( -pow(log(k_mag/global_params.KP_VCB_PM),2.0)/(2.0*global_params.SIGMAK_VCB_PM*global_params.SIGMAK_VCB_PM)));} //for v=vrms}
                     else {
                         Cv = 1.;
                     }
-                    // volume and Npix are required by the FFT
-                    *((fftwf_complex *)HIRES_box + C_INDEX(n_x,n_y,n_z)) *= pot_to_delta * Cv * VOLUME / TOT_NUM_PIXELS;
-
+                    *((fftwf_complex *)HIRES_box + C_INDEX(n_x,n_y,n_z)) *= pot_to_delta * Cv ;
                     }}}}
-
     }
 
     else{ 
