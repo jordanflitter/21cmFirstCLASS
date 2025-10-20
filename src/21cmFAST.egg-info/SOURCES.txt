@@ -4,6 +4,7 @@ PKG-INFO
 README.md
 build_cffi.py
 fcoll.nb
+notebook_fNL.ipynb
 setup.py
 Tutorial (Jupyter notebooks)/notebook_1.ipynb
 Tutorial (Jupyter notebooks)/notebook_2.ipynb
