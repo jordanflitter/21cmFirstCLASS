@@ -20,7 +20,7 @@ struct CosmoParams *cosmo_params_ufunc;
 struct UserParams *user_params_ufunc;
 
 // JordanFlitter: added CLASS growth factor
-double CLASS_GROWTH_FACTOR(float z, int flag);
+double CLASS_GROWTH_FACTOR(double z, int flag);
 
 // JordanFlitter: added scale dependent growth factor
 double SDGF_BARYONS(double z, double k, int flag);
@@ -49,11 +49,11 @@ void Broadcast_struct_global_UF(struct UserParams *user_params, struct CosmoPara
     user_params_ufunc = user_params;
 }
 
-float ComputeFullyIoinizedTemperature(float z_re, float z, float delta){
+double ComputeFullyIoinizedTemperature(double z_re, double z, double delta){
     // z_re: the redshift of reionization
     // z:    the current redshift
     // delta:the density contrast
-    float result, delta_re;
+    double result, delta_re;
     // just be fully ionized
     if (fabs(z - z_re) < 1e-4)
         result = 1;
@@ -75,16 +75,16 @@ float ComputeFullyIoinizedTemperature(float z_re, float z, float delta){
     return result;
 }
 
-float ComputePartiallyIoinizedTemperature(float T_HI, float res_xH){
+double ComputePartiallyIoinizedTemperature(double T_HI, double res_xH){
     if (res_xH<=0.) return global_params.T_RE;
     if (res_xH>=1) return T_HI;
 
     return T_HI * res_xH + global_params.T_RE * (1. - res_xH);
 }
 
-void filter_box(fftwf_complex *box, int RES, int filter_type, float R){
+void filter_box(fftw_complex *box, int RES, int filter_type, double R){
     int n_x, n_z, n_y, dimension,midpoint;
-    float k_x, k_y, k_z, k_mag, kR;
+    double k_x, k_y, k_z, k_mag, kR;
 
     switch(RES) {
         case 0:
@@ -166,11 +166,11 @@ double MtoR(double M);
 double RtoM(double R);
 double TtoM(double z, double T, double mu);
 double dicke(double z);
-double dtdz(float z);
+double dtdz(double z);
 double ddickedt(double z);
-double omega_mz(float z);
-double Deltac_nonlinear(float z);
-double drdz(float z); /* comoving distance, (1+z)*C*dtdz(in cm) per unit z */
+double omega_mz(double z);
+double Deltac_nonlinear(double z);
+double drdz(double z); /* comoving distance, (1+z)*C*dtdz(in cm) per unit z */
 double alpha_A(double T);
 /* returns the case B hydrogen recombination coefficient (Spitzer 1978) in cm^3 s^-1*/
 double alpha_B(double T);
@@ -234,14 +234,14 @@ double TtoM(double z, double T, double mu){
  i.e. answer is rho / rho_crit
  In Einstein de sitter model = 178
  (fitting formula from Bryan & Norman 1998) */
-double Deltac_nonlinear(float z){
+double Deltac_nonlinear(double z){
     double d;
     d = omega_mz(z) - 1.0;
     return 18*PI*PI + 82*d - 39*d*d;
 }
 
 /* Omega matter at redshift z */
-double omega_mz(float z){
+double omega_mz(double z){
     return cosmo_params_ufunc->OMm*pow(1+z,3) / (cosmo_params_ufunc->OMm*pow(1+z,3) + cosmo_params_ufunc->OMl + global_params.OMr*pow(1+z,4) + global_params.OMk*pow(1+z, 2));
 }
 
@@ -295,7 +295,7 @@ double dicke(double z){
 
 /* Time derivative of the growth function at z */
 double ddickedt(double z){
-    float dz = 1e-3; // JordanFlitter: I changed that from 1e-10 to 1e-3
+    double dz = 1e-3; // JordanFlitter: I changed that from 1e-10 to 1e-3
     double omegaM_z, ddickdz, dick_0, x, x_0, domegaMdz;
     double tiny = 1e-4;
 
@@ -323,12 +323,12 @@ double ddickedt(double z){
 
 /* // JordanFlitter: Time derivative of the scale-dependent growth function at z */
 double dSDGF_BARYONS_dt(double z, double k){
-    float dz = 1e-3;
+    double dz = 1e-3;
     return (SDGF_BARYONS(z+dz,k,0)-SDGF_BARYONS(z,k,0))/dz/dtdz(z); // lazy non-analytic form getting
 }
 
 /* returns the hubble "constant" (in 1/sec) at z */
-double hubble(float z){
+double hubble(double z){
     double rho_rad_cgs, Omega_g, Omega_rad;
     // JordanFlitter: I modified this function to include the CORRECT Omega_rad
     //                This is important because the value of hublle close to recombination greatly
@@ -344,7 +344,7 @@ double hubble(float z){
 
 // JordanFlitter: new function for dH(z)/dz
 /* returns the redshift derivative of the hubble parameter (in 1/sec) at z */
-double dhubble_dz(float z){
+double dhubble_dz(double z){
     double rho_rad_cgs, Omega_g, Omega_rad, dH_dz;
     // JordanFlitter: I modified this function to include the CORRECT Omega_rad
     rho_rad_cgs = (PI*PI/15.)*pow(k_B*T_cmb,4.) /pow(hplank*C/TWOPI,3.)/C/C; // g/cm^3
@@ -357,7 +357,7 @@ double dhubble_dz(float z){
 }
 
 /* function DTDZ returns the value of dt/dz at the redshift parameter z. */
-double dtdz(float z){
+double dtdz(double z){
     // JordanFlitter: I changed this function.
     // The complex implementation of dt/dz in the public 21cmFAST essentially returns -sqrt(Omega_m+Omega_Lambda)/(1+z)/H0/sqrt(Omega_m(1+z^3)+Omega_Lambda).
     // This is a bit silly as in FRW cosmology (flat or non-flat) dt/dz = -1/H(z)/(1+z). Also, the implementation of the public 21cmFAST gives (at least) a 1% error for z>100.
@@ -376,12 +376,12 @@ double dtdz(float z){
 }
 
 /* returns hubble time (in sec), t_h = 1/H */
-double t_hubble(float z){
+double t_hubble(double z){
     return 1.0/hubble(z);
 }
 
 /* comoving distance (in cm) per unit redshift */
-double drdz(float z){
+double drdz(double z){
     return (1.0+z)*C*dtdz(z);
 }
 
@@ -511,11 +511,11 @@ double HI_ion_crosssec(double nu){
  The hydrogen reionization history is given by the zarry and xHarry parameters, in increasing
  redshift order of length len.*/
 typedef struct{
-    float *z, *xH;
+    double *z, *xH;
     int len;
 } tau_e_params;
 double dtau_e_dz(double z, void *params){
-    float xH, xi;
+    double xH, xi;
     int i=1;
     tau_e_params p = *(tau_e_params *)params;
 
@@ -545,7 +545,7 @@ double dtau_e_dz(double z, void *params){
         return xi*(1+z)*(1+z)*drdz(z);
     }
 }
-double tau_e(float zstart, float zend, float *zarry, float *xHarry, int len){
+double tau_e(double zstart, double zend, double *zarry, double *xHarry, int len){
     double prehelium, posthelium, error;
     gsl_function F;
     double rel_tol  = 1e-3; //<- relative tolerance
@@ -620,10 +620,10 @@ double tau_e(float zstart, float zend, float *zarry, float *xHarry, int len){
     return SIGMAT * ( (N_b0+He_No)*prehelium + N_b0*posthelium );
 }
 
-float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, int NPoints, float *redshifts, float *global_xHI) {
+double ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, int NPoints, double *redshifts, double *global_xHI) {
 
     int i;
-    float tau;
+    double tau;
 
     Broadcast_struct_global_UF(user_params,cosmo_params);
 
@@ -677,7 +677,7 @@ char *print_output_header(int print_pid, const char *name){
 }
 
 
-void print_corners_real(float *x, int size){
+void print_corners_real(double *x, int size){
     int s = size-1;
     int i,j,k;
     for(i=0;i<size;i=i+s){
@@ -690,10 +690,10 @@ void print_corners_real(float *x, int size){
     printf("\n");
 }
 
-void debugSummarizeBox(float *box, int size, char *indent){
+void debugSummarizeBox(double *box, int size, char *indent){
     if(LOG_LEVEL >= SUPER_DEBUG_LEVEL){
 
-        float corners[8];
+        double corners[8];
 
         int i,j,k, counter;
         int s = size-1;
@@ -714,7 +714,7 @@ void debugSummarizeBox(float *box, int size, char *indent){
             corners[4], corners[5], corners[6], corners[7]
         );
 
-        float sum, mean, mn, mx;
+        double sum, mean, mn, mx;
         sum=0;
         mn=box[0];
         mx=box[0];
@@ -983,7 +983,7 @@ void inspectBrightnessTemp(struct BrightnessTemp *x, int print_pid, int print_co
 // JordanFlitter: I removed atomic_cooling_threshold() and molecular_cooling_threshold() to heating_helper_progs.c
 //                This allows us to use the user's astrophysical parameters in these functions
 
-double lyman_werner_threshold(float z, float J_21_LW, float vcb, struct AstroParams *astro_params){
+double lyman_werner_threshold(double z, double J_21_LW, double vcb, struct AstroParams *astro_params){
     // correction follows Schauer+20, fit jointly to LW feedback and relative velocities. They find weaker effect of LW feedback than before (Stacy+11, Greif+11, etc.) due to HII self shielding.
     double mcrit_noLW = 3.314e7 * pow( 1.+z, -1.5);// this follows Visbal+15, which is taken as the optimal fit from Fialkov+12 which was calibrated with the simulations of Stacy+11 and Greif+11;
 
@@ -998,7 +998,7 @@ double lyman_werner_threshold(float z, float J_21_LW, float vcb, struct AstroPar
 
 }
 
-double reionization_feedback(float z, float Gamma_halo_HII, float z_IN){
+double reionization_feedback(double z, double Gamma_halo_HII, double z_IN){
     if (z_IN<=1e-19)
         return 1e-40;
     return REION_SM13_M0 * pow(HALO_BIAS * Gamma_halo_HII, REION_SM13_A) * pow((1.+z)/10, REION_SM13_B) *
@@ -1043,7 +1043,7 @@ int FunctionThatCatches(bool sub_func, bool pass, double *result){
 }
 
 // JordanFlitter: CLASS growth factor. Similar to the T_RECFAST function
-double CLASS_GROWTH_FACTOR(float z, int flag)
+double CLASS_GROWTH_FACTOR(double z, int flag)
 {
     double ans;
     static double log_z_arr[Z_ARRAY_NPTS];

@@ -10,115 +10,116 @@
  */
 
 struct GlobalParams{
-    float ALPHA_UVB;
+    double ALPHA_UVB;
     int EVOLVE_DENSITY_LINEARLY;
     int SMOOTH_EVOLVED_DENSITY_FIELD;
-    float R_smooth_density;
-    float HII_ROUND_ERR;
+    double R_smooth_density;
+    double HII_ROUND_ERR;
     int FIND_BUBBLE_ALGORITHM;
     int N_POISSON;
     int T_USE_VELOCITIES;
-    float MAX_DVDR;
-    float DELTA_R_HII_FACTOR;
-    float DELTA_R_FACTOR;
+    double MAX_DVDR;
+    double DELTA_R_HII_FACTOR;
+    double DELTA_R_FACTOR;
     int HII_FILTER;
-    float INITIAL_REDSHIFT;
-    float R_OVERLAP_FACTOR;
+    double INITIAL_REDSHIFT;
+    double R_OVERLAP_FACTOR;
     int DELTA_CRIT_MODE;
     int HALO_FILTER;
     int OPTIMIZE;
-    float OPTIMIZE_MIN_MASS;
+    double OPTIMIZE_MIN_MASS;
 
 
-    float CRIT_DENS_TRANSITION;
-    float MIN_DENSITY_LOW_LIMIT;
+    double CRIT_DENS_TRANSITION;
+    double MIN_DENSITY_LOW_LIMIT;
 
     int RecombPhotonCons;
-    float PhotonConsStart;
-    float PhotonConsEnd;
-    float PhotonConsAsymptoteTo;
-    float PhotonConsEndCalibz;
+    double PhotonConsStart;
+    double PhotonConsEnd;
+    double PhotonConsAsymptoteTo;
+    double PhotonConsEndCalibz;
 
     int HEAT_FILTER;
     double CLUMPING_FACTOR;
-    float Z_HEAT_MAX;
-    float R_XLy_MAX;
+    double Z_HEAT_MAX;
+    double R_XLy_MAX;
     int NUM_FILTER_STEPS_FOR_Ts;
-    float ZPRIME_STEP_FACTOR;
+    double ZPRIME_STEP_FACTOR;
     double TK_at_Z_HEAT_MAX;
     double XION_at_Z_HEAT_MAX;
     int Pop;
-    float Pop2_ion;
-    float Pop3_ion;
+    double Pop2_ion;
+    double Pop3_ion;
 
-    float NU_X_BAND_MAX;
+    double NU_X_BAND_MAX;
     float NU_X_MAX;
 
     int NBINS_LF;
 
     int P_CUTOFF;
-    float M_WDM;
-    float g_x;
-    float OMn;
-    float OMk;
-    float OMr;
-    float OMtot;
-    float Y_He;
-    float wl;
-    float SHETH_b;
-    float SHETH_c;
+    double M_WDM;
+    double g_x;
+    double OMn;
+    double OMk;
+    double OMr;
+    double OMtot;
+    double Y_He;
+    double wl;
+    double SHETH_b;
+    double SHETH_c;
     double Zreion_HeII;
     int FILTER;
 
     char *external_table_path;
     char *wisdoms_path;
-    float R_BUBBLE_MIN;
-    float M_MIN_INTEGRAL;
-    float M_MAX_INTEGRAL;
+    double R_BUBBLE_MIN;
+    double M_MIN_INTEGRAL;
+    double M_MAX_INTEGRAL;
 
-    float T_RE;
+    double T_RE;
 
-    float VAVG;
+    double VAVG;
 
     bool USE_FAST_ATOMIC; //whether to apply the fast fcoll tables for atomic cooling haloes, usually turned off as it's not a big computational cost and those can deviate ~5-10% at z<10.
     // JordanFlitter: I added the three v_cb fitting parameters here, so they can be changed from the wrapper
-    float A_VCB_PM;
-    float KP_VCB_PM;
-    float SIGMAK_VCB_PM;
+    double A_VCB_PM;
+    double KP_VCB_PM;
+    double SIGMAK_VCB_PM;
     // JordanFlitter: I added the following variables
-    float Z_REC; // redshift of recombination, (where x_e=n_e/(n_H+n_He)=0.1 )
-    float DELTA_Z; // redshift step size between Z_HEAT_MAX and Z1_VALUE
-    float DELTA_Z1; // redshift step size between Z1_VALUE and Z2_VALUE
-    float DELTA_Z2; // redshift step size between Z2_VALUE and Z_HIGH_MAX (unless USE_TCA_COMPTON=True, in which case it is DELTA_Z1)
-    float Z1_VALUE; // the redshift step size is DELTA_Z1 between Z1_VALUE and Z2_VALUE
-    float Z2_VALUE; // the redshift step size is DELTA_Z2 between Z2_VALUE and Z_HIGH_MAX (unless USE_TCA_COMPTON=True, in which case it is DELTA_Z1)
-    float EPSILON_THRESH_HIGH_Z; // the thershold for tight coupling approximation at high redshift (above z=100)
-    float EPSILON_THRESH_LOW_Z; // the thershold for tight coupling approximation at low redshift (below z=100)
+    double Z_REC; // redshift of recombination, (where x_e=n_e/(n_H+n_He)=0.1 )
+    double DELTA_Z; // redshift step size between Z_HEAT_MAX and Z1_VALUE
+    double DELTA_Z1; // redshift step size between Z1_VALUE and Z2_VALUE
+    double DELTA_Z2; // redshift step size between Z2_VALUE and Z_HIGH_MAX (unless USE_TCA_COMPTON=True, in which case it is DELTA_Z1)
+    double Z1_VALUE; // the redshift step size is DELTA_Z1 between Z1_VALUE and Z2_VALUE
+    double Z2_VALUE; // the redshift step size is DELTA_Z2 between Z2_VALUE and Z_HIGH_MAX (unless USE_TCA_COMPTON=True, in which case it is DELTA_Z1)
+    double EPSILON_THRESH_HIGH_Z; // the thershold for tight coupling approximation at high redshift (above z=100)
+    double EPSILON_THRESH_LOW_Z; // the thershold for tight coupling approximation at low redshift (below z=100)
     // JordanFlitter: I added the transition redshift from linear perturbation theory to 2LPT during the dark ages
-    float REDSHIFT_2LPT;
+    double REDSHIFT_2LPT;
     // JordanFlitter: I added logarithmic redshift step size parameter for the output redshifts during the dark ages
-    float Z_DARK_AGES_STEP_FACTOR;
+    double Z_DARK_AGES_STEP_FACTOR;
     // JordanFlitter: added interpolation tables here (this removes the necessity of generating text files when we RUN_CLASS!)
-    float LOG_Z_ARR[70];
-    float LOG_T_k[70];
-    float LOG_x_e[70];
-    float LOG_SIGF[70];
-    float LOG_T_chi[70];
-    float LOG_V_chi_b[70];
-    float LOG_K_ARR_FOR_TRANSFERS[149];
-    float T_M0_TRANSFER[149];
-    float T_VCB_KIN_TRANSFER[149];
-    float T_V_CHI_B_ZHIGH_TRANSFER[149];
-    float LOG_K_ARR_FOR_SDGF[300];
-    float LOG_SDGF_BARYONS[70*300];
-    float LOG_SDGF_CDM[70*300];
-    float LOG_SDGF_SDM[70*300];
-    float LOG_M_ARR[300];
-    float Z_ARRAY_FOR_SIGMA[101];
-    float SIGMA_MZ[300*101];
+    double LOG_Z_ARR[70];
+    double LOG_T_k[70];
+    double LOG_x_e[70];
+    double LOG_SIGF[70];
+    double LOG_T_chi[70];
+    double LOG_V_chi_b[70];
+    double LOG_K_ARR_FOR_TRANSFERS[149];
+    double T_M0_TRANSFER[149];
+    // double T_POTENTIAL_TRANSFER[149]; // SarahLibanore, fnl
+    double T_VCB_KIN_TRANSFER[149];
+    double T_V_CHI_B_ZHIGH_TRANSFER[149];
+    double LOG_K_ARR_FOR_SDGF[300];
+    double LOG_SDGF_BARYONS[70*300];
+    double LOG_SDGF_CDM[70*300];
+    double LOG_SDGF_SDM[70*300];
+    double LOG_M_ARR[300];
+    double Z_ARRAY_FOR_SIGMA[101];
+    double SIGMA_MZ[300*101];
     // SarahLibanore : three point function at z = 0 used for NG case
-    float THREEPOINT_MnMm[300*300]; // the size is set by log M x log M
-    float THREEPOINT_DER_MnMm[300*300]; // the size is set by log M x log M
+    double THREEPOINT_MnMm[300*300]; // the size is set by log M x log M
+    double THREEPOINT_DER_MnMm[300*300]; // the size is set by log M x log M
 };
 
 extern struct GlobalParams global_params = {

@@ -15,7 +15,7 @@
 
 // ----------------------------------------------------------------------------------------- //
 
-#define L_FACTOR (float) (0.620350491) // factor relating cube length to filter radius = (4PI/3)^(-1/3)
+#define L_FACTOR (double) (0.620350491) // factor relating cube length to filter radius = (4PI/3)^(-1/3)
 
 // ----------------------------------------------------------------------------------------- //
 
@@ -46,7 +46,7 @@
 
 /* Maximum allowed value for the kinetic temperature. Useful to set to avoid some spurious behaviour
  when the code is run with redshift poor resolution and very high X-ray heating efficiency */
-#define MAX_TK (float) 5e4
+#define MAX_TK (double) 5e4
 
 
 // ----------------------------------------------------------------------------------------- //
@@ -101,7 +101,7 @@
 #define hplank (double) 6.62606896e-27 // erg s
 #define TINY (double) 1e-30
 #define FRACT_FLOAT_ERR (double) 1e-7 // fractional floating point error
-#define f_alpha (float) 0.4162 // oscillator strength of Lya
+#define f_alpha (double) 0.4162 // oscillator strength of Lya
 #define Ly_alpha_HZ  (double ) 2.46606727e15  // frequency of Lyalpha
 #define C  (double) 29979245800.0  //  speed of light  (cm/s)
 #define C_KMS (double) C/1e5  /* speed of light in km/s  */
@@ -202,8 +202,8 @@
 #define S_ALPHA_FILENAME (const char *) "S_alpha_correction"
 // JordanFlitter: changed CLASS_LENGTH from 150 to 144 (we don't need a sample at k=0, as well as above 1200/Mpc)
 #define CLASS_LENGTH  144 //length of the CLASS transfer function
-#define KBOT_CLASS (float) (1e-5) //max and min k in  CLASS transfer function, temporary until interfaced properly
-#define KTOP_CLASS (float) (1e3)
+#define KBOT_CLASS (double) (1e-5) //max and min k in  CLASS transfer function, temporary until interfaced properly
+#define KTOP_CLASS (double) (1e3)
 //parameters for the M(sigma) power-law relation for FAST_FCOLL_TABLES
 #define MPIVOT1 (double) (1.5e9) //pivot masses
 #define MPIVOT2 (double) (5.3e5)

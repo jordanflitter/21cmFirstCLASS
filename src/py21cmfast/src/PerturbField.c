@@ -12,9 +12,10 @@
     TWOLPT_FLAG - if the required manipulation is for 2LPT. Only relevant for velocities, the SIGF is used: the box is multiplied by -3/7*(D^2(z)-D^2(z0))
     MULT_DIV_FLAG - if positive, we want to multiply by the SDGF, otherwise we divide by it (in order to restore the original input box at the end of the calculation)
 */
-void multiply_in_Fourier_space(float *box, struct fftwf_complex *FFT_dummy_box, struct UserParams *user_params, float redshift, bool HIRES_FLAG, bool DENSITY_FLAG, int SDGF_TYPE, bool TWOLPT_FLAG, int MULT_DIV_FLAG) {
+void multiply_in_Fourier_space(double *box, struct fftw_complex *FFT_dummy_box, struct UserParams *user_params, double redshift, bool HIRES_FLAG, bool DENSITY_FLAG, int SDGF_TYPE, bool TWOLPT_FLAG, int MULT_DIV_FLAG) {
       int i, j, k, n_x, n_y, n_z, dimension, switch_mid;
-      float k_x, k_y, k_z, k_mag, growth_factor;
+      double k_x, k_y, k_z, k_mag;
+      double growth_factor;
 
       switch(HIRES_FLAG) {
           case 0:
@@ -34,10 +35,10 @@ void multiply_in_Fourier_space(float *box, struct fftwf_complex *FFT_dummy_box, 
                       for (j=0; j<dimension; j++){
                           for (k=0; k<dimension; k++){
                               if(HIRES_FLAG) {
-                                  *((float *)FFT_dummy_box + R_FFT_INDEX(i,j,k)) = box[R_INDEX(i,j,k)];
+                                  *((double *)FFT_dummy_box + R_FFT_INDEX(i,j,k)) = box[R_INDEX(i,j,k)];
                               }
                               else {
-                                  *((float *)FFT_dummy_box + HII_R_FFT_INDEX(i,j,k)) = box[HII_R_INDEX(i,j,k)];
+                                  *((double *)FFT_dummy_box + HII_R_FFT_INDEX(i,j,k)) = box[HII_R_INDEX(i,j,k)];
                               }
                           }
                       }
@@ -107,10 +108,10 @@ void multiply_in_Fourier_space(float *box, struct fftwf_complex *FFT_dummy_box, 
                               }
 
                               if(HIRES_FLAG) {
-                                  *((fftwf_complex *)FFT_dummy_box + C_INDEX(n_x,n_y,n_z)) *= growth_factor/TOT_NUM_PIXELS;
+                                  *((fftw_complex *)FFT_dummy_box + C_INDEX(n_x,n_y,n_z)) *= growth_factor/TOT_NUM_PIXELS;
                               }
                               else {
-                                  *((fftwf_complex *)FFT_dummy_box + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor/HII_TOT_NUM_PIXELS;
+                                  *((fftw_complex *)FFT_dummy_box + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor/HII_TOT_NUM_PIXELS;
                               }
                           }
                       }
@@ -127,15 +128,15 @@ void multiply_in_Fourier_space(float *box, struct fftwf_complex *FFT_dummy_box, 
                     for (j=0; j<dimension; j++){
                         for (k=0; k<dimension; k++){
                             if(HIRES_FLAG) {
-                                *((float *)box + R_INDEX(i,j,k)) = *((float *)FFT_dummy_box + R_FFT_INDEX(i,j,k));
-                                if (DENSITY_FLAG && *((float *)box + R_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                    *((float *)box + R_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                *((double *)box + R_INDEX(i,j,k)) = *((double *)FFT_dummy_box + R_FFT_INDEX(i,j,k));
+                                if (DENSITY_FLAG && *((double *)box + R_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                    *((double *)box + R_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                 }
                             }
                             else {
-                                *((float *)box + HII_R_INDEX(i,j,k)) = *((float *)FFT_dummy_box + HII_R_FFT_INDEX(i,j,k));
-                                if (DENSITY_FLAG && *((float *)box + HII_R_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                    *((float *)box + HII_R_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                *((double *)box + HII_R_INDEX(i,j,k)) = *((double *)FFT_dummy_box + HII_R_FFT_INDEX(i,j,k));
+                                if (DENSITY_FLAG && *((double *)box + HII_R_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                    *((double *)box + HII_R_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                 }
                             }
                         }
@@ -147,7 +148,7 @@ void multiply_in_Fourier_space(float *box, struct fftwf_complex *FFT_dummy_box, 
 
 // Re-write of perturb_field.c for being accessible within the MCMC
 int ComputePerturbField(
-    float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
+    double redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
     struct InitialConditions *boxes, struct PerturbedField *perturbed_field
 ){
     /*
@@ -168,24 +169,26 @@ int ComputePerturbField(
 
     omp_set_num_threads(user_params->N_THREADS);
 
-    fftwf_complex *HIRES_density_perturb, *HIRES_density_perturb_saved;
-    fftwf_complex *LOWRES_density_perturb, *LOWRES_density_perturb_saved;
+    fftw_complex *HIRES_density_perturb, *HIRES_density_perturb_saved;
+    fftw_complex *LOWRES_density_perturb, *LOWRES_density_perturb_saved;
 
-    float growth_factor, displacement_factor_2LPT, init_growth_factor, init_displacement_factor_2LPT, xf, yf, zf;
-    float mass_factor, dDdt, f_pixel_factor, velocity_displacement_factor, velocity_displacement_factor_2LPT;
+    double growth_factor, displacement_factor_2LPT, init_growth_factor, init_displacement_factor_2LPT, xf, yf, zf;
+    double mass_factor, dDdt, f_pixel_factor, velocity_displacement_factor, velocity_displacement_factor_2LPT;
     unsigned long long ct, HII_i, HII_j, HII_k;
     int i,j,k, xi, yi, zi, dimension, switch_mid;
     double ave_delta, new_ave_delta;
     // JordanFlitter: Variables to perform cloud in cell re-distribution of mass for the perturbed field
     int xp1,yp1,zp1;
-    float d_x,d_y,d_z,t_x,t_y,t_z;
+    double d_x,d_y,d_z,t_x,t_y,t_z;
     // JordanFlitter: need new boxes for baryons
-    fftwf_complex *FFT_HIRES_dummy_box;
-    fftwf_complex *FFT_LOWRES_dummy_box;
+    fftw_complex *FFT_HIRES_dummy_box;
+    fftw_complex *FFT_LOWRES_dummy_box;
     // JordanFlitter: added variables in order to evolve the baryons density field
-    float k_mag, growth_factor_sdgf, dDdt_over_D_baryons;
+    double k_mag;
+    double growth_factor_sdgf, dDdt_over_D_baryons;
     // JordanFlitter: also moved the following variables up here
-    float k_x, k_y, k_z, k_sq, dDdt_over_D;
+    double k_x, k_y, k_z, k_sq;
+    double dDdt_over_D;
     int n_x, n_y, n_z;
     // JordanFlitter: new boolean flag
     int EVOLVE_LINEARLY;
@@ -236,22 +239,22 @@ int ComputePerturbField(
     }
 
     // find factor of HII pixel size / deltax pixel size
-    f_pixel_factor = user_params->DIM/(float)(user_params->HII_DIM);
+    f_pixel_factor = user_params->DIM/(double)(user_params->HII_DIM);
     mass_factor = pow(f_pixel_factor, 3);
 
     // allocate memory for the updated density, and initialize
-    LOWRES_density_perturb = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-    LOWRES_density_perturb_saved = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    LOWRES_density_perturb = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
+    LOWRES_density_perturb_saved = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
 
     if(user_params->PERTURB_ON_HIGH_RES) {
-        HIRES_density_perturb = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
-        HIRES_density_perturb_saved = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        HIRES_density_perturb = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
+        HIRES_density_perturb_saved = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
     }
     // JordanFlitter: Need to allocate memory for dummy boxes if we do non-linear scale-dependent evolution
     if (!EVOLVE_LINEARLY && (user_params->EVOLVE_MATTER || user_params->EVOLVE_BARYONS)) {
-        FFT_HIRES_dummy_box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS); // Need that for the density field
+        FFT_HIRES_dummy_box = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS); // Need that for the density field
         if (!user_params->PERTURB_ON_HIGH_RES){
-            FFT_LOWRES_dummy_box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS); // Need that for the velocity field
+            FFT_LOWRES_dummy_box = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS); // Need that for the velocity field
         }
     }
 
@@ -285,10 +288,10 @@ int ComputePerturbField(
                               for (j=0; j<dimension; j++){
                                   for (k=0; k<dimension; k++){
                                       if(user_params->PERTURB_ON_HIGH_RES) {
-                                          *((float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = boxes->hires_density[R_INDEX(i,j,k)];
+                                          *((double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = boxes->hires_density[R_INDEX(i,j,k)];
                                       }
                                       else {
-                                          *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = boxes->lowres_density[HII_R_INDEX(i,j,k)];
+                                          *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = boxes->lowres_density[HII_R_INDEX(i,j,k)];
                                       }
                                   }
                               }
@@ -319,10 +322,10 @@ int ComputePerturbField(
                                       growth_factor_sdgf = SDGF_MATTER(redshift,k_mag);
 
                                       if(user_params->PERTURB_ON_HIGH_RES) {
-                                          *((fftwf_complex *)HIRES_density_perturb + C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/TOT_NUM_PIXELS;
+                                          *((fftw_complex *)HIRES_density_perturb + C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/TOT_NUM_PIXELS;
                                       }
                                       else {
-                                          *((fftwf_complex *)LOWRES_density_perturb + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/HII_TOT_NUM_PIXELS;
+                                          *((fftw_complex *)LOWRES_density_perturb + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/HII_TOT_NUM_PIXELS;
                                       }
                                   }
                               }
@@ -343,10 +346,10 @@ int ComputePerturbField(
                     for (j=0; j<dimension; j++){
                         for (k=0; k<dimension; k++){
                             if(user_params->PERTURB_ON_HIGH_RES) {
-                                *((float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = growth_factor*boxes->hires_density[R_INDEX(i,j,k)];
+                                *((double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = growth_factor*boxes->hires_density[R_INDEX(i,j,k)];
                             }
                             else {
-                                *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = growth_factor*boxes->lowres_density[HII_R_INDEX(i,j,k)];
+                                *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = growth_factor*boxes->lowres_density[HII_R_INDEX(i,j,k)];
                             }
                         }
                     }
@@ -365,10 +368,10 @@ int ComputePerturbField(
                 for (j=0; j<dimension; j++){
                     for (k=0; k<dimension; k++){
                         if(user_params->PERTURB_ON_HIGH_RES) {
-                            *((float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = 0.;
+                            *((double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = 0.;
                         }
                         else {
-                            *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = 0.;
+                            *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = 0.;
                         }
 
                     }
@@ -510,14 +513,14 @@ int ComputePerturbField(
                             }
                         }
 
-                        xf *= (float)(dimension);
-                        yf *= (float)(dimension);
-                        zf *= (float)(dimension);
-                        while (xf >= (float)(dimension)){ xf -= (dimension);}
+                        xf *= (double)(dimension);
+                        yf *= (double)(dimension);
+                        zf *= (double)(dimension);
+                        while (xf >= (double)(dimension)){ xf -= (dimension);}
                         while (xf < 0){ xf += (dimension);}
-                        while (yf >= (float)(dimension)){ yf -= (dimension);}
+                        while (yf >= (double)(dimension)){ yf -= (dimension);}
                         while (yf < 0){ yf += (dimension);}
-                        while (zf >= (float)(dimension)){ zf -= (dimension);}
+                        while (zf >= (double)(dimension)){ zf -= (dimension);}
                         while (zf < 0){ zf += (dimension);}
                         xi = xf;
                         yi = yf;
@@ -633,10 +636,10 @@ int ComputePerturbField(
                 for (j=0; j<dimension; j++){
                     for (k=0; k<dimension; k++){
                         if(user_params->PERTURB_ON_HIGH_RES) {
-                            *( (float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k) ) = (float)resampled_box[R_INDEX(i,j,k)];
+                            *( (double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k) ) = (double)resampled_box[R_INDEX(i,j,k)];
                         }
                         else {
-                            *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) = (float)resampled_box[HII_R_INDEX(i,j,k)];
+                            *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) = (double)resampled_box[HII_R_INDEX(i,j,k)];
                         }
                     }
                 }
@@ -729,7 +732,7 @@ int ComputePerturbField(
         dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_density_perturb);
 
         // Need to save a copy of the high-resolution unfiltered density field for the velocities
-        memcpy(HIRES_density_perturb_saved, HIRES_density_perturb, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        memcpy(HIRES_density_perturb_saved, HIRES_density_perturb, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
         // Now filter the box
         if (user_params->DIM != user_params->HII_DIM) {
@@ -746,18 +749,18 @@ int ComputePerturbField(
             for (i=0; i<user_params->HII_DIM; i++){
                 for (j=0; j<user_params->HII_DIM; j++){
                     for (k=0; k<user_params->HII_DIM; k++){
-                        *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) =
-                        *((float *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                        *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) =
+                        *((double *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                            (unsigned long long)(j*f_pixel_factor+0.5),
-                                                           (unsigned long long)(k*f_pixel_factor+0.5)))/(float)TOT_NUM_PIXELS;
+                                                           (unsigned long long)(k*f_pixel_factor+0.5)))/(double)TOT_NUM_PIXELS;
 
                         // JordanFlitter: We need to subtract 1 only if we evolve the density field non-linearly (BUG in 21cmFAST)
                         if (!EVOLVE_LINEARLY){
-                            *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) -= 1.;
+                            *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) -= 1.;
                         }
 
-                        if (*((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1) {
-                            *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1.+FRACT_FLOAT_ERR;
+                        if (*((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1) {
+                            *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1.+FRACT_FLOAT_ERR;
                         }
                     }
                 }
@@ -774,8 +777,8 @@ int ComputePerturbField(
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
-                            *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) /= mass_factor;
-                            *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) -= 1.;
+                            *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) /= mass_factor;
+                            *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) -= 1.;
                         }
                     }
                 }
@@ -792,14 +795,14 @@ int ComputePerturbField(
     //smooth the field
     // JordanFlitter: Evolve linearly if we are above REDSHIFT_2LPT
     if (!EVOLVE_LINEARLY  && !user_params->LINEAR_DELTA_IN_EPS && global_params.SMOOTH_EVOLVED_DENSITY_FIELD){
-        filter_box(LOWRES_density_perturb, 1, 2, global_params.R_smooth_density*user_params->BOX_LEN/(float)user_params->HII_DIM);
+        filter_box(LOWRES_density_perturb, 1, 2, global_params.R_smooth_density*user_params->BOX_LEN/(double)user_params->HII_DIM);
     }
 
     LOG_SUPER_DEBUG("LOWRES_density_perturb after smoothing: ");
     debugSummarizeBox(LOWRES_density_perturb, user_params->HII_DIM, "  ");
 
     // save a copy of the k-space density field
-    memcpy(LOWRES_density_perturb_saved, LOWRES_density_perturb, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    memcpy(LOWRES_density_perturb_saved, LOWRES_density_perturb, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
 
     dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, LOWRES_density_perturb);
 
@@ -814,13 +817,13 @@ int ComputePerturbField(
         for(i=0; i<user_params->HII_DIM; i++){
             for(j=0; j<user_params->HII_DIM; j++){
                 for(k=0; k<user_params->HII_DIM; k++){
-                    *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) /= (float)HII_TOT_NUM_PIXELS;
+                    *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) /= (double)HII_TOT_NUM_PIXELS;
 
-                    if (*((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1.0) { // shouldn't happen
+                    if (*((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1.0) { // shouldn't happen
 
-                        if(bad_count<5) LOG_WARNING("LOWRES_density_perturb is <-1 for index %d %d %d (value=%f)", i,j,k, *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)));
+                        if(bad_count<5) LOG_WARNING("LOWRES_density_perturb is <-1 for index %d %d %d (value=%f)", i,j,k, *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)));
                         if(bad_count==5) LOG_WARNING("Skipping further warnings for LOWRES_density_perturb.");
-                        *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                        *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                         bad_count++;
                     }
                 }
@@ -838,17 +841,17 @@ int ComputePerturbField(
         for (i=0; i<user_params->HII_DIM; i++){
             for (j=0; j<user_params->HII_DIM; j++){
                 for (k=0; k<user_params->HII_DIM; k++){
-                    *((float *)perturbed_field->density + HII_R_INDEX(i,j,k)) = *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
+                    *((double *)perturbed_field->density + HII_R_INDEX(i,j,k)) = *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
                     // JordanFlitter: if we evolve baryons, then the above is the CDM density field, and not the total matter density field.
                     //                We thus multiply by Omega_c/Omega_m (we later include the contributions of the baryons to delta_m)
                     // JordanFlitter: if we compute the linear matter density field, there is no need to take only the CDM contribution into account as we evolved
                     //                the total matter field with SDGF_MATTER (or the SIGF)
                     if (user_params->EVOLVE_BARYONS && !(EVOLVE_LINEARLY || user_params->LINEAR_DELTA_IN_EPS)){
                         if (!user_params->SCATTERING_DM){
-                            *((float *)perturbed_field->density + HII_R_INDEX(i,j,k))  *= (cosmo_params->OMm-cosmo_params->OMb)/cosmo_params->OMm;
+                            *((double *)perturbed_field->density + HII_R_INDEX(i,j,k))  *= (cosmo_params->OMm-cosmo_params->OMb)/cosmo_params->OMm;
                         }
                         else {
-                            *((float *)perturbed_field->density + HII_R_INDEX(i,j,k))  *= (1.-pow(10.,-cosmo_params->f_chi))*(cosmo_params->OMm-cosmo_params->OMb)/cosmo_params->OMm;
+                            *((double *)perturbed_field->density + HII_R_INDEX(i,j,k))  *= (1.-pow(10.,-cosmo_params->f_chi))*(cosmo_params->OMm-cosmo_params->OMb)/cosmo_params->OMm;
                         }
                     }
                 }
@@ -881,10 +884,10 @@ int ComputePerturbField(
                             for (j=0; j<dimension; j++){
                                 for (k=0; k<dimension; k++){
                                     if(user_params->PERTURB_ON_HIGH_RES) {
-                                        *((float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = boxes->hires_density[R_INDEX(i,j,k)];
+                                        *((double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = boxes->hires_density[R_INDEX(i,j,k)];
                                     }
                                     else {
-                                        *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = boxes->lowres_density[HII_R_INDEX(i,j,k)];
+                                        *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = boxes->lowres_density[HII_R_INDEX(i,j,k)];
                                     }
                                 }
                             }
@@ -915,10 +918,10 @@ int ComputePerturbField(
 
                                     growth_factor_sdgf = SDGF_BARYONS(redshift,k_mag,0);
                                     if(user_params->PERTURB_ON_HIGH_RES) {
-                                        *((fftwf_complex *)HIRES_density_perturb + C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/TOT_NUM_PIXELS;
+                                        *((fftw_complex *)HIRES_density_perturb + C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/TOT_NUM_PIXELS;
                                     }
                                     else {
-                                        *((fftwf_complex *)LOWRES_density_perturb + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/HII_TOT_NUM_PIXELS;
+                                        *((fftw_complex *)LOWRES_density_perturb + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/HII_TOT_NUM_PIXELS;
                                     }
                                 }
                             }
@@ -952,11 +955,11 @@ int ComputePerturbField(
                     for (j=0; j<dimension; j++){
                         for (k=0; k<dimension; k++){
                             if(user_params->PERTURB_ON_HIGH_RES) {
-                                *((float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = 0.;
+                                *((double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = 0.;
                                 *((double *)resampled_box + R_INDEX(i,j,k)) = 0.;
                             }
                             else {
-                                *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = 0.;
+                                *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = 0.;
                                 *((double *)resampled_box + HII_R_INDEX(i,j,k)) = 0.;
                             }
                         }
@@ -1040,14 +1043,14 @@ int ComputePerturbField(
                                 }
                             }
 
-                            xf *= (float)(dimension);
-                            yf *= (float)(dimension);
-                            zf *= (float)(dimension);
-                            while (xf >= (float)(dimension)){ xf -= (dimension);}
+                            xf *= (double)(dimension);
+                            yf *= (double)(dimension);
+                            zf *= (double)(dimension);
+                            while (xf >= (double)(dimension)){ xf -= (dimension);}
                             while (xf < 0){ xf += (dimension);}
-                            while (yf >= (float)(dimension)){ yf -= (dimension);}
+                            while (yf >= (double)(dimension)){ yf -= (dimension);}
                             while (yf < 0){ yf += (dimension);}
-                            while (zf >= (float)(dimension)){ zf -= (dimension);}
+                            while (zf >= (double)(dimension)){ zf -= (dimension);}
                             while (zf < 0){ zf += (dimension);}
                             xi = xf;
                             yi = yf;
@@ -1164,10 +1167,10 @@ int ComputePerturbField(
                     for (j=0; j<dimension; j++){
                         for (k=0; k<dimension; k++){
                             if(user_params->PERTURB_ON_HIGH_RES) {
-                                *( (float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k) ) = (float)resampled_box[R_INDEX(i,j,k)];
+                                *( (double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k) ) = (double)resampled_box[R_INDEX(i,j,k)];
                             }
                             else {
-                                *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) = (float)resampled_box[HII_R_INDEX(i,j,k)];
+                                *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) = (double)resampled_box[HII_R_INDEX(i,j,k)];
                             }
                         }
                     }
@@ -1226,7 +1229,7 @@ int ComputePerturbField(
             // JordanFlitter: note that the following copy operation overwrites the previous copy operation to HIRES_density_perturb_saved.
             // This is because HIRES_density_perturb_saved is used only for the velocity field calculation.
             // This velocity field is associated with baryons, and so if we EVOLVE_BARYONS we are okay with overwriting the contnet of this box.
-            memcpy(HIRES_density_perturb_saved, HIRES_density_perturb, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+            memcpy(HIRES_density_perturb_saved, HIRES_density_perturb, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
             // Now filter the box
             if (user_params->DIM != user_params->HII_DIM) {
@@ -1243,18 +1246,18 @@ int ComputePerturbField(
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
-                            *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) =
-                            *((float *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                            *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) =
+                            *((double *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                (unsigned long long)(j*f_pixel_factor+0.5),
-                                                               (unsigned long long)(k*f_pixel_factor+0.5)))/(float)TOT_NUM_PIXELS;
+                                                               (unsigned long long)(k*f_pixel_factor+0.5)))/(double)TOT_NUM_PIXELS;
 
                             // JordanFlitter: We need to subtract 1 only if we evolve the density field non-linearly (BUG in 21cmFAST)
                             if (!EVOLVE_LINEARLY){
-                                *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) -= 1.;
+                                *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) -= 1.;
                             }
 
-                            if (*((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1) {
-                                *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1.+FRACT_FLOAT_ERR;
+                            if (*((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1) {
+                                *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1.+FRACT_FLOAT_ERR;
                             }
                         }
                     }
@@ -1271,8 +1274,8 @@ int ComputePerturbField(
                     for (i=0; i<user_params->HII_DIM; i++){
                         for (j=0; j<user_params->HII_DIM; j++){
                             for (k=0; k<user_params->HII_DIM; k++){
-                                *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) /= mass_factor;
-                                *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) -= 1.;
+                                *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) /= mass_factor;
+                                *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) -= 1.;
                             }
                         }
                     }
@@ -1288,7 +1291,7 @@ int ComputePerturbField(
         //smooth the field
         // JordanFlitter: Evolve linearly if we are above REDSHIFT_2LPT
         if (!EVOLVE_LINEARLY && global_params.SMOOTH_EVOLVED_DENSITY_FIELD){
-            filter_box(LOWRES_density_perturb, 1, 2, global_params.R_smooth_density*user_params->BOX_LEN/(float)user_params->HII_DIM);
+            filter_box(LOWRES_density_perturb, 1, 2, global_params.R_smooth_density*user_params->BOX_LEN/(double)user_params->HII_DIM);
         }
 
         LOG_SUPER_DEBUG("LOWRES_density_perturb after smoothing: ");
@@ -1298,7 +1301,7 @@ int ComputePerturbField(
         // JordanFlitter: note that the following copy operation overwrites the previous copy operation to LOWRES_density_perturb_saved.
         // This is because LOWRES_density_perturb_saved is used only for the velocity field calculation.
         // This velocity field is associated with baryons, and so if we EVOLVE_BARYONS we are okay with overwriting the contnet of this box.
-        memcpy(LOWRES_density_perturb_saved, LOWRES_density_perturb, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+        memcpy(LOWRES_density_perturb_saved, LOWRES_density_perturb, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
 
         dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, LOWRES_density_perturb);
 
@@ -1313,13 +1316,13 @@ int ComputePerturbField(
             for(i=0; i<user_params->HII_DIM; i++){
                 for(j=0; j<user_params->HII_DIM; j++){
                     for(k=0; k<user_params->HII_DIM; k++){
-                        *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) /= (float)HII_TOT_NUM_PIXELS;
+                        *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) /= (double)HII_TOT_NUM_PIXELS;
 
-                        if (*((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1.0) { // shouldn't happen
+                        if (*((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1.0) { // shouldn't happen
 
-                            if(bad_count<5) LOG_WARNING("LOWRES_density_perturb is <-1 for index %d %d %d (value=%f)", i,j,k, *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)));
+                            if(bad_count<5) LOG_WARNING("LOWRES_density_perturb is <-1 for index %d %d %d (value=%f)", i,j,k, *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)));
                             if(bad_count==5) LOG_WARNING("Skipping further warnings for LOWRES_density_perturb.");
-                            *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                            *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                             bad_count++;
                         }
                     }
@@ -1336,11 +1339,11 @@ int ComputePerturbField(
             for (i=0; i<user_params->HII_DIM; i++){
                 for (j=0; j<user_params->HII_DIM; j++){
                     for (k=0; k<user_params->HII_DIM; k++){
-                        *((float *)perturbed_field->baryons_density + HII_R_INDEX(i,j,k)) = *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
+                        *((double *)perturbed_field->baryons_density + HII_R_INDEX(i,j,k)) = *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
                         // JordanFlitter: update total matter density field (only if we don't compute the linear matter density field)
                         if (!(EVOLVE_LINEARLY || user_params->LINEAR_DELTA_IN_EPS)) {
-                            *((float *)perturbed_field->density + HII_R_INDEX(i,j,k)) += ((
-                                                                                           cosmo_params->OMb*(*((float *)perturbed_field->baryons_density + HII_R_INDEX(i,j,k)))
+                            *((double *)perturbed_field->density + HII_R_INDEX(i,j,k)) += ((
+                                                                                           cosmo_params->OMb*(*((double *)perturbed_field->baryons_density + HII_R_INDEX(i,j,k)))
                                                                                            )/cosmo_params->OMm);
                         }
                     }
@@ -1375,10 +1378,10 @@ int ComputePerturbField(
                             for (j=0; j<dimension; j++){
                                 for (k=0; k<dimension; k++){
                                     if(user_params->PERTURB_ON_HIGH_RES) {
-                                        *((float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = boxes->hires_density[R_INDEX(i,j,k)];
+                                        *((double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = boxes->hires_density[R_INDEX(i,j,k)];
                                     }
                                     else {
-                                        *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = boxes->lowres_density[HII_R_INDEX(i,j,k)];
+                                        *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = boxes->lowres_density[HII_R_INDEX(i,j,k)];
                                     }
                                 }
                             }
@@ -1409,10 +1412,10 @@ int ComputePerturbField(
 
                                     growth_factor_sdgf = SDGF_SDM(redshift,k_mag,0);
                                     if(user_params->PERTURB_ON_HIGH_RES) {
-                                        *((fftwf_complex *)HIRES_density_perturb + C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/TOT_NUM_PIXELS;
+                                        *((fftw_complex *)HIRES_density_perturb + C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/TOT_NUM_PIXELS;
                                     }
                                     else {
-                                        *((fftwf_complex *)LOWRES_density_perturb + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/HII_TOT_NUM_PIXELS;
+                                        *((fftw_complex *)LOWRES_density_perturb + HII_C_INDEX(n_x,n_y,n_z)) *= growth_factor_sdgf/HII_TOT_NUM_PIXELS;
                                     }
                                 }
                             }
@@ -1436,11 +1439,11 @@ int ComputePerturbField(
                     for (j=0; j<dimension; j++){
                         for (k=0; k<dimension; k++){
                             if(user_params->PERTURB_ON_HIGH_RES) {
-                                *((float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = 0.;
+                                *((double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k)) = 0.;
                                 *((double *)resampled_box + R_INDEX(i,j,k)) = 0.;
                             }
                             else {
-                                *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = 0.;
+                                *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = 0.;
                                 *((double *)resampled_box + HII_R_INDEX(i,j,k)) = 0.;
                             }
                         }
@@ -1523,14 +1526,14 @@ int ComputePerturbField(
                                 }
                             }
 
-                            xf *= (float)(dimension);
-                            yf *= (float)(dimension);
-                            zf *= (float)(dimension);
-                            while (xf >= (float)(dimension)){ xf -= (dimension);}
+                            xf *= (double)(dimension);
+                            yf *= (double)(dimension);
+                            zf *= (double)(dimension);
+                            while (xf >= (double)(dimension)){ xf -= (dimension);}
                             while (xf < 0){ xf += (dimension);}
-                            while (yf >= (float)(dimension)){ yf -= (dimension);}
+                            while (yf >= (double)(dimension)){ yf -= (dimension);}
                             while (yf < 0){ yf += (dimension);}
-                            while (zf >= (float)(dimension)){ zf -= (dimension);}
+                            while (zf >= (double)(dimension)){ zf -= (dimension);}
                             while (zf < 0){ zf += (dimension);}
                             xi = xf;
                             yi = yf;
@@ -1647,10 +1650,10 @@ int ComputePerturbField(
                     for (j=0; j<dimension; j++){
                         for (k=0; k<dimension; k++){
                             if(user_params->PERTURB_ON_HIGH_RES) {
-                                *( (float *)HIRES_density_perturb + R_FFT_INDEX(i,j,k) ) = (float)resampled_box[R_INDEX(i,j,k)];
+                                *( (double *)HIRES_density_perturb + R_FFT_INDEX(i,j,k) ) = (double)resampled_box[R_INDEX(i,j,k)];
                             }
                             else {
-                                *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) = (float)resampled_box[HII_R_INDEX(i,j,k)];
+                                *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) = (double)resampled_box[HII_R_INDEX(i,j,k)];
                             }
                         }
                     }
@@ -1716,18 +1719,18 @@ int ComputePerturbField(
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
-                            *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) =
-                            *((float *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                            *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) =
+                            *((double *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                (unsigned long long)(j*f_pixel_factor+0.5),
-                                                               (unsigned long long)(k*f_pixel_factor+0.5)))/(float)TOT_NUM_PIXELS;
+                                                               (unsigned long long)(k*f_pixel_factor+0.5)))/(double)TOT_NUM_PIXELS;
 
                             // JordanFlitter: We need to subtract 1 only if we evolve the density field non-linearly (BUG in 21cmFAST)
                             if (!EVOLVE_LINEARLY){
-                                *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) -= 1.;
+                                *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) -= 1.;
                             }
 
-                            if (*((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1) {
-                                *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1.+FRACT_FLOAT_ERR;
+                            if (*((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1) {
+                                *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1.+FRACT_FLOAT_ERR;
                             }
                         }
                     }
@@ -1744,8 +1747,8 @@ int ComputePerturbField(
                     for (i=0; i<user_params->HII_DIM; i++){
                         for (j=0; j<user_params->HII_DIM; j++){
                             for (k=0; k<user_params->HII_DIM; k++){
-                                *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) /= mass_factor;
-                                *( (float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) -= 1.;
+                                *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) /= mass_factor;
+                                *( (double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k) ) -= 1.;
                             }
                         }
                     }
@@ -1761,7 +1764,7 @@ int ComputePerturbField(
         //smooth the field
         // JordanFlitter: Evolve linearly if we are above REDSHIFT_2LPT
         if (!EVOLVE_LINEARLY && global_params.SMOOTH_EVOLVED_DENSITY_FIELD){
-            filter_box(LOWRES_density_perturb, 1, 2, global_params.R_smooth_density*user_params->BOX_LEN/(float)user_params->HII_DIM);
+            filter_box(LOWRES_density_perturb, 1, 2, global_params.R_smooth_density*user_params->BOX_LEN/(double)user_params->HII_DIM);
         }
 
         LOG_SUPER_DEBUG("LOWRES_density_perturb after smoothing: ");
@@ -1780,13 +1783,13 @@ int ComputePerturbField(
             for(i=0; i<user_params->HII_DIM; i++){
                 for(j=0; j<user_params->HII_DIM; j++){
                     for(k=0; k<user_params->HII_DIM; k++){
-                        *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) /= (float)HII_TOT_NUM_PIXELS;
+                        *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) /= (double)HII_TOT_NUM_PIXELS;
 
-                        if (*((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1.0) { // shouldn't happen
+                        if (*((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) < -1.0) { // shouldn't happen
 
-                            if(bad_count<5) LOG_WARNING("LOWRES_density_perturb is <-1 for index %d %d %d (value=%f)", i,j,k, *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)));
+                            if(bad_count<5) LOG_WARNING("LOWRES_density_perturb is <-1 for index %d %d %d (value=%f)", i,j,k, *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)));
                             if(bad_count==5) LOG_WARNING("Skipping further warnings for LOWRES_density_perturb.");
-                            *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                            *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                             bad_count++;
                         }
                     }
@@ -1803,11 +1806,11 @@ int ComputePerturbField(
             for (i=0; i<user_params->HII_DIM; i++){
                 for (j=0; j<user_params->HII_DIM; j++){
                     for (k=0; k<user_params->HII_DIM; k++){
-                        *((float *)perturbed_field->SDM_density + HII_R_INDEX(i,j,k)) = *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
+                        *((double *)perturbed_field->SDM_density + HII_R_INDEX(i,j,k)) = *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
                         // JordanFlitter: update total matter density field (only if we don't compute the linear matter density field)
                         if (!(EVOLVE_LINEARLY || user_params->LINEAR_DELTA_IN_EPS)) {
-                            *((float *)perturbed_field->density + HII_R_INDEX(i,j,k)) += ((
-                                                                                           pow(10.,-cosmo_params->f_chi)*(cosmo_params->OMm-cosmo_params->OMb)*(*((float *)perturbed_field->SDM_density + HII_R_INDEX(i,j,k)))
+                            *((double *)perturbed_field->density + HII_R_INDEX(i,j,k)) += ((
+                                                                                           pow(10.,-cosmo_params->f_chi)*(cosmo_params->OMm-cosmo_params->OMb)*(*((double *)perturbed_field->SDM_density + HII_R_INDEX(i,j,k)))
                                                                                            )/cosmo_params->OMm);
                         }
                     }
@@ -1828,11 +1831,11 @@ int ComputePerturbField(
 
     if(user_params->PERTURB_ON_HIGH_RES) {
         // We are going to generate the velocity field on the high-resolution perturbed density grid
-        memcpy(HIRES_density_perturb, HIRES_density_perturb_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        memcpy(HIRES_density_perturb, HIRES_density_perturb_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
     }
     else {
         // We are going to generate the velocity field on the low-resolution perturbed density grid
-        memcpy(LOWRES_density_perturb, LOWRES_density_perturb_saved, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+        memcpy(LOWRES_density_perturb, LOWRES_density_perturb_saved, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
     }
 // JordanFlitter: added more shared and private variables for baryons evolution
 #pragma omp parallel shared(LOWRES_density_perturb,HIRES_density_perturb,dDdt_over_D,dimension,switch_mid,redshift) \
@@ -1906,7 +1909,7 @@ int ComputePerturbField(
             for (i=0; i<user_params->HII_DIM; i++){
                 for (j=0; j<user_params->HII_DIM; j++){
                     for (k=0; k<user_params->HII_DIM; k++){
-                        *((float *)perturbed_field->velocity + HII_R_INDEX(i,j,k)) = *((float *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5), (unsigned long long)(j*f_pixel_factor+0.5), (unsigned long long)(k*f_pixel_factor+0.5)));
+                        *((double *)perturbed_field->velocity + HII_R_INDEX(i,j,k)) = *((double *)HIRES_density_perturb + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5), (unsigned long long)(j*f_pixel_factor+0.5), (unsigned long long)(k*f_pixel_factor+0.5)));
                     }
                 }
             }
@@ -1921,33 +1924,33 @@ int ComputePerturbField(
             for (i=0; i<user_params->HII_DIM; i++){
                 for (j=0; j<user_params->HII_DIM; j++){
                     for (k=0; k<user_params->HII_DIM; k++){
-                        *((float *)perturbed_field->velocity + HII_R_INDEX(i,j,k)) = *((float *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
+                        *((double *)perturbed_field->velocity + HII_R_INDEX(i,j,k)) = *((double *)LOWRES_density_perturb + HII_R_FFT_INDEX(i,j,k));
                     }
                 }
             }
         }
     }
 
-    fftwf_cleanup_threads();
-    fftwf_cleanup();
-    fftwf_forget_wisdom();
+    fftw_cleanup_threads();
+    fftw_cleanup();
+    fftw_forget_wisdom();
 
     // deallocate
-    fftwf_free(LOWRES_density_perturb);
-    fftwf_free(LOWRES_density_perturb_saved);
+    fftw_free(LOWRES_density_perturb);
+    fftw_free(LOWRES_density_perturb_saved);
     if(user_params->PERTURB_ON_HIGH_RES) {
-        fftwf_free(HIRES_density_perturb);
-        fftwf_free(HIRES_density_perturb_saved);
+        fftw_free(HIRES_density_perturb);
+        fftw_free(HIRES_density_perturb_saved);
     }
     // JordanFlitter: Need to allocate memory for dummy boxes if we do non-linear scale-dependent evolution
     if (!EVOLVE_LINEARLY && (user_params->EVOLVE_MATTER || user_params->EVOLVE_BARYONS)) {
-        fftwf_free(FFT_HIRES_dummy_box);
+        fftw_free(FFT_HIRES_dummy_box);
         if (!user_params->PERTURB_ON_HIGH_RES){
-            fftwf_free(FFT_LOWRES_dummy_box);
+            fftw_free(FFT_LOWRES_dummy_box);
         }
     }
 
-    fftwf_cleanup();
+    fftw_cleanup();
     // JordanFlitter: we need destruct_CLASS_GROWTH_FACTOR() if the following conditions are satisfied
     if (!user_params->USE_DICKE_GROWTH_FACTOR || user_params->EVOLVE_BARYONS || user_params->EVOLVE_MATTER) {
           destruct_CLASS_GROWTH_FACTOR();

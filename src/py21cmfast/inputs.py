@@ -38,7 +38,7 @@ Planck18 = Planck15.clone(
 )
 
 print('-----------------------------------------------------')
-print('SarahLibanore: developed f_nl, C files updated with IC and fcoll in Lidz approximation and DAlosio on 09/22/2025')
+print('SarahLibanore: developed f_nl in IC and fcoll, corrected fcoll on 12/07/2025')
 print('-----------------------------------------------------')
 
 class GlobalParams(StructInstanceWrapper):
@@ -574,6 +574,7 @@ global_params.T_VCB_KIN_TRANSFER = [0.00000000e+00, 3.11899486e-10, 5.02290006e-
                                     1.66884536e-03, 1.35979390e-03, 1.10760161e-03, 9.02059531e-04,
                                     7.34706853e-04, 5.98633907e-04, 4.88111761e-04, 3.98385369e-04,
                                     3.25460580e-04]
+# global_params.T_POTENTIAL_TRANSFER = list(np.zeros(len(global_params.T_M0_TRANSFER))) # SarahLibanore, fnl
 global_params.T_V_CHI_B_ZHIGH_TRANSFER = list(np.zeros(149))
 global_params.LOG_K_ARR_FOR_SDGF = list(np.zeros(300))
 global_params.LOG_SDGF_BARYONS = list(np.zeros(70*300))
@@ -891,7 +892,8 @@ class UserParams(StructWithDefaults):
         "LINEAR_DELTA_IN_EPS": True, # JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
         "NON_GAUSS_IC": False, # SarahLibanore: flag to use fNL in initial conditions
         "NON_GAUSS_FCOLL": False, # SarahLibanore: flag to use fNL in collapsed fraction
-        "NG_MODEL_APPROX":True # SarahLibanore: if True use Lidz approx, otherwise D'Alosio
+        "NG_MODEL_APPROX":True, # SarahLibanore: if True use Lidz approx, otherwise D'Alosio
+        "FULL_ION_SIMPLE":False # SarahLibanore: if True, compute full ion simplified
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]

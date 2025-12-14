@@ -15,10 +15,10 @@ static gsl_interp_accel *beta_acc;
 static gsl_spline *beta_spline;
 
 #define RR_Z_NPTS (int) (300) // number of points in redshift axis;  we will only interpolate over gamma, and just index sample in redshift
-#define RR_DEL_Z (float) (0.2)
+#define RR_DEL_Z (double) (0.2)
 #define RR_lnGamma_NPTS (int) (250) // number of samples of gamma for the interpolation tables
 #define RR_lnGamma_min (double) (-10) // min ln gamma12 used
-#define RR_DEL_lnGamma (float) (0.1)
+#define RR_DEL_lnGamma (double) (0.1)
 static double RR_table[RR_Z_NPTS][RR_lnGamma_NPTS], lnGamma_values[RR_lnGamma_NPTS];
 static gsl_interp_accel *RR_acc[RR_Z_NPTS];
 static gsl_spline *RR_spline[RR_Z_NPTS];
@@ -71,7 +71,7 @@ double splined_recombination_rate(double z_eff, double gamma12_bg){
 
 void init_MHR(){
   int z_ct, gamma_ct;
-  float z, gamma;
+  double z, gamma;
 
   // first initialize the MHR parameter look up tables
   init_C_MHR(); /*initializes the lookup table for the C parameter in MHR00 model*/
@@ -225,8 +225,8 @@ double A_aux_integral(double z){
 
 double A_MHR(double z){
   double result;
-  if(z>=2.0+(float)A_NPTS)
-    result = splined_A_MHR(2.0+(float)A_NPTS);
+  if(z>=2.0+(double)A_NPTS)
+    result = splined_A_MHR(2.0+(double)A_NPTS);
   else
     if(z<=2.0)
       result = splined_A_MHR(2.0);
@@ -240,8 +240,8 @@ void init_A_MHR(){
    int i;
 
    for (i=0; i<A_NPTS; i++){
-     A_params[i] = 2.0+(float)i;
-     A_table[i] = 1.0/A_aux_integral(2.0+(float)i);
+     A_params[i] = 2.0+(double)i;
+     A_table[i] = 1.0/A_aux_integral(2.0+(double)i);
    }
 
   // Set up spline table
@@ -284,7 +284,7 @@ void init_C_MHR(){
    int i;
 
   for (i=0; i<C_NPTS; i++)
-    C_params[i] = (float)i+2.0;
+    C_params[i] = (double)i+2.0;
 
   C_table[0] = 0.558;
   C_table[1] = 0.599;
@@ -339,7 +339,7 @@ void init_beta_MHR(){
    int i;
 
   for (i=0; i<beta_NPTS; i++)
-    beta_params[i] = (float)i+2.0;
+    beta_params[i] = (double)i+2.0;
 
   beta_table[0] = -2.23;
   beta_table[1] = -2.35;

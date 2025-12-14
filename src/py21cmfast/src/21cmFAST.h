@@ -6,21 +6,21 @@
 
 struct CosmoParams{
 
-    float SIGMA_8;
-    float hlittle;
-    float OMm;
-    float OMl;
-    float OMb;
-    float POWER_INDEX;
-    float A_s; // JordanFlitter: added amplitude of primordial curvature fluctuations
-    float tau_reio; // JordanFlitter: added optical depth to reionization
-    float m_FDM; // JordanFlitter: added FDM mass (this is actually -log10(m_FDM/eV))
-    float f_FDM; // JordanFlitter: added FDM fraction (this is actually -log10(f_FDM))
-    float m_chi; // JordanFlitter: added SDM mass (this is actually log10(m_chi/eV))
-    float f_chi; // JordanFlitter: added SDM fraction (this is actually -log10(f_chi))
-    float sigma_SDM; // JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
-    float SDM_INDEX; // JordanFlitter: added SDM cross section index
-    float F_NL; // SarahLibanore: local non gaussianity
+    double SIGMA_8;
+    double hlittle;
+    double OMm;
+    double OMl;
+    double OMb;
+    double POWER_INDEX;
+    double A_s; // JordanFlitter: added amplitude of primordial curvature fluctuations
+    double tau_reio; // JordanFlitter: added optical depth to reionization
+    double m_FDM; // JordanFlitter: added FDM mass (this is actually -log10(m_FDM/eV))
+    double f_FDM; // JordanFlitter: added FDM fraction (this is actually -log10(f_FDM))
+    double m_chi; // JordanFlitter: added SDM mass (this is actually log10(m_chi/eV))
+    double f_chi; // JordanFlitter: added SDM fraction (this is actually -log10(f_chi))
+    double sigma_SDM; // JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
+    double SDM_INDEX; // JordanFlitter: added SDM cross section index
+    double F_NL; // SarahLibanore: local non gaussianity
 };
 
 struct UserParams{
@@ -28,8 +28,8 @@ struct UserParams{
     // Parameters taken from INIT_PARAMS.H
     int HII_DIM;
     int DIM;
-    float EXTRA_DIM_FNL; // SarahLibanore: introduced for NG
-    float BOX_LEN;
+    double EXTRA_DIM_FNL; // SarahLibanore: introduced for NG
+    double BOX_LEN;
     bool USE_FFTW_WISDOM;
     int HMF;
     int USE_RELATIVE_VELOCITIES;
@@ -50,7 +50,7 @@ struct UserParams{
     bool START_AT_RECOMBINATION; // JordanFlitter: added flag to run the simulation through the dark ages
     bool USE_HYREC; // JordanFlitter: added flag to use HyRec
     bool NO_INI_MATTER_FLUCTS; // JordanFlitter: added flag to set on zero the matter fluctuations during the dark ages (useful for comparing with CLASS)
-    float Z_HIGH_MAX; // JordanFlitter: added the highest redshift for the evolution (default -1 means recombination)
+    double Z_HIGH_MAX; // JordanFlitter: added the highest redshift for the evolution (default -1 means recombination)
     bool OUTPUT_AT_DARK_AGES; // JordanFlitter: added flag to compute output during the dark ages
     bool USE_TCA_COMPTON; // JordanFlitter: added flag to use tight coupling approximation (for Compton scattering)
     bool USE_CS_S_ALPHA; // JordanFlitter: added flag to use the S_alpha correction from Chuzhouy & Shapiro (arXiv: astro-ph/0512206)
@@ -67,36 +67,37 @@ struct UserParams{
     bool NON_GAUSS_IC; // SarahLibanore: flag to use fNL in initial conditions
     bool NON_GAUSS_FCOLL; // SarahLibanore: flag to use fNL in collapsed fraction
     bool NG_MODEL_APPROX; //SarahLibanore: if True use Lidz approx, otherwise D'Alosio
+    bool FULL_ION_SIMPLE; //SarahLibanore: if True, compute full ion simplified
 };
 
 struct AstroParams{
 
     // Parameters taken from INIT_PARAMS.H
-    float HII_EFF_FACTOR;
+    double HII_EFF_FACTOR;
 
-    float F_STAR10;
-    float ALPHA_STAR;
-    float ALPHA_STAR_MINI;
-    float F_ESC10;
-    float ALPHA_ESC;
-    float M_TURN;
-    float F_STAR7_MINI;
-    float F_ESC7_MINI;
-    float R_BUBBLE_MAX;
-    float ION_Tvir_MIN;
+    double F_STAR10;
+    double ALPHA_STAR;
+    double ALPHA_STAR_MINI;
+    double F_ESC10;
+    double ALPHA_ESC;
+    double M_TURN;
+    double F_STAR7_MINI;
+    double F_ESC7_MINI;
+    double R_BUBBLE_MAX;
+    double ION_Tvir_MIN;
     double F_H2_SHIELD;
     double L_X;
     double L_X_MINI;
-    float NU_X_THRESH;
-    float X_RAY_SPEC_INDEX;
-    float X_RAY_Tvir_MIN;
+    double NU_X_THRESH;
+    double X_RAY_SPEC_INDEX;
+    double X_RAY_Tvir_MIN;
 
     double A_LW;
     double BETA_LW;
     double A_VCB;
     double BETA_VCB;
 
-    float t_STAR;
+    double t_STAR;
 
     int N_RSD_STEPS;
 };
@@ -119,53 +120,53 @@ struct FlagOptions{
 
 
 struct InitialConditions{
-    float *lowres_density, *lowres_vx, *lowres_vy, *lowres_vz, *lowres_vx_2LPT, *lowres_vy_2LPT, *lowres_vz_2LPT;
-    float *hires_density, *hires_vx, *hires_vy, *hires_vz, *hires_vx_2LPT, *hires_vy_2LPT, *hires_vz_2LPT; //cw addition
-    float *lowres_vcb;
-    float *lowres_xe_zhigh, *lowres_Tk_zhigh, *lowres_Tchi_zhigh, *lowres_V_chi_b_zhigh; // JordanFlitter: added new SDM boxes to the InitialConditions structure
-    float *hires_potential; // SarahLibanore added box for NG
+    double *lowres_density, *lowres_vx, *lowres_vy, *lowres_vz, *lowres_vx_2LPT, *lowres_vy_2LPT, *lowres_vz_2LPT;
+    double *hires_density, *hires_vx, *hires_vy, *hires_vz, *hires_vx_2LPT, *hires_vy_2LPT, *hires_vz_2LPT; //cw addition
+    double *lowres_vcb;
+    double *lowres_xe_zhigh, *lowres_Tk_zhigh, *lowres_Tchi_zhigh, *lowres_V_chi_b_zhigh; // JordanFlitter: added new SDM boxes to the InitialConditions structure
+    double *hires_potential; // SarahLibanore added box for NG
 };
 
 struct PerturbedField{
-    float *density, *velocity;
+    double *density, *velocity;
     // JordanFlitter: added new baryons (and SDM) density box to the PerturbedField structure
-    float *baryons_density;
-    float *SDM_density;
+    double *baryons_density;
+    double *SDM_density;
 };
 
 struct HaloField{
 
     int n_halos;
-    float *halo_masses;
+    double *halo_masses;
     int *halo_coords;
 
     int n_mass_bins;
     int max_n_mass_bins;
 
-    float *mass_bins;
-    float *fgtrm;
-    float *sqrt_dfgtrm;
-    float *dndlm;
-    float *sqrtdn_dlm;
+    double *mass_bins;
+    double *fgtrm;
+    double *sqrt_dfgtrm;
+    double *dndlm;
+    double *sqrtdn_dlm;
 };
 
 struct PerturbHaloField{
     int n_halos;
-    float *halo_masses;
+    double *halo_masses;
     int *halo_coords;
 };
 
 
 struct TsBox{
     int first_box;
-    float *Ts_box;
-    float *x_e_box;
-    float *Tk_box;
-    float *J_21_LW_box;
-    float *J_Lya_box; // JordanFlitter: added J_Lya_box to the TsBox structure (because why not)
-    float *T_chi_box; // JordanFlitter: added T_chi_box to the Ts_box structure
-    float *V_chi_b_box; // JordanFlitter: added V_chi_b_box to the Ts_box structure
-    float next_redshift_output; // JordanFlitter: added next_redshift_output to the Ts_box structure
+    double *Ts_box;
+    double *x_e_box;
+    double *Tk_box;
+    double *J_21_LW_box;
+    double *J_Lya_box; // JordanFlitter: added J_Lya_box to the TsBox structure (because why not)
+    double *T_chi_box; // JordanFlitter: added T_chi_box to the Ts_box structure
+    double *V_chi_b_box; // JordanFlitter: added V_chi_b_box to the Ts_box structure
+    double next_redshift_output; // JordanFlitter: added next_redshift_output to the Ts_box structure
 };
 
 struct IonizedBox{
@@ -174,29 +175,29 @@ struct IonizedBox{
     double mean_f_coll_MINI;
     double log10_Mturnover_ave;
     double log10_Mturnover_MINI_ave;
-    float *xH_box;
-    float *Gamma12_box;
-    float *MFP_box;
-    float *z_re_box;
-    float *dNrec_box;
-    float *temp_kinetic_all_gas;
-    float *Fcoll;
-    float *Fcoll_MINI;
+    double *xH_box;
+    double *Gamma12_box;
+    double *MFP_box;
+    double *z_re_box;
+    double *dNrec_box;
+    double *temp_kinetic_all_gas;
+    double *Fcoll;
+    double *Fcoll_MINI;
 };
 
 struct BrightnessTemp{
-    float *brightness_temp;
+    double *brightness_temp;
 };
 
 int ComputeInitialConditions(unsigned long long random_seed, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes);
 
-int ComputePerturbField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes, struct PerturbedField *perturbed_field);
+int ComputePerturbField(double redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct InitialConditions *boxes, struct PerturbedField *perturbed_field);
 
-int ComputeHaloField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
+int ComputeHaloField(double redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                      struct AstroParams *astro_params, struct FlagOptions *flag_options,
                      struct InitialConditions *boxes, struct HaloField *halos);
 
-int ComputePerturbHaloField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
+int ComputePerturbHaloField(double redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                      struct AstroParams *astro_params, struct FlagOptions *flag_options,
                      struct InitialConditions *boxes, struct HaloField *halos, struct PerturbHaloField *halos_perturbed);
 // JordanFlitter: added next_redshift_input
@@ -227,9 +228,9 @@ int ObtainPhotonConsData(double *z_at_Q_data, double *Q_data, int *Ndata_analyti
                          double *PhotonCons_NFdata, double *PhotonCons_deltaz, int *Ndata_PhotonCons);
 
 int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,
-               struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, float *z_LF, float *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi);
+               struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, double *z_LF, double *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi);
 
-float ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, int Npoints, float *redshifts, float *global_xHI);
+double ComputeTau(struct UserParams *user_params, struct CosmoParams *cosmo_params, int Npoints, double *redshifts, double *global_xHI);
 
 int CreateFFTWWisdoms(struct UserParams *user_params, struct CosmoParams *cosmo_params);
 

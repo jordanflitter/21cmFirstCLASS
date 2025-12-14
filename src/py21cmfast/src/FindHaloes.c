@@ -8,15 +8,15 @@
 // ComputeHaloField outputs a cube with non-zero elements containing the Mass of
 // the virialized halos
 
-int check_halo(char * in_halo, struct UserParams *user_params, float R, int x, int y, int z, int check_type);
-int pixel_in_halo(struct UserParams *user_params, int x, int x_index, int y, int y_index, int z, int z_index, float Rsq_curr_index );
+int check_halo(char * in_halo, struct UserParams *user_params, double R, int x, int y, int z, int check_type);
+int pixel_in_halo(struct UserParams *user_params, int x, int x_index, int y, int y_index, int z, int z_index, double Rsq_curr_index );
 void init_halo_coords(struct HaloField *halos, int n_halos);
 void free_halo_field(struct HaloField *halos);
 void init_hmf(struct HaloField *halos);
 void trim_hmf(struct HaloField *halos);
 
 
-int ComputeHaloField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
+int ComputeHaloField(double redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                      struct AstroParams *astro_params, struct FlagOptions *flag_options,
                      struct InitialConditions *boxes, struct HaloField *halos) {
 
@@ -40,15 +40,15 @@ LOG_DEBUG("redshift=%f", redshift);
 
         omp_set_num_threads(user_params->N_THREADS);
 
-        fftwf_complex *density_field, *density_field_saved;
+        fftw_complex *density_field, *density_field_saved;
 
-        float growth_factor, R, delta_m, dm, dlnm, M, Delta_R, delta_crit;
+        double growth_factor, R, delta_m, dm, dlnm, M, Delta_R, delta_crit;
         double fgtrm, dfgtrm;
         unsigned long long ct;
         char filename[80], *in_halo, *forbidden;
         int i,j,k,x,y,z,dn,n,counter;
         int total_halo_num;
-        float R_temp, x_temp, y_temp, z_temp, dummy, M_MIN;
+        double R_temp, x_temp, y_temp, z_temp, dummy, M_MIN;
 
 LOG_DEBUG("Begin Initialisation");
 
@@ -80,8 +80,8 @@ LOG_DEBUG("Begin Initialisation");
         }
 
         // allocate array for the k-space box
-        density_field = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
-        density_field_saved = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        density_field = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
+        density_field_saved = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
         // allocate memory for the boolean in_halo box
         in_halo = (char *) malloc(sizeof(char)*TOT_NUM_PIXELS);
@@ -99,7 +99,7 @@ LOG_DEBUG("Begin Initialisation");
             for (i=0; i<user_params->DIM; i++){
                 for (j=0; j<user_params->DIM; j++){
                     for (k=0; k<user_params->DIM; k++){
-                        *((float *)density_field + R_FFT_INDEX(i,j,k)) = *((float *)boxes->hires_density + R_INDEX(i,j,k));
+                        *((double *)density_field + R_FFT_INDEX(i,j,k)) = *((double *)boxes->hires_density + R_INDEX(i,j,k));
                     }
                 }
             }
@@ -108,7 +108,7 @@ LOG_DEBUG("Begin Initialisation");
         dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, density_field);
 
         // save a copy of the k-space density field
-        memcpy(density_field_saved, density_field, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        memcpy(density_field_saved, density_field, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
 
         // ***************** END INITIALIZATION ***************** //
@@ -133,7 +133,7 @@ LOG_DEBUG("Prepare to filter to find halos");
 
         // This uses more memory than absolutely necessary, but is fastest.
         init_hmf(halos);
-        float *halo_field = calloc(TOT_NUM_PIXELS, sizeof(float));
+        double *halo_field = calloc(TOT_NUM_PIXELS, sizeof(double));
 
 
         while ((R > 0.5*Delta_R) && (RtoM(R) >= M_MIN)){ // filter until we get to half the pixel size or M_MIN
@@ -156,7 +156,7 @@ LOG_DEBUG("Haloes too rare for M = %e! Skipping...", M);
                 continue;
             }
 
-            memcpy(density_field, density_field_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+            memcpy(density_field, density_field_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
             // now filter the box on scale R
             // 0 = top hat in real space, 1 = top hat in k space
@@ -191,7 +191,7 @@ LOG_DEBUG("Haloes too rare for M = %e! Skipping...", M);
             for (x=0; x<user_params->DIM; x++){
                 for (y=0; y<user_params->DIM; y++){
                     for (z=0; z<user_params->DIM; z++){
-                        delta_m = *((float *)density_field + R_FFT_INDEX(x,y,z)) * growth_factor / VOLUME;       // don't forget the factor of 1/VOLUME!
+                        delta_m = *((double *)density_field + R_FFT_INDEX(x,y,z)) * growth_factor / VOLUME;       // don't forget the factor of 1/VOLUME!
                         // if not within a larger halo, and radii don't overlap, update in_halo box
                         // *****************  BEGIN OPTIMIZATION ***************** //
                         if(global_params.OPTIMIZE) {
@@ -285,12 +285,12 @@ LOG_DEBUG("Finished halo processing.");
             free(forbidden);
         }
 
-        fftwf_free(density_field);
-        fftwf_free(density_field_saved);
+        fftw_free(density_field);
+        fftw_free(density_field_saved);
 
-        fftwf_cleanup_threads();
-        fftwf_cleanup();
-        fftwf_forget_wisdom();
+        fftw_cleanup_threads();
+        fftw_cleanup();
+        fftw_forget_wisdom();
 
 LOG_DEBUG("Finished halo cleanup.");
 LOG_DEBUG("Found %d Halos", halos->n_halos);
@@ -309,7 +309,7 @@ if (halos->n_halos > 3)
 
 // Function check_halo combines the original two functions overlap_halo and update_in_halo
 // from the original 21cmFAST. Lots of redundant code, hence reduced into a single function
-int check_halo(char * in_halo, struct UserParams *user_params, float R, int x, int y, int z, int check_type) {
+int check_halo(char * in_halo, struct UserParams *user_params, double R, int x, int y, int z, int check_type) {
 
     // if check_type == 1 (perform original overlap halo)
     //          Funtion OVERLAP_HALO checks if the would be halo with radius R
@@ -319,7 +319,7 @@ int check_halo(char * in_halo, struct UserParams *user_params, float R, int x, i
     //          which fall within radius R of (x,y,z).
 
     int x_curr, y_curr, z_curr, x_min, x_max, y_min, y_max, z_min, z_max, R_index;
-    float Rsq_curr_index, xsq, xplussq, xminsq, ysq, yplussq, yminsq, zsq, zplussq, zminsq;
+    double Rsq_curr_index, xsq, xplussq, xminsq, ysq, yplussq, yminsq, zsq, zplussq, zminsq;
     int x_index, y_index, z_index;
 
     if(check_type==1) {
@@ -385,7 +385,7 @@ void init_halo_coords(struct HaloField *halos, int n_halos){
     // Minimise memory usage by only storing the halo mass and positions
     int i;
     halos->n_halos = n_halos;
-    halos->halo_masses = (float *)calloc(n_halos,sizeof(float));
+    halos->halo_masses = (double *)calloc(n_halos,sizeof(double));
     halos->halo_coords = (int *)calloc(3*n_halos,sizeof(int));
 }
 
@@ -406,28 +406,28 @@ void init_hmf(struct HaloField *halos){
     // Initalize mass function array with an abitrary large number of elements.
     // We will trim it later.
     halos->max_n_mass_bins = 100;
-    halos->mass_bins = (float *) malloc(sizeof(float) * halos->max_n_mass_bins);
-    halos->fgtrm = (float *) malloc(sizeof(float) * halos->max_n_mass_bins);
-    halos->sqrt_dfgtrm = (float *) malloc(sizeof(float) * halos->max_n_mass_bins);
-    halos->dndlm = (float *) malloc(sizeof(float) * halos->max_n_mass_bins);
-    halos->sqrtdn_dlm = (float *) malloc(sizeof(float) * halos->max_n_mass_bins);
+    halos->mass_bins = (double *) malloc(sizeof(double) * halos->max_n_mass_bins);
+    halos->fgtrm = (double *) malloc(sizeof(double) * halos->max_n_mass_bins);
+    halos->sqrt_dfgtrm = (double *) malloc(sizeof(double) * halos->max_n_mass_bins);
+    halos->dndlm = (double *) malloc(sizeof(double) * halos->max_n_mass_bins);
+    halos->sqrtdn_dlm = (double *) malloc(sizeof(double) * halos->max_n_mass_bins);
     halos->n_mass_bins = 0;
 }
 
 void trim_hmf(struct HaloField *halos){
     // Trim hmf arrays down to actual number of mass bins.
     if (halos->n_mass_bins > 0){
-        halos->mass_bins = (float *) realloc(halos->mass_bins, sizeof(float) * halos->n_mass_bins);
-        halos->fgtrm = (float *) realloc(halos->fgtrm, sizeof(float)  * halos->n_mass_bins);
-        halos->sqrt_dfgtrm = (float *) realloc(halos->sqrt_dfgtrm, sizeof(float)  * halos->n_mass_bins);
-        halos->dndlm = (float *) realloc(halos->dndlm, sizeof(float)  * halos->n_mass_bins);
-        halos->sqrtdn_dlm = (float *) realloc(halos->sqrtdn_dlm, sizeof(float)  * halos->n_mass_bins);
+        halos->mass_bins = (double *) realloc(halos->mass_bins, sizeof(double) * halos->n_mass_bins);
+        halos->fgtrm = (double *) realloc(halos->fgtrm, sizeof(double)  * halos->n_mass_bins);
+        halos->sqrt_dfgtrm = (double *) realloc(halos->sqrt_dfgtrm, sizeof(double)  * halos->n_mass_bins);
+        halos->dndlm = (double *) realloc(halos->dndlm, sizeof(double)  * halos->n_mass_bins);
+        halos->sqrtdn_dlm = (double *) realloc(halos->sqrtdn_dlm, sizeof(double)  * halos->n_mass_bins);
     }
 }
 
-int pixel_in_halo(struct UserParams *user_params, int x, int x_index, int y, int y_index, int z, int z_index, float Rsq_curr_index ) {
+int pixel_in_halo(struct UserParams *user_params, int x, int x_index, int y, int y_index, int z, int z_index, double Rsq_curr_index ) {
 
-    float xsq, xplussq, xminsq, ysq, yplussq, yminsq, zsq, zplussq, zminsq;
+    double xsq, xplussq, xminsq, ysq, yplussq, yminsq, zsq, zplussq, zminsq;
 
     // remember to check all reflections
     xsq = pow(x-x_index, 2);

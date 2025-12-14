@@ -336,11 +336,14 @@ def run_ICs(cosmo_params,user_params,global_params):
     delta_b_kin_CLASS = Transfer_kin['d_b'][:]
     theta_b_kin_CLASS = Transfer_kin['t_b'][:]*c/Mpc_to_meter # 1/sec
     theta_c_kin_CLASS = np.zeros_like(theta_b_kin_CLASS) # 1/sec
+    #transfer_potential = Transfer_0['phi'][:]    # SarahLibanore, fnl
+
     # Interpolate transfer functions at the desired wavenumbers
     delta_c_kin = Interpolate_transfer(delta_c_kin_CLASS,k_CLASS,k_output)
     delta_b_kin = Interpolate_transfer(delta_b_kin_CLASS,k_CLASS,k_output)
     theta_c_kin = Interpolate_transfer(theta_c_kin_CLASS,k_CLASS,k_output)
     theta_b_kin = Interpolate_transfer(theta_b_kin_CLASS,k_CLASS,k_output)
+    #delta_potential = Interpolate_transfer(transfer_potential,k_CLASS,k_output) # SarahLibanore, fnl
     # Calculate v_cb at kinematic decoupling (as a function of k)
     v_cb_kin = (theta_b_kin-theta_c_kin)/(k_output/Mpc_to_meter)/1000. # km/sec
     # Find the transfer function of v_cb (which is consistent with 21cmFAST).
@@ -579,6 +582,7 @@ def run_ICs(cosmo_params,user_params,global_params):
     # Interpolation tables for background quantities
     global_params.T_M0_TRANSFER = list(delta_m_0)
     global_params.T_VCB_KIN_TRANSFER = list(T_vcb_kin)
+    # global_params.T_POTENTIAL_TRANSFER = list(delta_potential) # SarahLibanore, fnl
 
     # SDM quantities
     if user_params.SCATTERING_DM:
@@ -606,7 +610,7 @@ def run_ICs(cosmo_params,user_params,global_params):
     # SarahLibanore: three point function to add NG corrections to Fcoll
     if user_params.NON_GAUSS_FCOLL:
 
-        temp = tpf(pow(10.,log10_M_array),cosmo_params,global_params,kcutoff=0.01)
+        temp = tpf(log10_M_array,cosmo_params,global_params,kcutoff=0.01)
         THREEPOINT_MnMm_mat = temp[0]
         THREEPOINT_DER_MnMm_mat = temp[1]
 
@@ -620,10 +624,107 @@ def run_ICs(cosmo_params,user_params,global_params):
 
 # SarahLibanore : compute three point functions and derivative wrt Mn for NG corrections to Fcoll 
 # The function is computed only at z = 0 
-def FM(kv,MassVector,cosmo_params,global_params,kcutoff):
+def W_tophat(k,M,rhoM):
+
+    R = (3.*M/(4.*np.pi*rhoM))**(1/3.)
+    x = k*R
+    W = 3.0*(np.sin(x) - x*np.cos(x))/(x)**3 
+
+    return W
+
+def derW_tophat(k,M, rhoM):
+
+    dW = 1./(3.*k**2*M*(M/rhoM)**(2/3.)) *\
+    (2.*6.**(2/3.)*k*np.pi**(1/3.)*(M/rhoM)**(1/3.)*np.cos(k*(3/np.pi)**(1/3.)*(M/rhoM)**(1./3)/2**(2./3)) + \
+    (-4.*6.**(1/3.)*np.pi**(2/3.)+3.*k**2*(M/rhoM)**(2./3.))*np.sin(k*(3/np.pi)**(1/3.)*(M/rhoM)**(1./3)/2**(2./3)))
+
+    return dW
+
+
+def Pphi(k, cosmo_params):
+
+    Tphi = 3/5.
+    P = Tphi**2 *cosmo_params.A_s * pow(k/0.05, cosmo_params.POWER_INDEX-1) 
+
+    return P
+
+def curlM_dcurlM(k,M,kall,cosmo_params,global_params):
+    
+    Tmatter_CLASS = interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)
 
     rho_crit = 2.7754e11 * cosmo_params.hlittle**2
-    rhoM = rho_crit* cosmo_params.OMm
+    rhoM = rho_crit* cosmo_params.OMm  
+
+    Tphi = 3/5.
+
+    curlM = Tmatter_CLASS(k)/Tphi * W_tophat(k,M,rhoM)
+
+    dcurlM = Tmatter_CLASS(k)/Tphi * derW_tophat(k,M,rhoM)
+
+
+    return curlM, dcurlM
+
+
+def FM(Mm,k_all,k_class,cosmo_params,global_params):
+
+    n_mu = 128
+
+    k_1 = k_all[:,None,None,None]
+    k_2 = k_all[None,:,None,None]
+
+    mu = np.linspace(-0.995, 0.995, n_mu) # cos theta
+    mu_vec = mu[None, None,:, None]
+
+    k_12 = np.sqrt(k_1**2 + k_2**2 + 2*k_1*k_2*mu_vec)
+
+    Pphi_1 = Pphi(k_1,cosmo_params)
+    Pphi_2 = Pphi(k_2,cosmo_params)
+    Pphi_12 = Pphi(k_12,cosmo_params)
+
+    Bphi = 2 * cosmo_params.F_NL * (Pphi_1 * Pphi_2 + Pphi_1 * Pphi_12 + Pphi_2 * Pphi_12)
+
+    # Expand Mm to shape (1,1,n_M) for broadcasting 
+    Mm_vec = Mm[None,None,None, :]
+
+    curlM_2, der_curlM_2 = curlM_dcurlM(k_2,Mm_vec,k_class,cosmo_params,global_params) 
+    curlM_12, der_curlM_12 = curlM_dcurlM(k_12,Mm_vec,k_class,cosmo_params,global_params) 
+
+    integrand_k2 = np.trapz(curlM_12 * Bphi,mu,axis=2)
+    d_integrand_k2 = np.trapz(der_curlM_12 * Bphi,mu,axis=2)
+
+    F = np.trapz(k_2**2 * curlM_2 * integrand_k2,k_all,axis=1)
+    dF = np.trapz(k_2**2 * der_curlM_2 * d_integrand_k2,k_all,axis=1)
+
+    return F[0], dF[0]
+
+
+def tpf(log10_mass_array,cosmo_params,global_params,kcutoff=0.01):
+
+    print('Computing three point functions to estimate the Fcoll NG corrections...')
+    full_kall = pow(10.,np.array(global_params.LOG_K_ARR_FOR_TRANSFERS)) # 1/Mpc
+    kall = np.asarray(full_kall[full_kall > kcutoff])
+    
+    k_1 = kall[:, None]
+    MassVector = 10**log10_mass_array
+    # Mn and Mm arrays
+    Mm = MassVector[:] 
+
+    F_1, der_F_1 = FM(Mm,kall,full_kall,cosmo_params,global_params) 
+
+    Mn = MassVector[None, :]  # (1, n_M)
+    curlM_1, der_curlM_1 = curlM_dcurlM(k_1,Mn,full_kall,cosmo_params,global_params) 
+    
+    
+    dm2dn = 1./(8*np.pi**4) * np.trapz(k_1[:,:,None]**2 * curlM_1[:,:,None] * F_1[:,None,:], kall,axis=0)
+
+    der_dm2dn = 1./(8*np.pi**4) * np.trapz(k_1[:,:,None]**2 * der_curlM_1[:,:,None] * der_F_1[:,None,:], kall,axis=0)
+
+    return dm2dn, der_dm2dn
+
+
+'''
+OLD VERSION
+def FM(kv,MassVector,cosmo_params,global_params,kcutoff,rhoM):
 
     Mm = MassVector[None,None,:]
     Rm = (3.*Mm/(4.*np.pi*rhoM))**(1/3.)
@@ -635,28 +736,42 @@ def FM(kv,MassVector,cosmo_params,global_params,kcutoff):
     k_2 = k[:, None, None]
     mu_val = mu[None,:,None]
 
-    P_k1 =  9/25. * (2*np.pi**2/kv**3) * cosmo_params.A_s * (kv/0.05)**(cosmo_params.POWER_INDEX - 1.) # 9/25 is already in the transfer function from CLASS
-    P_k2 =  9/25. * (2*np.pi**2/k_2**3) * cosmo_params.A_s * (k_2/0.05)**(cosmo_params.POWER_INDEX - 1.) # 9/25 is already in the transfer function from CLASS
+    Tphi = 3./5.
+    # Tphi = interp1d(kall, global_params.T_POTENTIAL_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)
+    Tm = interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)
+
+    P_k1 =  Tphi**2 * (2*np.pi**2/kv**3) * cosmo_params.A_s * (kv/0.05)**(cosmo_params.POWER_INDEX - 1.) 
+    P_k2 =  Tphi**2 * (2*np.pi**2/k_2**3) * cosmo_params.A_s * (k_2/0.05)**(cosmo_params.POWER_INDEX - 1.) 
 
     x2 = k_2*Rm
     Wm_k2 = 3.0*(np.sin(x2) - x2*np.cos(x2))/(x2)**3  # dimension k1, k2, mu, Mn, Mm
-    dWm_k2 =( 3 / np.power(x2, 2) * np.sin(x2) - 9 / np.power(x2, 4) * (np.sin(x2) - x2 * np.cos(x2)) )* (x2) / (3 * Mm)
+#    dWm_k2 =( 3 / np.power(x2, 2) * np.sin(x2) - 9 / np.power(x2, 4) * (np.sin(x2) - x2 * np.cos(x2)) )* (x2) / (3 * Mm)
+    dWm_k2 = 1./(3.*k_2**2*Mm*(Mm/rhoM)**(2/3.)) *\
+    (2.*6.**(2/3.)*k_2*np.pi**(1/3.)*(Mm/rhoM)**(1/3.)*np.cos(k_2*(3/np.pi)**(1/3.)*(Mm/rhoM)**(1./3)/2**(2./3)) + \
+    (-4.*6.**(1/3.)*np.pi**(2/3.)+3.*k_2**2*(Mm/rhoM)**(2./3.))*np.sin(k_2*(3/np.pi)**(1/3.)*(Mm/rhoM)**(1./3)/2**(2./3)))
 
-    Tm_k1 = - 5/3. * interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)(kv)
-    Tm_k2 = - 5/3. * interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)(k_2)
+    Tm_k1 = Tm(kv)/Tphi
+    Tm_k2 = Tm(k_2)/Tphi
+
+    Tm_k1[np.isnan(Tm_k1)]=0.
+    Tm_k2[np.isnan(Tm_k2)]=0.
 
     k_12 = np.sqrt(pow(kv,2)+pow(k_2,2) + 2*kv*k_2*mu_val)
      
-    Tm_k12 = - 5/3. * interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)(k_12)
+    Tm_k12 = Tm(k_12)/Tphi
+    Tm_k12[np.isnan(Tm_k12)]=0.
 
-    x12 = k_12 * (3.*MassVector[None,None,:]/(4.*np.pi*rhoM))**(1/3.)
+    x12 = k_12 * (3.*Mm/(4.*np.pi*rhoM))**(1/3.)
     sin_x12 = np.sin(x12)
     cos_x12 = np.cos(x12)
     Wm_k12 = 3.0*(sin_x12 - x12*cos_x12)/(x12)**3
 
-    dWm_k12 = (3 / np.power(x12, 2) * np.sin(x12) - 9 / np.power(x12, 4) * (np.sin(x12) - x12 * np.cos(x12))) * (x12) / (3 * Mm)
+    #dWm_k12 = (3 / np.power(x12, 2) * np.sin(x12) - 9 / np.power(x12, 4) * (np.sin(x12) - x12 * np.cos(x12))) * (x12) / (3 * Mm)
+    dWm_k12 = 1./(3.*k_12**2*Mm*(Mm/rhoM)**(2/3.)) *\
+    (2.*6.**(2/3.)*k_12*np.pi**(1/3.)*(Mm/rhoM)**(1/3.)*np.cos(k_12*(3/np.pi)**(1/3.)*(Mm/rhoM)**(1./3)/2**(2./3)) + \
+    (-4.*6.**(1/3.)*np.pi**(2/3.)+3.*k_12**2*(Mm/rhoM)**(2./3.))*np.sin(k_12*(3/np.pi)**(1/3.)*(Mm/rhoM)**(1./3)/2**(2./3)))
 
-    P_k12 =  9/25. * (2*np.pi**2/k_12**3) * cosmo_params.A_s * (k_12/0.05)**(cosmo_params.POWER_INDEX - 1.)
+    P_k12 = Tphi**2 * (2*np.pi**2/k_12**3) * cosmo_params.A_s * (k_12/0.05)**(cosmo_params.POWER_INDEX - 1.)
 
     integrand = k_2**2 * Wm_k2 * Tm_k2 * Wm_k12 * Tm_k12 * (P_k1 * P_k2 + P_k2 * P_k12 + P_k1 * P_k12)
     
@@ -687,7 +802,7 @@ def tpf(MassVector,cosmo_params,global_params,kcutoff):
     
     k_1 = k[:,None]
 
-    FM_function = lambda kv: FM(kv,MassVector=MassVector,cosmo_params=cosmo_params,global_params=global_params,kcutoff=kcutoff)
+    FM_function = lambda kv: FM(kv,MassVector=MassVector,cosmo_params=cosmo_params,global_params=global_params,kcutoff=kcutoff,rhoM=rhoM)
     temp = np.apply_along_axis(FM_function, axis=-1, arr=k_1)
     Fm = temp[:,0,:][:,None,:]
     dFm_dn2 = temp[:,1,:][:,None,:]
@@ -697,8 +812,11 @@ def tpf(MassVector,cosmo_params,global_params,kcutoff):
     Rn = (3.*Mn/(4.*np.pi*rhoM))**(1/3.)
     x1 = k_1*Rn
     Wn_k1 = 3.0*(np.sin(x1) - x1*np.cos(x1))/(x1)**3 
-    dWn_k1 = (3 / np.power(x1, 2) * np.sin(x1) - 9 / np.power(x1, 4) * (np.sin(x1) - x1 * np.cos(x1))) * (x1) / (3 * Mn)
-    
+    #dWn_k1 = (3 / np.power(x1, 2) * np.sin(x1) - 9 / np.power(x1, 4) * (np.sin(x1) - x1 * np.cos(x1))) * (x1) / (3 * Mn)
+    dWn_k1 = 1./(3.*k_1**2*Mn*(Mn/rhoM)**(2/3.)) *\
+    (2.*6.**(2/3.)*k_1*np.pi**(1/3.)*(Mn/rhoM)**(1/3.)*np.cos(k_1*(3/np.pi)**(1/3.)*(Mn/rhoM)**(1./3)/2**(2./3)) + \
+    (-4.*6.**(1/3.)*np.pi**(2/3.)+3.*k_1**2*(Mn/rhoM)**(2./3.))*np.sin(k_1*(3/np.pi)**(1/3.)*(Mn/rhoM)**(1./3)/2**(2./3)))
+
     integrand = k_1 ** 2 * Wn_k1 * Fm
 
     ddd = np.trapz(integrand,k,axis=0)
@@ -723,4 +841,8 @@ def tpf(MassVector,cosmo_params,global_params,kcutoff):
     der_ddd[np.triu_indices(len(MassVector), 1)] = der_dnm2[np.triu_indices(len(MassVector), 1)]
 
     return ddd, der_ddd
+
 # %%
+'''
+
+

@@ -10,7 +10,7 @@ static double mnarg1,mnarg2;
 (mnarg1) : (mnarg2))
 
 #define ERFC_NPTS (int) 75
-#define ERFC_PARAM_DELTA (float) 0.1
+#define ERFC_PARAM_DELTA (double) 0.1
 static double log_erfc_table[ERFC_NPTS], erfc_params[ERFC_NPTS];
 static gsl_interp_accel *erfc_acc;
 static gsl_spline *erfc_spline;
@@ -43,7 +43,7 @@ static gsl_spline *erfc_spline;
 #define Mhalo_min (double)(1e6)
 #define Mhalo_max (double)(1e16)
 
-float calibrated_NF_min;
+double calibrated_NF_min;
 
 double *deltaz, *deltaz_smoothed, *NeutralFractions, *z_Q, *Q_value, *nf_vals, *z_vals;
 int N_NFsamples,N_extrapolated, N_analytic, N_calibrated, N_deltaz;
@@ -63,23 +63,23 @@ struct FlagOptions *flag_options_ps;
 //double sigma_norm, R, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, R_CUTOFF, DEL_CURR, SIG_CURR;
 double sigma_norm, theta_cmb, omhh, z_equality, y_d, sound_horizon, alpha_nu, f_nu, f_baryon, beta_c, d2fact, R_CUTOFF, DEL_CURR, SIG_CURR;
 
-float MinMass, mass_bin_width, inv_mass_bin_width;
+double MinMass, mass_bin_width, inv_mass_bin_width;
 
-double sigmaparam_FgtrM_bias(float z, float sigsmallR, float del_bias, float sig_bias);
+double sigmaparam_FgtrM_bias(double z, double sigsmallR, double del_bias, double sig_bias);
 
-float *Mass_InterpTable, *Sigma_InterpTable, *dSigmadm_InterpTable;
+double *Mass_InterpTable, *Sigma_InterpTable, *dSigmadm_InterpTable;
 
-float *log10_overdense_spline_SFR, *log10_Nion_spline, *Overdense_spline_SFR, *Nion_spline;
-float *prev_log10_overdense_spline_SFR, *prev_log10_Nion_spline, *prev_Overdense_spline_SFR, *prev_Nion_spline;
-float *Mturns, *Mturns_MINI;
-float *log10_Nion_spline_MINI, *Nion_spline_MINI;
-float *prev_log10_Nion_spline_MINI, *prev_Nion_spline_MINI;
+double *log10_overdense_spline_SFR, *log10_Nion_spline, *Overdense_spline_SFR, *Nion_spline;
+double *prev_log10_overdense_spline_SFR, *prev_log10_Nion_spline, *prev_Overdense_spline_SFR, *prev_Nion_spline;
+double *Mturns, *Mturns_MINI;
+double *log10_Nion_spline_MINI, *Nion_spline_MINI;
+double *prev_log10_Nion_spline_MINI, *prev_Nion_spline_MINI;
 
-float *xi_SFR,*wi_SFR, *xi_SFR_Xray, *wi_SFR_Xray;
+double *xi_SFR,*wi_SFR, *xi_SFR_Xray, *wi_SFR_Xray;
 
-float *overdense_high_table, *overdense_low_table, *log10_overdense_low_table;
-float **log10_SFRD_z_low_table, **SFRD_z_high_table;
-float **log10_SFRD_z_low_table_MINI, **SFRD_z_high_table_MINI;
+double *overdense_high_table, *overdense_low_table, *log10_overdense_low_table;
+double **log10_SFRD_z_low_table, **SFRD_z_high_table;
+double **log10_SFRD_z_low_table_MINI, **SFRD_z_high_table_MINI;
 
 double *lnMhalo_param, *Muv_param, *Mhalo_param;
 double *log10phi, *M_uv_z, *M_h_z;
@@ -90,24 +90,24 @@ double *deriv, *lnM_temp, *deriv_temp;
 double *z_val, *z_X_val, *Nion_z_val, *SFRD_val;
 double *Nion_z_val_MINI, *SFRD_val_MINI;
 
-void initialiseSigmaMInterpTable(float M_Min, float M_Max);
+void initialiseSigmaMInterpTable(double M_Min, double M_Max);
 void freeSigmaMInterpTable();
-void initialiseGL_Nion(int n, float M_Min, float M_Max);
-void initialiseGL_Nion_Xray(int n, float M_Min, float M_Max);
+void initialiseGL_Nion(int n, double M_Min, double M_Max);
+void initialiseGL_Nion_Xray(int n, double M_Min, double M_Max);
 
-float Mass_limit (float logM, float PL, float FRAC);
-void bisection(float *x, float xlow, float xup, int *iter);
-float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC);
+double Mass_limit (double logM, double PL, double FRAC);
+void bisection(double *x, double xlow, double xup, int *iter);
+double Mass_limit_bisection(double Mmin, double Mmax, double PL, double FRAC);
 
 double sheth_delc(double del, double sig);
-double dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2 ,float z);  // JordanFlitter: added redshift argument
+double dNdM_conditional(double growthf, double M1, double M2, double delta1, double delta2, double sigma2 ,double z);  // JordanFlitter: added redshift argument
 double dNion_ConditionallnM(double lnM, void *params);
 double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, double z); // JordanFlitter: added redshift argument
 double dNion_ConditionallnM_MINI(double lnM, void *params);
 double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double MassTurnover_upper, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, double z); // JordanFlitter: added redshift argument
 
-float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES, float z); // JordanFlitter: added redshift argument
-float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float MassTurnover_upper, float Alpha_star, float Alpha_esc, float Fstar7_MINI, float Fesc7_MINI, float Mlim_Fstar_MINI, float Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES, float z); // JordanFlitter: added redshift argument
+double GaussLegendreQuad_Nion(int Type, int n, double growthf, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, double z); // JordanFlitter: added redshift argument
+double GaussLegendreQuad_Nion_MINI(int Type, int n, double growthf, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double MassTurnover_upper, double Alpha_star, double Alpha_esc, double Fstar7_MINI, double Fesc7_MINI, double Mlim_Fstar_MINI, double Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES, double z); // JordanFlitter: added redshift argument
 
 
 //JBM: Exact integral for power-law indices non zero (for zero it's erfc)
@@ -120,14 +120,14 @@ double dSDGF_BARYONS_dz(double z,double k);
 double dSDGF_SDM_dz(double z,double k);
 
 // JordanFlitter: 2D linear interpolation for sigma(M,z)
-float sigma_linear_2D_interpolation(float M, float z);
+double sigma_linear_2D_interpolation(double M, double z);
 
 // SarahLibanore : three point functions required in Fcoll NG corrections 
-float three_point_delta_interpolation(float Mn, float Mm);
-float three_point_delta_derivative_interpolation(float Mn, float Mm);
+double three_point_delta_interpolation(double Mn, double Mm);
+double three_point_delta_derivative_interpolation(double Mn, double Mm);
 
 // JordanFlitter: numerical derivative for sigma^2(M,z)
-float sigma_sq_numerical_derivative(float M, float z);
+double sigma_sq_numerical_derivative(double M, double z);
 
 int n_redshifts_1DTable;
 double zmin_1DTable, zmax_1DTable, zbin_width_1DTable;
@@ -201,13 +201,13 @@ struct parameters_gsl_SFR_con_int_{
 unsigned long *lvector(long nl, long nh);
 void free_lvector(unsigned long *v, long nl, long nh);
 
-float *vector(long nl, long nh);
-void free_vector(float *v, long nl, long nh);
+double *vector(long nl, long nh);
+void free_vector(double *v, long nl, long nh);
 
-void spline(float x[], float y[], int n, float yp1, float ypn, float y2[]);
-void splint(float xa[], float ya[], float y2a[], int n, float x, float *y);
+void spline(double x[], double y[], int n, double yp1, double ypn, double y2[]);
+void splint(double xa[], double ya[], double y2a[], int n, double x, double *y);
 
-void gauleg(float x1, float x2, float x[], float w[], int n);
+void gauleg(double x1, double x2, double x[], double w[], int n);
 
 /*****     FUNCTION PROTOTYPES     *****/
 double init_ps(); /* initialize global variables, MUST CALL THIS FIRST!!! returns R_CUTOFF */
@@ -230,7 +230,7 @@ double FgtrM_Watson(double growthf, double M, double z); // JordanFlitter: added
 double FgtrM_Watson_z(double z, double growthf, double M);
 double FgtrM_General(double z, double M);
 
-float erfcc(float x);
+double erfcc(double x);
 double splined_erfc(double x);
 
 double M_J_WDM();
@@ -256,8 +256,11 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
 {
     // JordanFlitter: we work now with the logarithm of k (this improves precision)
     static double log10_kclass[CLASS_LENGTH], Tmclass[CLASS_LENGTH], Tvclass_vcb[CLASS_LENGTH];
+    // static double Tphiclass[CLASS_LENGTH]; // SarahLibanore, fnl
     static gsl_interp_accel *acc_density, *acc_vcb;
+    // static gsl_interp_accel *acc_phi; // SarahLibanore, fnl
     static gsl_spline *spline_density, *spline_vcb;
+    // static gsl_spline *spline_phi; // SarahLibanore, fnl
     double ans;
     int gsl_status;
 
@@ -271,6 +274,7 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         for (size_t i = 0; i < CLASS_LENGTH; i++) {
             log10_kclass[i] = global_params.LOG_K_ARR_FOR_TRANSFERS[i];
             Tmclass[i] = global_params.T_M0_TRANSFER[i];
+            // Tphiclass[i] = global_params.T_POTENTIAL_TRANSFER[i]; // SarahLibanore, fnl
             Tvclass_vcb[i] = global_params.T_VCB_KIN_TRANSFER[i];
             if (user_params_ps->SCATTERING_DM && user_params_ps->USE_SDM_FLUCTS){
                 Tclass_xe_high[i] = 0.; // JordanFlitterTODO: fill with values once you have transfer functions
@@ -285,8 +289,11 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         gsl_set_error_handler_off();
         // Set up spline table for densities
         acc_density   = gsl_interp_accel_alloc ();
+        // acc_phi   = gsl_interp_accel_alloc (); // SarahLibanore, fnl
         spline_density  = gsl_spline_alloc (gsl_interp_cspline, CLASS_LENGTH);
+        // spline_phi  = gsl_spline_alloc (gsl_interp_cspline, CLASS_LENGTH); // SarahLibanore, fnl
         gsl_status = gsl_spline_init(spline_density, log10_kclass, Tmclass, CLASS_LENGTH);
+        // gsl_status = gsl_spline_init(spline_phi, log10_kclass, Tphiclass, CLASS_LENGTH); // SarahLibanore, fnl
         GSL_ERROR(gsl_status);
         LOG_SUPER_DEBUG("Generated CLASS Density Spline.");
 
@@ -339,6 +346,8 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
     }
     else if (flag_int == -1) {
         gsl_spline_free (spline_density);
+        // gsl_spline_free (spline_phi); // SarahLibanore, fnl
+        // gsl_spline_free (acc_phi); // SarahLibanore, fnl
         gsl_interp_accel_free(acc_density);      
         gsl_spline_free (spline_vcb);
         gsl_interp_accel_free(acc_vcb);
@@ -383,6 +392,9 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         else if(flag_dv == 5){ // output is V_chi_b_high
             return (Tclass_V_chi_b_high[CLASS_LENGTH-1]/kclass_max/kclass_max);
         }
+        // else if(flag_dv == 6){ // SarahLibanore, fnl, output is potential
+        //     return (Tphiclass[CLASS_LENGTH-1]);
+        // }
     }
     else { // Do spline
         // JordanFlitter: we work now with the logarithm of k (this improves precision)
@@ -404,6 +416,10 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         else if(flag_dv == 5){ // output is V_chi_b_high
             ans = gsl_spline_eval (spline_V_chi_b_high, log10_k, acc_V_chi_b_high);
         }
+        // else if(flag_dv == 6){ // SarahLibanore, fnl, output is potential
+        //     ans = gsl_spline_eval (spline_phi, log10_k, acc_phi);
+        //     ans *= pow(k,2);
+        // }
         else{
             ans=0.0; //neither densities not velocities?
         }
@@ -679,7 +695,9 @@ double power_in_k_potential(double k){
     else
     // this is the primordial potential transfer function
     // defined with 9/25 because the convention is to define it in matter domination
-        { p =  (9/25.) *cosmo_params_ps->A_s * pow(k/0.05, cosmo_params_ps->POWER_INDEX-1) /pow(k,3)*pow(k,4);}
+    // using potential transfer function instead of 9/25
+        { p = 9./25. *cosmo_params_ps->A_s * pow(k/0.05, cosmo_params_ps->POWER_INDEX-1) /pow(k,3);}
+        // { p = pow(TF_CLASS(k, 1, 6),2) *cosmo_params_ps->A_s * pow(k/0.05, cosmo_params_ps->POWER_INDEX-1) /pow(k,3);}
     
     return p * TWOPI * PI ; }
 
@@ -987,12 +1005,12 @@ double dNdM_st(double growthf, double M, double z){ // JordanFlitter: added reds
 
     double sigma, dsigmadm, nuhat;
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     if(user_params_ps->USE_INTERPOLATION_TABLES) {
         MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
 
         // JordanFlitter: added 2D interpolation to sigma(M,z) and its derivative
         if (user_params_ps->EVOLVE_MATTER){
@@ -1034,12 +1052,12 @@ double dNdM_WatsonFOF(double growthf, double M, double z){ // JordanFlitter: add
 
     double sigma, dsigmadm, f_sigma;
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     if(user_params_ps->USE_INTERPOLATION_TABLES) {
         MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
 
         // JordanFlitter: added 2D interpolation to sigma(M,z) and its derivative
         if (user_params_ps->EVOLVE_MATTER){
@@ -1079,12 +1097,12 @@ double dNdM_WatsonFOF(double growthf, double M, double z){ // JordanFlitter: add
 double dNdM_WatsonFOF_z(double z, double growthf, double M){
 
     double sigma, dsigmadm, A_z, alpha_z, beta_z, Omega_m_z, f_sigma;
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     if(user_params_ps->USE_INTERPOLATION_TABLES) {
         MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
 
         // JordanFlitter: added 2D interpolation to sigma(M,z) and its derivative
         if (user_params_ps->EVOLVE_MATTER){
@@ -1129,12 +1147,12 @@ double dNdM_WatsonFOF_z(double z, double growthf, double M){
  */
 double dNdM(double growthf, double M, double z){ // JordanFlitter: added redshift argument
     double sigma, dsigmadm;
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     if(user_params_ps->USE_INTERPOLATION_TABLES) {
         MassBin = (int)floor( (log(M) - MinMass )*inv_mass_bin_width );
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
 
         // JordanFlitter: added 2D interpolation to sigma(M,z) and its derivative
         if (user_params_ps->EVOLVE_MATTER){
@@ -1577,7 +1595,7 @@ double M_J_WDM(){
     return fudge*3.06e8 * (1.5/global_params.g_x) * sqrt((cosmo_params_ps->OMm-cosmo_params_ps->OMb)*cosmo_params_ps->hlittle*cosmo_params_ps->hlittle/0.15) * pow(global_params.M_WDM, -4) * pow(z_eq/3000.0, 1.5);
 }
 
-float erfcc(float x)
+double erfcc(double x)
 {
     double t,q,ans;
 
@@ -1603,7 +1621,7 @@ double splined_erfc(double x){
         return exp(gsl_spline_eval(erfc_spline, x, erfc_acc));
 }
 
-void gauleg(float x1, float x2, float x[], float w[], int n)
+void gauleg(double x1, double x2, double x[], double w[], int n)
 //Given the lower and upper limits of integration x1 and x2, and given n, this routine returns arrays x[1..n] and w[1..n] of length n,
 //containing the abscissas and weights of the Gauss- Legendre n-point quadrature formula.
 {
@@ -1644,22 +1662,22 @@ void gauleg(float x1, float x2, float x[], float w[], int n)
     }
 }
 
-void initialiseSigmaMInterpTable(float M_Min, float M_Max)
+void initialiseSigmaMInterpTable(double M_Min, double M_Max)
 {
     int i;
-    float Mass;
+    double Mass;
 
     if (Mass_InterpTable == NULL){
-      Mass_InterpTable = calloc(NMass,sizeof(float));
-      Sigma_InterpTable = calloc(NMass,sizeof(float));
-      dSigmadm_InterpTable = calloc(NMass,sizeof(float));
+      Mass_InterpTable = calloc(NMass,sizeof(double));
+      Sigma_InterpTable = calloc(NMass,sizeof(double));
+      dSigmadm_InterpTable = calloc(NMass,sizeof(double));
     }
 
 #pragma omp parallel shared(Mass_InterpTable,Sigma_InterpTable,dSigmadm_InterpTable) private(i) num_threads(user_params_ps->N_THREADS)
     {
 #pragma omp for
         for(i=0;i<NMass;i++) {
-            Mass_InterpTable[i] = log(M_Min) + (float)i/(NMass-1)*( log(M_Max) - log(M_Min) );
+            Mass_InterpTable[i] = log(M_Min) + (double)i/(NMass-1)*( log(M_Max) - log(M_Min) );
             Sigma_InterpTable[i] = sigma_z0(exp(Mass_InterpTable[i]),0.); // JordanFlitter: added redshift argument (only z=0 for now)
             dSigmadm_InterpTable[i] = log10(-dsigmasqdm_z0(exp(Mass_InterpTable[i]),0.)); // JordanFlitter: added redshift argument (only z=0 for now)
         }
@@ -1694,22 +1712,22 @@ void nrerror(char error_text[])
     Throw(MemoryAllocError);
 }
 
-float *vector(long nl, long nh)
+double *vector(long nl, long nh)
 /* allocate a float vector with subscript range v[nl..nh] */
 {
-    float *v;
-    v = (float *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(float)));
+    double *v;
+    v = (double *)malloc((size_t) ((nh-nl+1+NR_END)*sizeof(double)));
     if(!v) nrerror("allocation failure in vector()");
     return v - nl + NR_END;
 }
 
-void free_vector(float *v, long nl, long nh)
-/* free a float vector allocated with vector() */
+void free_vector(double *v, long nl, long nh)
+/* free a double vector allocated with vector() */
 {
     free((FREE_ARG) (v+nl-NR_END));
 }
 
-void spline(float x[], float y[], int n, float yp1, float ypn, float y2[])
+void spline(double x[], double y[], int n, double yp1, double ypn, double y2[])
 /*Given arrays x[1..n] and y[1..n] containing a tabulated function, i.e., yi = f(xi), with
  x1 <x2 < :: : < xN, and given values yp1 and ypn for the first derivative of the interpolating
  function at points 1 and n, respectively, this routine returns an array y2[1..n] that contains
@@ -1718,7 +1736,7 @@ void spline(float x[], float y[], int n, float yp1, float ypn, float y2[])
  condition for a natural spline, with zero second derivative on that boundary.*/
 {
     int i,k;
-    float p,qn,sig,un,*u;
+    double p,qn,sig,un,*u;
     int na,nb,check;
     u=vector(1,n-1);
     if (yp1 > 0.99e30)                     // The lower boundary condition is set either to be "natural"
@@ -1732,7 +1750,7 @@ void spline(float x[], float y[], int n, float yp1, float ypn, float y2[])
         na = 1;
         nb = 1;
         check = 0;
-        while(((float)(x[i+na*1]-x[i-nb*1])==(float)0.0)) {
+        while(((double)(x[i+na*1]-x[i-nb*1])==(double)0.0)) {
             check = check + 1;
             if(check%2==0) {
                 na = na + 1;
@@ -1747,11 +1765,11 @@ void spline(float x[], float y[], int n, float yp1, float ypn, float y2[])
         u[i]=(y[i+1]-y[i])/(x[i+1]-x[i]) - (y[i]-y[i-1])/(x[i]-x[i-1]);
         u[i]=(6.0*u[i]/(x[i+1]-x[i-1])-sig*u[i-1])/p;
 
-        if(((float)(x[i+1]-x[i])==(float)0.0) || ((float)(x[i]-x[i-1])==(float)0.0)) {
+        if(((double)(x[i+1]-x[i])==(double)0.0) || ((double)(x[i]-x[i-1])==(double)0.0)) {
             na = 0;
             nb = 0;
             check = 0;
-            while((float)(x[i+na*1]-x[i-nb])==(float)(0.0) || ((float)(x[i+na]-x[i-nb*1])==(float)0.0)) {
+            while((double)(x[i+na*1]-x[i-nb])==(double)(0.0) || ((double)(x[i+na]-x[i-nb*1])==(double)0.0)) {
                 check = check + 1;
                 if(check%2==0) {
                     na = na + 1;
@@ -1781,14 +1799,14 @@ void spline(float x[], float y[], int n, float yp1, float ypn, float y2[])
 }
 
 
-void splint(float xa[], float ya[], float y2a[], int n, float x, float *y)
+void splint(double xa[], double ya[], double y2a[], int n, double x, double *y)
 /*Given the arrays xa[1..n] and ya[1..n], which tabulate a function (with the xai's in order),
  and given the array y2a[1..n], which is the output from spline above, and given a value of
  x, this routine returns a cubic-spline interpolated value y.*/
 {
     void nrerror(char error_text[]);
     int klo,khi,k;
-    float h,b,a;
+    double h,b,a;
     klo=1;                                                  // We will find the right place in the table by means of
     khi=n;                                                  //bisection. This is optimal if sequential calls to this
     while (khi-klo > 1) {                                   //routine are at random values of x. If sequential calls
@@ -1820,7 +1838,7 @@ void free_lvector(unsigned long *v, long nl, long nh)
 
 
 /* dnbiasdM */
-double dnbiasdM(double M, float z, double M_o, float del_o){
+double dnbiasdM(double M, double z, double M_o, double del_o){
     double sigsq, del, sig_one, sig_o;
 
     if ((M_o-M) < TINY){
@@ -1860,7 +1878,7 @@ double FgtrM_bias(double z, double M, double del_bias, double sig_bias){
 }
 
 /* Uses sigma parameters instead of Mass for scale */
-double sigmaparam_FgtrM_bias(float z, float sigsmallR, float del_bias, float sig_bias){
+double sigmaparam_FgtrM_bias(double z, double sigsmallR, double del_bias, double sig_bias){
     double del, sig;
 
     if (!(sig_bias < sigsmallR)){ // biased region is smaller that halo!
@@ -1877,7 +1895,7 @@ double sigmaparam_FgtrM_bias(float z, float sigsmallR, float del_bias, float sig
 
 /* redshift derivative of the growth function at z */
 double ddicke_dz(double z){
-    float dz = 1e-3; // JordanFlitter: I changed that from 1e-10 to 1e-3
+    double dz = 1e-3; // JordanFlitter: I changed that from 1e-10 to 1e-3
     double omegaM_z, ddickdz, dick_0, x, x_0, domegaMdz;
 
     return (dicke(z+dz)-dicke(z))/dz;
@@ -1885,14 +1903,14 @@ double ddicke_dz(double z){
 
 /* // JordanFlitter: redshift derivative of the scale dependent growth function at z (baryons)*/
 double dSDGF_BARYONS_dz(double z,double k){
-    float dz = 1e-3;
+    double dz = 1e-3;
 
     return (SDGF_BARYONS(z+dz,k,0)-SDGF_BARYONS(z,k,0))/dz;
 }
 
 /* // JordanFlitter: redshift derivative of the scale dependent growth function at z (SDM)*/
 double dSDGF_SDM_dz(double z,double k){
-    float dz = 1e-3;
+    double dz = 1e-3;
 
     return (SDGF_SDM(z+dz,k,0)-SDGF_SDM(z,k,0))/dz;
 }
@@ -1900,18 +1918,18 @@ double dSDGF_SDM_dz(double z,double k){
 
 
 /* compute a mass limit where the stellar baryon fraction and the escape fraction exceed unity */
-float Mass_limit (float logM, float PL, float FRAC) {
+double Mass_limit (double logM, double PL, double FRAC) {
     return FRAC*pow(pow(10.,logM)/1e10,PL);
 }
-void bisection(float *x, float xlow, float xup, int *iter){
+void bisection(double *x, double xlow, double xup, int *iter){
     *x=(xlow + xup)/2.;
     ++(*iter);
 }
 
-float Mass_limit_bisection(float Mmin, float Mmax, float PL, float FRAC){
+double Mass_limit_bisection(double Mmin, double Mmax, double PL, double FRAC){
     int i, iter, max_iter=200;
-    float rel_tol=0.001;
-    float logMlow, logMupper, x, x1;
+    double rel_tol=0.001;
+    double logMlow, logMupper, x, x1;
     iter = 0;
     logMlow = log10(Mmin);
     logMupper = log10(Mmax);
@@ -1987,7 +2005,7 @@ void cleanup_ComputeLF(){
 }
 
 int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cosmo_params, struct AstroParams *astro_params,
-               struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, float *z_LF, float *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi) {
+               struct FlagOptions *flag_options, int component, int NUM_OF_REDSHIFT_FOR_LF, double *z_LF, double *M_TURNs, double *M_uv_z, double *M_h_z, double *log10phi) {
     /*
         This is an API-level function and thus returns an int status.
     */
@@ -2002,7 +2020,7 @@ int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cos
     double  dlnMhalo, lnMhalo_i, SFRparam, Muv_1, Muv_2, dMuvdMhalo;
     double Mhalo_i, lnMhalo_min, lnMhalo_max, lnMhalo_lo, lnMhalo_hi, dlnM, growthf;
     double f_duty_upper, Mcrit_atom;
-    float Fstar, Fstar_temp;
+    double Fstar, Fstar_temp;
     double dndm;
     int gsl_status;
 
@@ -2195,31 +2213,36 @@ int ComputeLF(int nbins, struct UserParams *user_params, struct CosmoParams *cos
 
 }
 
-void initialiseGL_Nion_Xray(int n, float M_Min, float M_Max){
+void initialiseGL_Nion_Xray(int n, double M_Min, double M_Max){
     //calculates the weightings and the positions for Gauss-Legendre quadrature.
     gauleg(log(M_Min),log(M_Max),xi_SFR_Xray,wi_SFR_Xray,n);
 }
 
-double dNdM_conditional(float growthf, float M1, float M2, float delta1, float delta2, float sigma2, float z){  // JordanFlitter: added redshift argument
+double dNdM_conditional(double growthf, double M1, double M2, double delta1, double delta2, double sigma2, double z){  // JordanFlitter: added redshift argument
 
     double sigma1, dsigmadm, dsigma_val;
     // SarahLibanore : quantity used to simplify the expressions
     double deltagrowth_diff, sigma_diff, dfcoll_dMmin_EPS;
     // SarahLibanore : quantity used to model the NG corrections
-    double dfcoll, dfcoll_dMmin_NG, A, B, dA_dMmin, dB_dMmin;
-    double Cval, dC_dMmin;
+    double dfcoll, dfcoll_dMmin_NG;
+    double A, B, dA_dMmin, dB_dMmin, Cval, dC_dMmin;
     double delta_n3, delta_m3, delta_m2delta_n, delta_mdelta_n2; 
     double ddelta_n3_dMmin, ddelta_m2delta_n_dMin, ddelta_mdelta_n2_dMin; 
-    double cothD, val, sumterm, dsumterm;
-    double dfdS, ddfdSdM, term, one, two, termC;
+    // double cothD, val, sumterm, dsumterm;
+    // double dfdS, ddfdSdM, term, one, two, termC;
+    double expval, derexp, term1, term2, term3;
+    double dterm1, dterm1_1, dterm1_2;
+    double dterm2, dterm2_1, dterm2_2;
+    double dterm3;
+    double term_dAL2, dterm_dAL2, coth, valDA, dterm2_DA, num_12, den_12;
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     if(user_params_ps->USE_INTERPOLATION_TABLES) {
         MassBin = (int)floor( (M1 - MinMass )*inv_mass_bin_width );
 
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
 
         // JordanFlitter: added 2D interpolation to sigma(M,z) and its derivative
         if (user_params_ps->EVOLVE_MATTER){
@@ -2245,79 +2268,129 @@ double dNdM_conditional(float growthf, float M1, float M2, float delta1, float d
 
     // SarahLibanore : define to simplify notation
     deltagrowth_diff = ( delta1 - delta2 )/growthf;
+    
+    if (sigma2 == 0.)
+        {return 0.;}
     if (sigma1 < sigma2)
         {return 0.;}
     else if (sigma1 > sigma2)
         {sigma_diff = sigma1 - sigma2;}
-    else if (sigma1==sigma2)
-        {sigma_diff = 1.e-6;
-        }
+
+    if (sigma_diff < 1E-10)
+        {sigma_diff = 1E-10;
+    }       
 
     // SarahLibanore : in the old version of the code the 1/sqrt(2pi) of the gaussian case was used in other functions, I moved it here
-    dfcoll_dMmin_EPS = (-(deltagrowth_diff)*dsigmadm *( exp( - pow( deltagrowth_diff, 2 )/( 2.*sigma_diff ) ) )/(pow(sigma_diff, 1.5)))/sqrt(TWOPI) ;
+    dfcoll_dMmin_EPS = ((deltagrowth_diff)*dsigmadm *( exp( - pow( deltagrowth_diff, 2 )/( 2.*sigma_diff ) ) )/(pow(sigma_diff, 1.5)))/sqrt(TWOPI) ;
    
     // SarahLibanore : implementation of the derivative of the NG corrections in Eq 5 in 1304.8049
-    if (user_params_ps->NON_GAUSS_FCOLL & !cosmo_params_ps->F_NL == 0.){
-            if (deltagrowth_diff == 0){
+    if (user_params_ps->NON_GAUSS_FCOLL && cosmo_params_ps->F_NL != 0.){
+            if (delta1 / growthf <= delta2 && user_params_ps->NG_MODEL_APPROX){
+                dfcoll_dMmin_NG = 0.;  }
+            
+            else if (pow(delta1 / growthf,2) < sigma2 && user_params_ps->NG_MODEL_APPROX){
                 dfcoll_dMmin_NG = 0.;
             }
             else{
-                // the three point function is computed from table at z = 0 and it must be scaled compared with sigma_0
-                delta_n3 = three_point_delta_interpolation(M1,M1); // diagonal on the matrix
-                delta_m3 = three_point_delta_interpolation(M2,M2);   // diagonal on the matrix
-                delta_m2delta_n = three_point_delta_interpolation(M1,M2); // upper triangular
-                delta_mdelta_n2 = three_point_delta_interpolation(M2,M1); // lower triangular
+            // the three point function is computed from table at z = 0 and it must be scaled compared with sigma_0
+            delta_n3 = three_point_delta_interpolation(M1,M1); // diagonal on the matrix
+            delta_m3 = three_point_delta_interpolation(M2,M2);   // diagonal on the matrix
+            delta_m2delta_n = three_point_delta_interpolation(M1,M2); // upper triangular
+            delta_mdelta_n2 = three_point_delta_interpolation(M2,M1); // lower triangular
 
-                ddelta_n3_dMmin = three_point_delta_derivative_interpolation(M1,M1); // diagonal in the matrix
-                ddelta_m2delta_n_dMin = three_point_delta_derivative_interpolation(M1,M2); // upper triangular
-                ddelta_mdelta_n2_dMin = three_point_delta_derivative_interpolation(M2,M1); // lower triangular
+            ddelta_n3_dMmin = three_point_delta_derivative_interpolation(M1,M1); // diagonal in the matrix
+            ddelta_m2delta_n_dMin = three_point_delta_derivative_interpolation(M1,M2); // upper triangular
+            ddelta_mdelta_n2_dMin = three_point_delta_derivative_interpolation(M2,M1); // lower triangular
 
-                A = (delta_n3 - delta_m3 + 3.*delta_m2delta_n - 3.*delta_mdelta_n2) ;
-                B = (delta_m3 + delta_mdelta_n2 - 2*delta_m2delta_n) ;
-                Cval = delta_m2delta_n - delta_m3; 
+            A = (delta_n3 - delta_m3 + 3.*delta_m2delta_n - 3.*delta_mdelta_n2);            
+            dA_dMmin = (ddelta_n3_dMmin + 3.*ddelta_m2delta_n_dMin - 3.*ddelta_mdelta_n2_dMin);
+            B = (delta_m3 + delta_mdelta_n2 - 2*delta_m2delta_n) ;
+            dB_dMmin = (ddelta_mdelta_n2_dMin - 2.*ddelta_m2delta_n_dMin) ;
 
-                dA_dMmin = (ddelta_n3_dMmin + 3.*ddelta_m2delta_n_dMin - 3.*ddelta_mdelta_n2_dMin);
-                dB_dMmin = (ddelta_mdelta_n2_dMin - 2.*ddelta_m2delta_n_dMin) ;
+            expval = exp(- pow(deltagrowth_diff,2)/2./sigma_diff);
+            derexp = expval * (-pow(deltagrowth_diff/sigma_diff,2)/2.) * dsigmadm;
+
+            term1 = A / 3 / sqrt(TWOPI) / pow(sigma_diff,3./2.) * (pow(deltagrowth_diff,2)/ sigma_diff - 1.);
+
+            if (user_params_ps->NG_MODEL_APPROX)
+                {term_dAL2 = 1.;
+                term3 = 0.;
+                dterm3 = 0.;}
+            else
+                {valDA = delta1 / growthf * D / sigma2;
+                coth = 1./tanh(valDA);
+                term_dAL2 = D * coth;
+                
+                Cval = delta_m2delta_n - delta_m3;
                 dC_dMmin = ddelta_m2delta_n_dMin ;
 
-                dfdS = (deltagrowth_diff/sqrt(TWOPI)/pow(sigma_diff,3/2.)) * exp(-pow(deltagrowth_diff,2)/2./sigma_diff);
+                term3 = Cval / pow(sigma2,2) / sqrt(TWOPI) * (pow(delta2,2) - sigma2 - 2*delta1*D*(coth -1)) / sqrt(sigma_diff) ;
 
-                ddfdSdM = dfdS * dsigmadm / 2. / sigma_diff * (pow(deltagrowth_diff,2.)/sigma_diff - 3.);
+                dterm3 = - dsigmadm * Cval / pow(sigma2,2) / sqrt(TWOPI) * (pow(delta2,2) - sigma2 - 2*delta1*D*(coth -1)) / 2./ pow(sigma_diff,3./2.);
+                }
 
-                // DERIVATIVE OF THE EXPRESSION IN D'ALOSIO 
-
-                if (user_params_ps->NG_MODEL_APPROX)
-                    {cothD = 1.;
-                    termC = - sigma_diff / sigma2 / deltagrowth_diff;
-                    }
-                else
-                    {val = delta1 / growthf * deltagrowth_diff / sigma2 ;
-                    cothD =  1+2/(exp(2*val) -1); 
-                    termC = - sigma_diff / pow(sigma2,2) / deltagrowth_diff * (-sigma_diff + pow(delta2/growthf,2) -2*delta1/growthf*deltagrowth_diff*(-1+cothD));
-                    }
+            term2 = ( delta1 / growthf - term_dAL2 ) * (D/sqrt(TWOPI)/pow(sigma_diff,3./2.)) * B/sigma2;
             
-            term = delta1 / growthf - deltagrowth_diff * cothD;
+            dterm1_1 = - pow(deltagrowth_diff/sigma_diff,2) * dsigmadm;
+
+            dterm1_2 = dA_dMmin / pow(sigma_diff, 3./2.) - dsigmadm * A * (3./2.) / pow(sigma_diff,5./2.) ;
+
+            num_12 = (sigma_diff * dA_dMmin - 1.5 * A * dsigmadm);
+            den_12 = pow(sigma_diff, 5./2.);
+            dterm1_2 = num_12 / den_12 ;
+
+            dterm1 =  1. / 3 / sqrt(TWOPI) * (A / pow(sigma_diff,3./2.) * dterm1_1 + (pow(deltagrowth_diff,2)/ sigma_diff - 1.) * dterm1_2) ;
+            
+            dterm2_1 = dB_dMmin / pow(sigma_diff,3./2.) ;
+            
+            dterm2_2 = - dsigmadm * B / pow(sigma_diff,5./2.) * (3./2.);
+
+            dterm2_DA = 0.;
+
+            dterm2 = deltagrowth_diff / sqrt(TWOPI) / sigma2 *( (delta1 / growthf - term_dAL2)  * (dterm2_1 + dterm2_2) - dterm2_DA * B / pow(sigma_diff, 3./2.)) ;
+
+            dfcoll_dMmin_NG = derexp * (term1 + term2 + term3) + expval * (dterm1 + dterm2 + dterm3);
+
+        // OLD VERSION
+        //         
+        //     dfdS = (deltagrowth_diff/sqrt(TWOPI)/pow(sigma_diff,3/2.)) * exp(-pow(deltagrowth_diff,2)/2./sigma_diff);
+
+        //     ddfdSdM = dfdS * dsigmadm / 2. / sigma_diff * (pow(deltagrowth_diff,2.)/sigma_diff - 3.);
+
+        //     // DERIVATIVE OF THE EXPRESSION IN D'ALOSIO 
+
+        //     if (user_params_ps->NG_MODEL_APPROX)
+        //         {cothD = 1.;
+        //         termC = - sigma_diff / sigma2 / deltagrowth_diff;
+        //         }
+        //     else
+        //         {val = delta1 / growthf * deltagrowth_diff / sigma2 ;
+        //         cothD =  1+2/(exp(2*val) -1); 
+        //         termC = - sigma_diff / pow(sigma2,2) / deltagrowth_diff * (-sigma_diff + pow(delta2/growthf,2) -2*delta1/growthf*deltagrowth_diff*(-1+cothD));
+        //         }
         
-            one = A / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B / sigma2 * term;
-        
-            two = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + dB_dMmin / sigma2 * term ;
-        
-            dfcoll_dMmin_NG = - (ddfdSdM * (one + Cval * termC) + dfdS * (two + dC_dMmin * termC));
-            if (dfcoll_dMmin_NG < 1E-50){
-                dfcoll_dMmin_NG = 0.;
-            }
-            }   
-        }
+        // term = delta1 / growthf - deltagrowth_diff * cothD;
+    
+        // one = A / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B / sigma2 * term;
+    
+        // two = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + dB_dMmin / sigma2 * term ;
+    
+        // dfcoll_dMmin_NG = - (ddfdSdM * (one + Cval * termC) + dfdS * (two + dC_dMmin * termC));
+        } 
+      }
 
     else{dfcoll_dMmin_NG = 0.;}
 
-    dfcoll = dfcoll_dMmin_EPS + dfcoll_dMmin_NG ;
+    dfcoll = - (dfcoll_dMmin_EPS + dfcoll_dMmin_NG) ;
+    if (dfcoll < 1E-50){
+        dfcoll = 0.;
+    }
 
     return dfcoll ;
     
 }
 
-void initialiseGL_Nion(int n, float M_Min, float M_Max){
+void initialiseGL_Nion(int n, double M_Min, double M_Max){
     //calculates the weightings and the positions for Gauss-Legendre quadrature.
     gauleg(log(M_Min),log(M_Max),xi_SFR,wi_SFR,n);
 
@@ -2403,7 +2476,7 @@ double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma
 
   if (FAST_FCOLL_TABLES) { //JBM: Fast tables. Assume sharp Mturn, not exponential cutoff.
 
-      return GaussLegendreQuad_Nion_MINI(0, 0, (float) growthf, (float) M2, (float) sigma2, (float) delta1, (float) delta2, (float) MassTurnover, (float) MassTurnover_upper, (float) Alpha_star, (float) Alpha_esc, (float) Fstar10, (float) Fesc10, (float) Mlim_Fstar, (float) Mlim_Fesc, FAST_FCOLL_TABLES, (float) z); // JordanFlitter: added redshift argument
+      return GaussLegendreQuad_Nion_MINI(0, 0, (double) growthf, (double) M2, (double) sigma2, (double) delta1, (double) delta2, (double) MassTurnover, (double) MassTurnover_upper, (double) Alpha_star, (double) Alpha_esc, (double) Fstar10, (double) Fesc10, (double) Mlim_Fstar, (double) Mlim_Fesc, FAST_FCOLL_TABLES, (double) z); // JordanFlitter: added redshift argument
   }
   else{ //standard old code
     double result, error, lower_limit, upper_limit;
@@ -2470,7 +2543,7 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
 
   if (FAST_FCOLL_TABLES && global_params.USE_FAST_ATOMIC) { //JBM: Fast tables. Assume sharp Mturn, not exponential cutoff.
 
-    return GaussLegendreQuad_Nion(0, 0, (float) growthf, (float) M2, (float) sigma2, (float) delta1, (float) delta2, (float) MassTurnover, (float) Alpha_star, (float) Alpha_esc, (float) Fstar10, (float) Fesc10, (float) Mlim_Fstar, (float) Mlim_Fesc, FAST_FCOLL_TABLES, (float) z); // JordanFlitter: added redshift argument
+    return GaussLegendreQuad_Nion(0, 0, (double) growthf, (double) M2, (double) sigma2, (double) delta1, (double) delta2, (double) MassTurnover, (double) Alpha_star, (double) Alpha_esc, (double) Fstar10, (double) Fesc10, (double) Mlim_Fstar, (double) Mlim_Fesc, FAST_FCOLL_TABLES, (double) z); // JordanFlitter: added redshift argument
 
   }
   else{ //standard
@@ -2532,24 +2605,24 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
 }
 
 
-float Nion_ConditionallnM_GL_MINI(float lnM, struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con){
-    float M = exp(lnM);
-    float z = parameters_gsl_SFR_con.z_obs; // JordanFlitter: added redshift argument
-    float growthf = parameters_gsl_SFR_con.gf_obs;
-    float M2 = parameters_gsl_SFR_con.Mval;
-    float sigma2 = parameters_gsl_SFR_con.sigma2;
-    float del1 = parameters_gsl_SFR_con.delta1;
-    float del2 = parameters_gsl_SFR_con.delta2;
-    float MassTurnover = parameters_gsl_SFR_con.Mdrop;
-    float MassTurnover_upper = parameters_gsl_SFR_con.Mdrop_upper;
-    float Alpha_star = parameters_gsl_SFR_con.pl_star;
-    float Alpha_esc = parameters_gsl_SFR_con.pl_esc;
-    float Fstar7_MINI = parameters_gsl_SFR_con.frac_star;
-    float Fesc7_MINI = parameters_gsl_SFR_con.frac_esc;
-    float Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
-    float Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
+double Nion_ConditionallnM_GL_MINI(double lnM, struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con){
+    double M = exp(lnM);
+    double z = parameters_gsl_SFR_con.z_obs; // JordanFlitter: added redshift argument
+    double growthf = parameters_gsl_SFR_con.gf_obs;
+    double M2 = parameters_gsl_SFR_con.Mval;
+    double sigma2 = parameters_gsl_SFR_con.sigma2;
+    double del1 = parameters_gsl_SFR_con.delta1;
+    double del2 = parameters_gsl_SFR_con.delta2;
+    double MassTurnover = parameters_gsl_SFR_con.Mdrop;
+    double MassTurnover_upper = parameters_gsl_SFR_con.Mdrop_upper;
+    double Alpha_star = parameters_gsl_SFR_con.pl_star;
+    double Alpha_esc = parameters_gsl_SFR_con.pl_esc;
+    double Fstar7_MINI = parameters_gsl_SFR_con.frac_star;
+    double Fesc7_MINI = parameters_gsl_SFR_con.frac_esc;
+    double Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
+    double Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
 
-    float Fstar,Fesc;
+    double Fstar,Fesc;
 
     if (Alpha_star > 0. && M > Mlim_Fstar)
         Fstar = 1./Fstar7_MINI;
@@ -2568,23 +2641,23 @@ float Nion_ConditionallnM_GL_MINI(float lnM, struct parameters_gsl_SFR_con_int_ 
     return M*exp(-MassTurnover/M)*exp(-M/MassTurnover_upper)*Fstar*Fesc*dNdM_conditional(growthf,log(M),M2,del1,del2,sigma2,z);  // JordanFlitter: added redshift argument
 }
 
-float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con){
-    float M = exp(lnM);
-    float z = parameters_gsl_SFR_con.z_obs; // JordanFlitter: added redshift argument
-    float growthf = parameters_gsl_SFR_con.gf_obs;
-    float M2 = parameters_gsl_SFR_con.Mval;
-    float sigma2 = parameters_gsl_SFR_con.sigma2;
-    float del1 = parameters_gsl_SFR_con.delta1;
-    float del2 = parameters_gsl_SFR_con.delta2;
-    float MassTurnover = parameters_gsl_SFR_con.Mdrop;
-    float Alpha_star = parameters_gsl_SFR_con.pl_star;
-    float Alpha_esc = parameters_gsl_SFR_con.pl_esc;
-    float Fstar10 = parameters_gsl_SFR_con.frac_star;
-    float Fesc10 = parameters_gsl_SFR_con.frac_esc;
-    float Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
-    float Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
+double Nion_ConditionallnM_GL(double lnM, struct parameters_gsl_SFR_con_int_ parameters_gsl_SFR_con){
+    double M = exp(lnM);
+    double z = parameters_gsl_SFR_con.z_obs; // JordanFlitter: added redshift argument
+    double growthf = parameters_gsl_SFR_con.gf_obs;
+    double M2 = parameters_gsl_SFR_con.Mval;
+    double sigma2 = parameters_gsl_SFR_con.sigma2;
+    double del1 = parameters_gsl_SFR_con.delta1;
+    double del2 = parameters_gsl_SFR_con.delta2;
+    double MassTurnover = parameters_gsl_SFR_con.Mdrop;
+    double Alpha_star = parameters_gsl_SFR_con.pl_star;
+    double Alpha_esc = parameters_gsl_SFR_con.pl_esc;
+    double Fstar10 = parameters_gsl_SFR_con.frac_star;
+    double Fesc10 = parameters_gsl_SFR_con.frac_esc;
+    double Mlim_Fstar = parameters_gsl_SFR_con.LimitMass_Fstar;
+    double Mlim_Fesc = parameters_gsl_SFR_con.LimitMass_Fesc;
 
-    float Fstar,Fesc;
+    double Fstar,Fesc;
 
     if (Alpha_star > 0. && M > Mlim_Fstar)
         Fstar = 1./Fstar10;
@@ -2607,7 +2680,7 @@ float Nion_ConditionallnM_GL(float lnM, struct parameters_gsl_SFR_con_int_ param
 
 
 //JBM: Same as above but for minihaloes. Has two cutoffs, lower and upper.
-float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float MassTurnover_upper, float Alpha_star, float Alpha_esc, float Fstar7_MINI, float Fesc7_MINI, float Mlim_Fstar_MINI, float Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES, float z) { // JordanFlitter: added redshift argument
+double GaussLegendreQuad_Nion_MINI(int Type, int n, double growthf, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double MassTurnover_upper, double Alpha_star, double Alpha_esc, double Fstar7_MINI, double Fesc7_MINI, double Mlim_Fstar_MINI, double Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES, double z) { // JordanFlitter: added redshift argument
 
     double result, nu_lower_limit, nu_higher_limit, nupivot;
     int i;
@@ -2753,7 +2826,7 @@ float GaussLegendreQuad_Nion_MINI(int Type, int n, float growthf, float M2, floa
     }
 }
 //JBM: Added the approximation if user_params->FAST_FCOLL_TABLES==True
-float GaussLegendreQuad_Nion(int Type, int n, float growthf, float M2, float sigma2, float delta1, float delta2, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES, float z) { // JordanFlitter: added redshift argument
+double GaussLegendreQuad_Nion(int Type, int n, double growthf, double M2, double sigma2, double delta1, double delta2, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES, double z) { // JordanFlitter: added redshift argument
     //Performs the Gauss-Legendre quadrature.
     int i;
 
@@ -2894,16 +2967,16 @@ double Fcollapprox (double numin, double beta){
   return gg*pow(2,0.5+beta)*pow(2.0*PI,-0.5);
 }
 
-void initialise_Nion_General_spline(float z, float min_density, float max_density, float Mmax, float MassTurnover, float Alpha_star, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, bool FAST_FCOLL_TABLES){
+void initialise_Nion_General_spline(double z, double min_density, double max_density, double Mmax, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, bool FAST_FCOLL_TABLES){
 
 
-    float Mmin = MassTurnover/50.;
+    double Mmin = MassTurnover/50.;
     double overdense_val, growthf, sigma2;
     double overdense_large_high = Deltac, overdense_large_low = global_params.CRIT_DENS_TRANSITION*0.999;
     double overdense_small_high, overdense_small_low;
     int i;
 
-    float ln_10;
+    double ln_10;
 
     if(max_density > global_params.CRIT_DENS_TRANSITION*1.001) {
         overdense_small_high = global_params.CRIT_DENS_TRANSITION*1.001;
@@ -2915,7 +2988,7 @@ void initialise_Nion_General_spline(float z, float min_density, float max_densit
 
     ln_10 = log(10);
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     growthf = dicke(z);
@@ -2925,7 +2998,7 @@ void initialise_Nion_General_spline(float z, float min_density, float max_densit
 
     MassBin = (int)floor( ( Mmax - MinMass )*inv_mass_bin_width );
 
-    MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+    MassBinLow = MinMass + mass_bin_width*(double)MassBin;
 
     // JordanFlitter: added 2D interpolation to sigma(M,z)
     if (user_params_ps->EVOLVE_MATTER){
@@ -2969,7 +3042,7 @@ void initialise_Nion_General_spline(float z, float min_density, float max_densit
     {
 #pragma omp for
         for(i=0;i<NSFR_high;i++) {
-            Overdense_spline_SFR[i] = overdense_large_low + (float)i/((float)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
+            Overdense_spline_SFR[i] = overdense_large_low + (double)i/((double)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
             Nion_spline[i] = Nion_ConditionalM(growthf,Mmin,Mmax,sigma2,Deltac,Overdense_spline_SFR[i],MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc, FAST_FCOLL_TABLES, z); // JordanFlitter: added redshift argument
 
             if(Nion_spline[i]<0.) {
@@ -2987,14 +3060,14 @@ void initialise_Nion_General_spline(float z, float min_density, float max_densit
     }
 }
 
-void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_density, float max_density, float Mmax, float Mmin, float log10Mturn_min, float log10Mturn_max, float log10Mturn_min_MINI, float log10Mturn_max_MINI, float Alpha_star, float Alpha_star_mini, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, float Fstar7_MINI, float Fesc7_MINI, float Mlim_Fstar_MINI, float Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES){
+void initialise_Nion_General_spline_MINI(double z, double Mcrit_atom, double min_density, double max_density, double Mmax, double Mmin, double log10Mturn_min, double log10Mturn_max, double log10Mturn_min_MINI, double log10Mturn_max_MINI, double Alpha_star, double Alpha_star_mini, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, double Fstar7_MINI, double Fesc7_MINI, double Mlim_Fstar_MINI, double Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES){
 
     double growthf, sigma2;
     double overdense_large_high = Deltac, overdense_large_low = global_params.CRIT_DENS_TRANSITION*0.999;
     double overdense_small_high, overdense_small_low;
     int i,j;
 
-    float ln_10;
+    double ln_10;
 
     if(max_density > global_params.CRIT_DENS_TRANSITION*1.001) {
         overdense_small_high = global_params.CRIT_DENS_TRANSITION*1.001;
@@ -3006,7 +3079,7 @@ void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_de
 
     ln_10 = log(10);
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     growthf = dicke(z);
@@ -3016,7 +3089,7 @@ void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_de
 
     MassBin = (int)floor( ( Mmax - MinMass )*inv_mass_bin_width );
 
-    MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+    MassBinLow = MinMass + mass_bin_width*(double)MassBin;
     // JordanFlitter: added 2D interpolation to sigma(M,z)
     if (user_params_ps->EVOLVE_MATTER){
         sigma2 = sigma_linear_2D_interpolation(exp(Mmax),z)/dicke(z);
@@ -3029,11 +3102,11 @@ void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_de
         log10_overdense_spline_SFR[i] = log10(1. + overdense_small_low) + (double)i/((double)NSFR_low-1.)*(log10(1.+overdense_small_high)-log10(1.+overdense_small_low));
     }
     for (i=0;i<NSFR_high;i++) {
-        Overdense_spline_SFR[i] = overdense_large_low + (float)i/((float)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
+        Overdense_spline_SFR[i] = overdense_large_low + (double)i/((double)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
     }
     for (i=0;i<NMTURN;i++){
-        Mturns[i] = pow(10., log10Mturn_min + (float)i/((float)NMTURN-1.)*(log10Mturn_max-log10Mturn_min));
-        Mturns_MINI[i] = pow(10., log10Mturn_min_MINI + (float)i/((float)NMTURN-1.)*(log10Mturn_max_MINI-log10Mturn_min_MINI));
+        Mturns[i] = pow(10., log10Mturn_min + (double)i/((double)NMTURN-1.)*(log10Mturn_max-log10Mturn_min));
+        Mturns_MINI[i] = pow(10., log10Mturn_min_MINI + (double)i/((double)NMTURN-1.)*(log10Mturn_max_MINI-log10Mturn_min_MINI));
     }
 
 #pragma omp parallel shared(log10_Nion_spline,growthf,Mmax,sigma2,log10_overdense_spline_SFR,Mturns,Mturns_MINI,\
@@ -3134,14 +3207,14 @@ void initialise_Nion_General_spline_MINI(float z, float Mcrit_atom, float min_de
     }
 }
 
-void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float min_density, float max_density, float Mmax, float Mmin, float log10Mturn_min, float log10Mturn_max, float log10Mturn_min_MINI, float log10Mturn_max_MINI, float Alpha_star, float Alpha_star_mini, float Alpha_esc, float Fstar10, float Fesc10, float Mlim_Fstar, float Mlim_Fesc, float Fstar7_MINI, float Fesc7_MINI, float Mlim_Fstar_MINI, float Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES){
+void initialise_Nion_General_spline_MINI_prev(double z, double Mcrit_atom, double min_density, double max_density, double Mmax, double Mmin, double log10Mturn_min, double log10Mturn_max, double log10Mturn_min_MINI, double log10Mturn_max_MINI, double Alpha_star, double Alpha_star_mini, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc, double Fstar7_MINI, double Fesc7_MINI, double Mlim_Fstar_MINI, double Mlim_Fesc_MINI, bool FAST_FCOLL_TABLES){
 
     double growthf, sigma2;
     double overdense_large_high = Deltac, overdense_large_low = global_params.CRIT_DENS_TRANSITION*0.999;
     double overdense_small_high, overdense_small_low;
     int i,j;
 
-    float ln_10;
+    double ln_10;
 
     if(max_density > global_params.CRIT_DENS_TRANSITION*1.001) {
         overdense_small_high = global_params.CRIT_DENS_TRANSITION*1.001;
@@ -3153,7 +3226,7 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
 
     ln_10 = log(10);
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     growthf = dicke(z);
@@ -3163,7 +3236,7 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
 
     MassBin = (int)floor( ( Mmax - MinMass )*inv_mass_bin_width );
 
-    MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+    MassBinLow = MinMass + mass_bin_width*(double)MassBin;
     // JordanFlitter: added 2D interpolation to sigma(M,z)
     if (user_params_ps->EVOLVE_MATTER){
         sigma2 = sigma_linear_2D_interpolation(exp(Mmax),z)/dicke(z);
@@ -3176,11 +3249,11 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
         prev_log10_overdense_spline_SFR[i] = log10(1. + overdense_small_low) + (double)i/((double)NSFR_low-1.)*(log10(1.+overdense_small_high)-log10(1.+overdense_small_low));
     }
     for (i=0;i<NSFR_high;i++) {
-        prev_Overdense_spline_SFR[i] = overdense_large_low + (float)i/((float)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
+        prev_Overdense_spline_SFR[i] = overdense_large_low + (double)i/((double)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
     }
     for (i=0;i<NMTURN;i++){
-        Mturns[i] = pow(10., log10Mturn_min + (float)i/((float)NMTURN-1.)*(log10Mturn_max-log10Mturn_min));
-        Mturns_MINI[i] = pow(10., log10Mturn_min_MINI + (float)i/((float)NMTURN-1.)*(log10Mturn_max_MINI-log10Mturn_min_MINI));
+        Mturns[i] = pow(10., log10Mturn_min + (double)i/((double)NMTURN-1.)*(log10Mturn_max-log10Mturn_min));
+        Mturns_MINI[i] = pow(10., log10Mturn_min_MINI + (double)i/((double)NMTURN-1.)*(log10Mturn_max_MINI-log10Mturn_min_MINI));
     }
 
 #pragma omp parallel shared(prev_log10_Nion_spline,growthf,Mmax,sigma2,prev_log10_overdense_spline_SFR,Mturns,Alpha_star,Alpha_star_mini,\
@@ -3279,12 +3352,12 @@ void initialise_Nion_General_spline_MINI_prev(float z, float Mcrit_atom, float m
 }
 
 void initialise_Nion_Ts_spline(
-    int Nbin, float zmin, float zmax, float MassTurn, float Alpha_star, float Alpha_esc,
-    float Fstar10, float Fesc10
+    int Nbin, double zmin, double zmax, double MassTurn, double Alpha_star, double Alpha_esc,
+    double Fstar10, double Fesc10
 ){
     int i;
-    float Mmin = MassTurn/50., Mmax = global_params.M_MAX_INTEGRAL;
-    float Mlim_Fstar, Mlim_Fesc;
+    double Mmin = MassTurn/50., Mmax = global_params.M_MAX_INTEGRAL;
+    double Mlim_Fstar, Mlim_Fesc;
 
     if (z_val == NULL){
       z_val = calloc(Nbin,sizeof(double));
@@ -3313,12 +3386,12 @@ void initialise_Nion_Ts_spline(
 }
 
 void initialise_Nion_Ts_spline_MINI(
-    int Nbin, float zmin, float zmax, float Alpha_star, float Alpha_star_mini, float Alpha_esc, float Fstar10,
-    float Fesc10, float Fstar7_MINI, float Fesc7_MINI
+    int Nbin, double zmin, double zmax, double Alpha_star, double Alpha_star_mini, double Alpha_esc, double Fstar10,
+    double Fesc10, double Fstar7_MINI, double Fesc7_MINI
 ){
     int i,j;
-    float Mmin = global_params.M_MIN_INTEGRAL, Mmax = global_params.M_MAX_INTEGRAL;
-    float Mlim_Fstar, Mlim_Fesc, Mlim_Fstar_MINI, Mlim_Fesc_MINI, Mcrit_atom_val;
+    double Mmin = global_params.M_MIN_INTEGRAL, Mmax = global_params.M_MAX_INTEGRAL;
+    double Mlim_Fstar, Mlim_Fesc, Mlim_Fstar_MINI, Mlim_Fesc_MINI, Mcrit_atom_val;
 
     if (z_val == NULL){
       z_val = calloc(Nbin,sizeof(double));
@@ -3330,9 +3403,9 @@ void initialise_Nion_Ts_spline_MINI(
     Mlim_Fesc = Mass_limit_bisection(Mmin, Mmax, Alpha_esc, Fesc10);
     Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
     Mlim_Fesc_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_esc, Fesc7_MINI * pow(1e3, Alpha_esc));
-    float MassTurnover[NMTURN];
+    double MassTurnover[NMTURN];
     for (i=0;i<NMTURN;i++){
-        MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (float)i/((float)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
+        MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (double)i/((double)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
     }
 
 #pragma omp parallel shared(z_val,Nion_z_val,Nbin,zmin,zmax,Mmin,Alpha_star,Alpha_star_mini,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc,\
@@ -3371,10 +3444,10 @@ void initialise_Nion_Ts_spline_MINI(
 }
 
 
-void initialise_SFRD_spline(int Nbin, float zmin, float zmax, float MassTurn, float Alpha_star, float Fstar10){
+void initialise_SFRD_spline(int Nbin, double zmin, double zmax, double MassTurn, double Alpha_star, double Fstar10){
     int i;
-    float Mmin = MassTurn/50., Mmax = global_params.M_MAX_INTEGRAL;
-    float Mlim_Fstar;
+    double Mmin = MassTurn/50., Mmax = global_params.M_MAX_INTEGRAL;
+    double Mlim_Fstar;
 
     if (z_X_val == NULL){
       z_X_val = calloc(Nbin,sizeof(double));
@@ -3401,10 +3474,10 @@ void initialise_SFRD_spline(int Nbin, float zmin, float zmax, float MassTurn, fl
     }
 }
 
-void initialise_SFRD_spline_MINI(int Nbin, float zmin, float zmax, float Alpha_star, float Alpha_star_mini, float Fstar10, float Fstar7_MINI){
+void initialise_SFRD_spline_MINI(int Nbin, double zmin, double zmax, double Alpha_star, double Alpha_star_mini, double Fstar10, double Fstar7_MINI){
     int i,j;
-    float Mmin = global_params.M_MIN_INTEGRAL, Mmax = global_params.M_MAX_INTEGRAL;
-    float Mlim_Fstar, Mlim_Fstar_MINI, Mcrit_atom_val;
+    double Mmin = global_params.M_MIN_INTEGRAL, Mmax = global_params.M_MAX_INTEGRAL;
+    double Mlim_Fstar, Mlim_Fstar_MINI, Mcrit_atom_val;
 
     if (z_X_val == NULL){
       z_X_val = calloc(Nbin,sizeof(double));
@@ -3415,9 +3488,9 @@ void initialise_SFRD_spline_MINI(int Nbin, float zmin, float zmax, float Alpha_s
     Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, Alpha_star, Fstar10);
     Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
 
-    float MassTurnover[NMTURN];
+    double MassTurnover[NMTURN];
     for (i=0;i<NMTURN;i++){
-        MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (float)i/((float)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
+        MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (double)i/((double)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
     }
 
 #pragma omp parallel shared(z_X_val,zmin,zmax,Nbin,SFRD_val,Mmin, Alpha_star,Alpha_star_mini,Fstar10,Mlim_Fstar,\
@@ -3456,18 +3529,18 @@ void initialise_SFRD_spline_MINI(int Nbin, float zmin, float zmax, float Alpha_s
 }
 
 void initialise_SFRD_Conditional_table(
-    int Nfilter, float min_density[], float max_density[], float growthf[], float R[],
-    float MassTurnover, float Alpha_star, float Fstar10, bool FAST_FCOLL_TABLES, float redshifts [] // JordanFlitter: added redshift argument
+    int Nfilter, double min_density[], double max_density[], double growthf[], double R[],
+    double MassTurnover, double Alpha_star, double Fstar10, bool FAST_FCOLL_TABLES, double redshifts [] // JordanFlitter: added redshift argument
 ){
 
     double overdense_val;
     double overdense_large_high = Deltac, overdense_large_low = global_params.CRIT_DENS_TRANSITION;
     double overdense_small_high, overdense_small_low;
 
-    float Mmin,Mmax,Mlim_Fstar,sigma2;
+    double Mmin,Mmax,Mlim_Fstar,sigma2;
     int i,j,k,i_tot;
 
-    float ln_10;
+    double ln_10;
 
     ln_10 = log(10);
 
@@ -3478,10 +3551,10 @@ void initialise_SFRD_Conditional_table(
     Mmin = log(Mmin);
 
     for (i=0; i<NSFR_high;i++) {
-        overdense_high_table[i] = overdense_large_low + (float)i/((float)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
+        overdense_high_table[i] = overdense_large_low + (double)i/((double)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
     }
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     for (j=0; j < Nfilter; j++) {
@@ -3493,7 +3566,7 @@ void initialise_SFRD_Conditional_table(
         Mmax = log(Mmax);
         MassBin = (int)floor( ( Mmax - MinMass )*inv_mass_bin_width );
 
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
         // JordanFlitter: added 2D interpolation to sigma(M,z)
         if (user_params_ps->EVOLVE_MATTER){
             sigma2 = sigma_linear_2D_interpolation(exp(Mmax),redshifts[j])/dicke(redshifts[j]);
@@ -3514,7 +3587,7 @@ void initialise_SFRD_Conditional_table(
         }
 
         for (i=0; i<NSFR_low; i++) {
-            overdense_val = log10(1. + overdense_small_low) + (float)i/((float)NSFR_low-1.)*(log10(1.+overdense_small_high)-log10(1.+overdense_small_low));
+            overdense_val = log10(1. + overdense_small_low) + (double)i/((double)NSFR_low-1.)*(log10(1.+overdense_small_high)-log10(1.+overdense_small_low));
             overdense_low_table[i] = pow(10.,overdense_val);
         }
 
@@ -3565,18 +3638,18 @@ void initialise_SFRD_Conditional_table(
 }
 
 void initialise_SFRD_Conditional_table_MINI(
-    int Nfilter, float min_density[], float max_density[], float growthf[], float R[],
-    float Mcrit_atom[], float Alpha_star, float Alpha_star_mini, float Fstar10, float Fstar7_MINI, bool FAST_FCOLL_TABLES, float redshifts [] // JordanFlitter: added redshift argument
+    int Nfilter, double min_density[], double max_density[], double growthf[], double R[],
+    double Mcrit_atom[], double Alpha_star, double Alpha_star_mini, double Fstar10, double Fstar7_MINI, bool FAST_FCOLL_TABLES, double redshifts [] // JordanFlitter: added redshift argument
 ){
 
     double overdense_val;
     double overdense_large_high = Deltac, overdense_large_low = global_params.CRIT_DENS_TRANSITION;
     double overdense_small_high, overdense_small_low;
 
-    float Mmin,Mmax,Mlim_Fstar,sigma2,Mlim_Fstar_MINI;
+    double Mmin,Mmax,Mlim_Fstar,sigma2,Mlim_Fstar_MINI;
     int i,j,k,i_tot;
 
-    float ln_10;
+    double ln_10;
 
     ln_10 = log(10);
 
@@ -3585,18 +3658,18 @@ void initialise_SFRD_Conditional_table_MINI(
     Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, Alpha_star, Fstar10);
     Mlim_Fstar_MINI = Mass_limit_bisection(Mmin, Mmax, Alpha_star_mini, Fstar7_MINI * pow(1e3, Alpha_star_mini));
 
-    float MassTurnover[NMTURN];
+    double MassTurnover[NMTURN];
     for (i=0;i<NMTURN;i++){
-        MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (float)i/((float)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
+        MassTurnover[i] = pow(10., LOG10_MTURN_MIN + (double)i/((double)NMTURN-1.)*(LOG10_MTURN_MAX-LOG10_MTURN_MIN));
     }
 
     Mmin = log(Mmin);
 
     for (i=0; i<NSFR_high;i++) {
-        overdense_high_table[i] = overdense_large_low + (float)i/((float)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
+        overdense_high_table[i] = overdense_large_low + (double)i/((double)NSFR_high-1.)*(overdense_large_high - overdense_large_low);
     }
 
-    float MassBinLow;
+    double MassBinLow;
     int MassBin;
 
     for (j=0; j < Nfilter; j++) {
@@ -3608,7 +3681,7 @@ void initialise_SFRD_Conditional_table_MINI(
         Mmax = log(Mmax);
         MassBin = (int)floor( ( Mmax - MinMass )*inv_mass_bin_width );
 
-        MassBinLow = MinMass + mass_bin_width*(float)MassBin;
+        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
         // JordanFlitter: added 2D interpolation to sigma(M,z)
         if (user_params_ps->EVOLVE_MATTER){
             sigma2 = sigma_linear_2D_interpolation(exp(Mmax),redshifts[j])/dicke(redshifts[j]);
@@ -3629,7 +3702,7 @@ void initialise_SFRD_Conditional_table_MINI(
         }
 
         for (i=0; i<NSFR_low; i++) {
-            overdense_val = log10(1. + overdense_small_low) + (float)i/((float)NSFR_low-1.)*(log10(1.+overdense_small_high)-log10(1.+overdense_small_low));
+            overdense_val = log10(1. + overdense_small_low) + (double)i/((double)NSFR_low-1.)*(log10(1.+overdense_small_high)-log10(1.+overdense_small_low));
             overdense_low_table[i] = pow(10.,overdense_val);
         }
 
@@ -3757,7 +3830,7 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
     //	    When Q ~ 0.98, the difference is ~25%. To increase accuracy one can reduce the step size 'da', but it will increase computing time.
     //     (2) With the fiducial parameter set,
     //     the difference for the redshift where the reionization end (Q = 1) is ~0.2 % compared with accurate calculation.
-    float ION_EFF_FACTOR,M_MIN,M_MIN_z0,M_MIN_z1,Mlim_Fstar, Mlim_Fesc;
+    double ION_EFF_FACTOR,M_MIN,M_MIN_z0,M_MIN_z1,Mlim_Fstar, Mlim_Fesc;
     double a_start = 0.03, a_end = 1./(1. + global_params.PhotonConsEndCalibz); // Scale factors of 0.03 and 0.17 correspond to redshifts of ~32 and ~5.0, respectively.
     double C_HII = 3., T_0 = 2e4;
     double reduce_ratio = 1.003;
@@ -3837,12 +3910,12 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
             else {
                 //set the minimum source mass
                 if (astro_params->ION_Tvir_MIN < 9.99999e3) { // neutral IGM
-                    M_MIN_z0 = (float)TtoM(z0, astro_params->ION_Tvir_MIN, mu_b_neutral);  //JordanFlitter: I changed the constant value to the general case
-                    M_MIN_z1 = (float)TtoM(z1, astro_params->ION_Tvir_MIN, mu_b_neutral);
+                    M_MIN_z0 = (double)TtoM(z0, astro_params->ION_Tvir_MIN, mu_b_neutral);  //JordanFlitter: I changed the constant value to the general case
+                    M_MIN_z1 = (double)TtoM(z1, astro_params->ION_Tvir_MIN, mu_b_neutral);
                 }
                 else { // ionized IGM
-                    M_MIN_z0 = (float)TtoM(z0, astro_params->ION_Tvir_MIN, mu_b_ionized);  //JordanFlitter: I changed the constant value to the general case
-                    M_MIN_z1 = (float)TtoM(z1, astro_params->ION_Tvir_MIN, mu_b_ionized);
+                    M_MIN_z0 = (double)TtoM(z0, astro_params->ION_Tvir_MIN, mu_b_ionized);  //JordanFlitter: I changed the constant value to the general case
+                    M_MIN_z1 = (double)TtoM(z1, astro_params->ION_Tvir_MIN, mu_b_ionized);
                 }
 
                 if(M_MIN_z0 < M_MIN_z1) {
@@ -4016,8 +4089,8 @@ void determine_deltaz_for_photoncons() {
 
     int i, j, increasing_val, counter, smoothing_int;
     double temp;
-    float z_cal, z_analytic, NF_sample, returned_value, NF_sample_min, gradient_analytic, z_analytic_at_endpoint, const_offset, z_analytic_2, smoothing_width;
-    float bin_width, delta_NF, val1, val2, extrapolated_value;
+    double z_cal, z_analytic, NF_sample, returned_value, NF_sample_min, gradient_analytic, z_analytic_at_endpoint, const_offset, z_analytic_2, smoothing_width;
+    double bin_width, delta_NF, val1, val2, extrapolated_value;
 
     LOG_DEBUG("Determining deltaz for photon cons.");
 
@@ -4045,10 +4118,10 @@ void determine_deltaz_for_photoncons() {
         // point close to zero neutral fraction (set by global_params.PhotonConsAsymptoteTo)
         // Choice is to get the delta neutral fraction between extrapolated points to be similar to the cadence in the exact correction
         if(calibrated_NF_min > global_params.PhotonConsAsymptoteTo) {
-            N_extrapolated = ((float)N_NFsamples - 1.)*(NF_sample_min - calibrated_NF_min)/( global_params.PhotonConsStart - NF_sample_min );
+            N_extrapolated = ((double)N_NFsamples - 1.)*(NF_sample_min - calibrated_NF_min)/( global_params.PhotonConsStart - NF_sample_min );
         }
         else {
-            N_extrapolated = ((float)N_NFsamples - 1.)*(NF_sample_min - global_params.PhotonConsAsymptoteTo)/( global_params.PhotonConsStart - NF_sample_min );
+            N_extrapolated = ((double)N_NFsamples - 1.)*(NF_sample_min - global_params.PhotonConsAsymptoteTo)/( global_params.PhotonConsStart - NF_sample_min );
         }
         N_extrapolated = (int)floor( N_extrapolated ) - 1; // Minus one as the zero point is added below
     }
@@ -4060,7 +4133,7 @@ void determine_deltaz_for_photoncons() {
     }
 
     // Determine the bin width for the sampling of the neutral fraction for the correction
-    bin_width = ( global_params.PhotonConsStart - NF_sample_min )/((float)N_NFsamples - 1.);
+    bin_width = ( global_params.PhotonConsStart - NF_sample_min )/((double)N_NFsamples - 1.);
 
     // allocate memory for arrays required to determine the photon non-conservation correction
     deltaz = calloc(N_NFsamples + N_extrapolated + 1,sizeof(double));
@@ -4070,7 +4143,7 @@ void determine_deltaz_for_photoncons() {
     // Go through and fill the data points (neutral fraction and corresponding delta z between the calibrated and analytic curves).
     for(i=0;i<N_NFsamples;i++) {
 
-        NF_sample = NF_sample_min + bin_width*(float)i;
+        NF_sample = NF_sample_min + bin_width*(double)i;
 
         // Determine redshift given a neutral fraction for the calibration curve
         z_at_NFHist(NF_sample,&(temp));
@@ -4153,13 +4226,13 @@ void determine_deltaz_for_photoncons() {
         // If performing extrapolation, add in all the extrapolated points between the end-point and the threshold to end the correction (global_params.PhotonConsEnd)
         for(i=0;i<N_extrapolated;i++) {
             if(calibrated_NF_min > global_params.PhotonConsAsymptoteTo) {
-                NeutralFractions[i+1] = calibrated_NF_min + (NF_sample_min - calibrated_NF_min)*(float)(i+1)/((float)N_extrapolated + 1.);
+                NeutralFractions[i+1] = calibrated_NF_min + (NF_sample_min - calibrated_NF_min)*(double)(i+1)/((double)N_extrapolated + 1.);
             }
             else {
-                NeutralFractions[i+1] = global_params.PhotonConsAsymptoteTo + (NF_sample_min - global_params.PhotonConsAsymptoteTo)*(float)(i+1)/((float)N_extrapolated + 1.);
+                NeutralFractions[i+1] = global_params.PhotonConsAsymptoteTo + (NF_sample_min - global_params.PhotonConsAsymptoteTo)*(double)(i+1)/((double)N_extrapolated + 1.);
             }
 
-            deltaz[i+1] = deltaz[0] + ( deltaz[1+N_extrapolated] - deltaz[0] )*(float)(i+1)/((float)N_extrapolated + 1.);
+            deltaz[i+1] = deltaz[0] + ( deltaz[1+N_extrapolated] - deltaz[0] )*(double)(i+1)/((double)N_extrapolated + 1.);
         }
     }
 
@@ -4270,14 +4343,14 @@ void determine_deltaz_for_photoncons() {
             // Average (filter) over the delta z values to smooth the result
             counter = 0;
             for(j=0;j<(int)smoothing_width;j++) {
-                if(((i - (int)floor((float)smoothing_int/2.) + j)>=0) && ((i - (int)floor((float)smoothing_int/2.) + j) <= (N_NFsamples + N_extrapolated + 1)) && counter < smoothing_int ) {
+                if(((i - (int)floor((double)smoothing_int/2.) + j)>=0) && ((i - (int)floor((double)smoothing_int/2.) + j) <= (N_NFsamples + N_extrapolated + 1)) && counter < smoothing_int ) {
 
-                    deltaz[i] += deltaz_smoothed[i - (int)floor((float)smoothing_int/2.) + j];
+                    deltaz[i] += deltaz_smoothed[i - (int)floor((double)smoothing_int/2.) + j];
                     counter += 1;
 
                 }
             }
-            deltaz[i] /= (float)counter;
+            deltaz[i] /= (double)counter;
         }
 
     }
@@ -4296,14 +4369,14 @@ void determine_deltaz_for_photoncons() {
 }
 
 
-float adjust_redshifts_for_photoncons(
-    struct AstroParams *astro_params, struct FlagOptions *flag_options, float *redshift,
-    float *stored_redshift, float *absolute_delta_z
+double adjust_redshifts_for_photoncons(
+    struct AstroParams *astro_params, struct FlagOptions *flag_options, double *redshift,
+    double *stored_redshift, double *absolute_delta_z
 ) {
 
     int i, new_counter;
     double temp;
-    float required_NF, adjusted_redshift, future_z, gradient_extrapolation, const_extrapolation, temp_redshift, check_required_NF;
+    double required_NF, adjusted_redshift, future_z, gradient_extrapolation, const_extrapolation, temp_redshift, check_required_NF;
 
     LOG_DEBUG("Adjusting redshifts for photon cons.");
 
@@ -4319,7 +4392,7 @@ float adjust_redshifts_for_photoncons(
 
     // Determine the neutral fraction (filling factor) of the analytic calibration expression given the current sampled redshift
     Q_at_z(*redshift, &(temp));
-    required_NF = 1.0 - (float)temp;
+    required_NF = 1.0 - (double)temp;
 
     // Find which redshift we need to sample in order for the calibration reionisation history to match the analytic expression
     if(required_NF > global_params.PhotonConsStart) {
@@ -4355,7 +4428,7 @@ float adjust_redshifts_for_photoncons(
                     temp_redshift = ((1. + temp_redshift)*global_params.ZPRIME_STEP_FACTOR - 1.);
 
                     Q_at_z(temp_redshift, &(temp));
-                    check_required_NF = 1.0 - (float)temp;
+                    check_required_NF = 1.0 - (double)temp;
 
                     new_counter += 1;
                 }
@@ -4405,7 +4478,7 @@ float adjust_redshifts_for_photoncons(
                 temp_redshift = ((1. + temp_redshift)*global_params.ZPRIME_STEP_FACTOR - 1.);
 
                 Q_at_z(temp_redshift, &(temp));
-                check_required_NF = 1.0 - (float)temp;
+                check_required_NF = 1.0 - (double)temp;
 
                 new_counter += 1;
             }
@@ -4449,7 +4522,7 @@ float adjust_redshifts_for_photoncons(
 }
 
 void Q_at_z(double z, double *splined_value){
-    float returned_value;
+    double returned_value;
 
     if (z >= Zmax) {
         *splined_value = 0.;
@@ -4464,7 +4537,7 @@ void Q_at_z(double z, double *splined_value){
 }
 
 void z_at_Q(double Q, double *splined_value){
-    float returned_value;
+    double returned_value;
 
     if (Q < Qmin) {
         LOG_ERROR("The minimum value of Q is %.4e",Qmin);
@@ -4560,14 +4633,14 @@ void initialise_NFHistory_spline(double *redshifts, double *NF_estimate, int NSp
 
 
 void z_at_NFHist(double xHI_Hist, double *splined_value){
-    float returned_value;
+    double returned_value;
 
     returned_value = gsl_spline_eval(NFHistory_spline, xHI_Hist, NFHistory_spline_acc);
     *splined_value = returned_value;
 }
 
 void NFHist_at_z(double z, double *splined_value){
-    float returned_value;
+    double returned_value;
 
     returned_value = gsl_spline_eval(z_NFHistory_spline, z, NFHistory_spline_acc);
     *splined_value = returned_value;
@@ -4647,10 +4720,10 @@ void FreeTsInterpolationTables(struct FlagOptions *flag_options) {
 }
 
 // JordanFlitter: 2D linear interpolation for sigma(M,z)
-float sigma_linear_2D_interpolation(float M, float z) {
+double sigma_linear_2D_interpolation(double M, double z) {
     int M_ind, z_ind;
-    float log_M, dlog10_M, dz, z1, z2, log_M1, log_M2;
-    float sigma11, sigma12, sigma21, sigma22, sigma1, sigma2, sigma;
+    double log_M, dlog10_M, dz, z1, z2, log_M1, log_M2;
+    double sigma11, sigma12, sigma21, sigma22, sigma1, sigma2, sigma;
 
     // Convert to log
     log_M = log10(M);
@@ -4701,12 +4774,12 @@ float sigma_linear_2D_interpolation(float M, float z) {
 
 // SarahLibanore : linear interpolation for the three point function at z = 0
 // it's a 1d interpolation if nnn or mmm , while a 2d interpolation for nmm and nnm
-float three_point_delta_interpolation(float Mn,float Mm) {
+double three_point_delta_interpolation(double Mn,double Mm) {
 
         int Mn_ind, Mm_ind;
-        float log_Mn, log_Mm;
-        float dlog10_M, log_Mm1, log_Mm2, log_Mn1, log_Mn2;
-        float dnn, dnm, dmn, dmm, dd1, dd2, ddd;
+        double log_Mn, log_Mm;
+        double dlog10_M, log_Mm1, log_Mm2, log_Mn1, log_Mn2;
+        double dnn, dnm, dmn, dmm, dd1, dd2, ddd;
 
         // Convert to log
         log_Mn = log10(Mn); // could also be Mm 
@@ -4744,6 +4817,11 @@ float three_point_delta_interpolation(float Mn,float Mm) {
     Mn_ind = (int)floor( (log_Mn-global_params.LOG_M_ARR[0])/dlog10_M );
     Mm_ind = (int)floor( (log_Mm-global_params.LOG_M_ARR[0])/dlog10_M );
     
+
+    // Clamp indices to avoid going out of bounds when accessing +1
+    if (Mn_ind == SIGMA_M_NPTS - 1) Mn_ind--;
+    if (Mm_ind == SIGMA_M_NPTS - 1) Mm_ind--;
+
     log_Mn1 = global_params.LOG_M_ARR[Mn_ind];
     log_Mn2 = global_params.LOG_M_ARR[Mn_ind+1];
     log_Mm1 = global_params.LOG_M_ARR[Mm_ind];
@@ -4763,12 +4841,12 @@ float three_point_delta_interpolation(float Mn,float Mm) {
 }
 
 // SarahLibanore : 2D linear interpolation for the derivative of the three point function 
-float three_point_delta_derivative_interpolation(float Mn, float Mm){
+double three_point_delta_derivative_interpolation(double Mn, double Mm){
 
         int Mn_ind, Mm_ind;
-        float log_Mn, log_Mm;
-        float dlog10_M, log_Mm1, log_Mm2, log_Mn1, log_Mn2;
-        float dnn, dnm, dmn, dmm, dd1, dd2, dd3_dM;
+        double log_Mn, log_Mm;
+        double dlog10_M, log_Mm1, log_Mm2, log_Mn1, log_Mn2;
+        double dnn, dnm, dmn, dmm, dd1, dd2, dd3_dM;
 
         // Convert to log
         log_Mn = log10(Mn); // could also be Mm 
@@ -4806,6 +4884,10 @@ float three_point_delta_derivative_interpolation(float Mn, float Mm){
     Mn_ind = (int)floor( (log_Mn-global_params.LOG_M_ARR[0])/dlog10_M );
     Mm_ind = (int)floor( (log_Mm-global_params.LOG_M_ARR[0])/dlog10_M );
     
+    // Clamp indices to avoid going out of bounds when accessing +1
+    if (Mn_ind == SIGMA_M_NPTS - 1) Mn_ind--;
+    if (Mm_ind == SIGMA_M_NPTS - 1) Mm_ind--;
+    
     log_Mn1 = global_params.LOG_M_ARR[Mn_ind];
     log_Mn2 = global_params.LOG_M_ARR[Mn_ind+1];
     log_Mm1 = global_params.LOG_M_ARR[Mm_ind];
@@ -4825,8 +4907,8 @@ float three_point_delta_derivative_interpolation(float Mn, float Mm){
 }
 
 // JordanFlitter: numerical derivative for sigma^2(M,z)
-float sigma_sq_numerical_derivative(float M, float z) {
-  float dlog10_M, sigma, dsigma_2_dlog10_M, dsigma_sq_dM;
+double sigma_sq_numerical_derivative(double M, double z) {
+  double dlog10_M, sigma, dsigma_2_dlog10_M, dsigma_sq_dM;
 
   dlog10_M = 0.1;
   sigma = sigma_linear_2D_interpolation(M,z);

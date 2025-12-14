@@ -9,7 +9,7 @@ float distance_coord(float x1, float y1, float z1,
 		     float x2, float y2, float z2,
 		     float *x, float *y, float *z
 		     ){
-  float minimumsq, xsq, ysq, zsq, xplussq, yplussq, zplussq, xminsq, yminsq, zminsq;
+  double minimumsq, xsq, ysq, zsq, xplussq, yplussq, zplussq, xminsq, yminsq, zminsq;
 
     // remember to check all reflections
     xsq = pow(x1-x2, 2);
@@ -148,7 +148,7 @@ float distance_coord(float x1, float y1, float z1,
   all lengths are in units of the box size
 */
 float distance(float x1, float y1, float z1, float x2, float y2, float z2){
-  float minimumsq, xsq, ysq, zsq, xplussq, yplussq, zplussq, xminsq, yminsq, zminsq;
+  double minimumsq, xsq, ysq, zsq, xplussq, yplussq, zplussq, xminsq, yminsq, zminsq;
 
     // remember to check all reflections
     xsq = pow(x1-x2, 2);
@@ -320,7 +320,7 @@ void check_region(float * box, int dimensions, float Rsq_curr_index, int x, int 
 void update_in_sphere(float * box, int dimensions, float R, float xf, float yf, float zf){
   int x_curr, y_curr, z_curr, xb_min, xb_max, yb_min, yb_max, zb_min, zb_max, R_index;
   int xl_min, xl_max, yl_min, yl_max, zl_min, zl_max;
-  float Rsq_curr_index;
+  double Rsq_curr_index;
   int x_index, y_index, z_index, x, y, z;
 
   if (R<0) return;

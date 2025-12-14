@@ -4,7 +4,7 @@
 // ComputePerturbHaloField reads in the linear velocity field, and uses
 // it to update halo locations with a corresponding displacement field
 
-int ComputePerturbHaloField(float redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
+int ComputePerturbHaloField(double redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                             struct AstroParams *astro_params, struct FlagOptions *flag_options,
                             struct InitialConditions *boxes, struct HaloField *halos, struct PerturbHaloField *halos_perturbed) {
 
@@ -28,10 +28,10 @@ LOG_DEBUG("redshift=%f", redshift);
 
         omp_set_num_threads(user_params->N_THREADS);
 
-        float growth_factor, displacement_factor_2LPT, mass, xf, yf, zf, z, growth_factor_over_BOX_LEN,displacement_factor_2LPT_over_BOX_LEN;
+        double growth_factor, displacement_factor_2LPT, mass, xf, yf, zf, z, growth_factor_over_BOX_LEN,displacement_factor_2LPT_over_BOX_LEN;
         int i,j,k, i_halo,xi, yi, zi, DI, dimension;
         unsigned long long ct;
-        float dz = 1e-10;
+        double dz = 1e-10;
 
 LOG_DEBUG("Begin Initialisation");
 
@@ -116,15 +116,15 @@ LOG_DEBUG("Begin Initialisation");
         unsigned long long n_halos;
 
         halos_perturbed->n_halos = halos->n_halos;
-        halos_perturbed->halo_masses = malloc(sizeof(float) * halos->n_halos);
+        halos_perturbed->halo_masses = malloc(sizeof(double) * halos->n_halos);
         halos_perturbed->halo_coords = malloc(sizeof(int) * halos->n_halos * 3);
 
 
 
         // ******************   END INITIALIZATION     ******************************** //
 
-        float mean_correction = 0.0, mean_correction_2LPT = 0.0, mean_ratio = 0.0;
-        float max_correction = 1e-10, max_correction_2LPT = 1e-10, max_ratio = 1e-10;
+        double mean_correction = 0.0, mean_correction_2LPT = 0.0, mean_ratio = 0.0;
+        double max_correction = 1e-10, max_correction_2LPT = 1e-10, max_ratio = 1e-10;
         int den = 0;
 
 #pragma omp parallel shared(boxes,halos,halos_perturbed) \
@@ -182,15 +182,15 @@ LOG_DEBUG("Begin Initialisation");
                 xf = roundf(xf*DI);
                 yf = roundf(yf*DI);
                 zf = roundf(zf*DI);
-                while (xf >= (float)DI){ xf -= DI;}
+                while (xf >= (double)DI){ xf -= DI;}
                 while (xf < 0){ xf += DI;}
-                while (yf >= (float)DI){ yf -= DI;}
+                while (yf >= (double)DI){ yf -= DI;}
                 while (yf < 0){ yf += DI;}
-                while (zf >= (float)DI){ zf -= DI;}
+                while (zf >= (double)DI){ zf -= DI;}
                 while (zf < 0){ zf += DI;}
-                xf = fabs(xf/(float)DI); // fabs gets rid of minus sign in -0.00000
-                yf = fabs(yf/(float)DI);
-                zf = fabs(zf/(float)DI);
+                xf = fabs(xf/(double)DI); // fabs gets rid of minus sign in -0.00000
+                yf = fabs(yf/(double)DI);
+                zf = fabs(zf/(double)DI);
 
                 xf *= user_params->HII_DIM;
                 yf *= user_params->HII_DIM;
@@ -240,9 +240,9 @@ LOG_DEBUG("Begin Initialisation");
             }
         }
 
-        fftwf_cleanup_threads();
-        fftwf_cleanup();
-        fftwf_forget_wisdom();
+        fftw_cleanup_threads();
+        fftw_cleanup();
+        fftw_forget_wisdom();
         LOG_DEBUG("Perturbed positions of %d Halos", halos_perturbed->n_halos);
 
     } // End of Try()

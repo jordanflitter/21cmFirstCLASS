@@ -55,7 +55,7 @@
 #include "HyRec2020/hydrogen.c"
 #include "HyRec2020/hyrectools.c"
 
-void adj_complex_conj(fftwf_complex *HIRES_box, struct UserParams *user_params, struct CosmoParams *cosmo_params){
+void adj_complex_conj(fftw_complex *HIRES_box, struct UserParams *user_params, struct CosmoParams *cosmo_params){
     /*****  Adjust the complex conjugate relations for a real array  *****/
 
     int i, j, k;
@@ -111,9 +111,9 @@ void adj_complex_conj(fftwf_complex *HIRES_box, struct UserParams *user_params, 
 
 // SarahLibanore:
 // Padding function (Orszag 3/2 rule) for de-aliasing
-void pad_box_3over2(fftwf_complex *large_box, fftwf_complex *small_box, int D_pad, int MID_pad) {
+void pad_box_3over2(fftw_complex *large_box, fftw_complex *small_box, int D_pad, int MID_pad) {
 
-    memset(large_box, 0, sizeof(fftwf_complex) * D_pad * D_pad * (MID_pad + 1));
+    memset(large_box, 0, sizeof(fftw_complex) * D_pad * D_pad * (MID_pad + 1));
 
     for (int x = 0; x < D; x++) {
         int xh = (x <= MIDDLE) ? x : x - D + D_pad;
@@ -134,7 +134,7 @@ void pad_box_3over2(fftwf_complex *large_box, fftwf_complex *small_box, int D_pa
 
 // SarahLibanore:
 // Truncating function (Orszag 3/2 rule) for de-aliasing
-void truncate_box_3over2(fftwf_complex *cutmodes_box, fftwf_complex *allmodes_box, int D_pad, int MID_pad) {
+void truncate_box_3over2(fftw_complex *cutmodes_box, fftw_complex *allmodes_box, int D_pad, int MID_pad) {
 
     for (int x = 0; x < D; x++) {
         int xh = (x <= MIDDLE) ? x : x - D + D_pad;
@@ -177,13 +177,14 @@ int ComputeInitialConditions(
 
     unsigned long long ct;
     int n_x, n_y, n_z, i, j, k, ii, thread_num, dimension;
-    float k_x, k_y, k_z, k_mag, p, a, b, k_sq;
+    double k_x, k_y, k_z, k_mag, k_sq;
+    double p, a, b;
     double pixel_deltax;
-    float p_vcb, vcb_i;
+    double p_vcb, vcb_i;
     // JordanFlitter: new variables for SDM
-    float p_SDM, delta_SDM_i;
+    double p_SDM, delta_SDM_i;
     // SarahLibanore: quantities needed for NG case
-    float avg_pot2, pot_to_delta, Cv;
+    double avg_pot2, pot_to_delta, Cv;
     // SarahLibanore: dealiasing
     int D_pad = round(user_params_ps->DIM * user_params_ps->EXTRA_DIM_FNL);
     int MID_pad = round(D_pad/2);
@@ -193,7 +194,7 @@ int ComputeInitialConditions(
             + D_pad * (unsigned long long)(x));
     }
 
-    float f_pixel_factor;
+    double f_pixel_factor;
 
     gsl_rng * r[user_params->N_THREADS];
     gsl_rng * rseed = gsl_rng_alloc(gsl_rng_mt19937); // An RNG for generating seeds for multithreading
@@ -262,23 +263,23 @@ int ComputeInitialConditions(
     free(many_ints);
 
     // allocate array for the k-space and real-space boxes
-    fftwf_complex *HIRES_box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
-    fftwf_complex *HIRES_box_saved = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+    fftw_complex *HIRES_box = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
+    fftw_complex *HIRES_box_saved = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
     // SarahLibanore: dealiasing
     // Allocate padded Fourier box
-    fftwf_complex *pad_k = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * D_pad * D_pad * (MID_pad + 1));
-    float *pad_r = (float*) fftwf_malloc(sizeof(float) * D_pad*D_pad*D_pad);
-    fftwf_complex *tmp_k = (fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+    fftw_complex *pad_k = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * D_pad * D_pad * (MID_pad + 1));
+    double *pad_r = (double*) fftw_malloc(sizeof(double) * D_pad*D_pad*D_pad);
+    fftw_complex *tmp_k = (fftw_complex*) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
 
     // allocate array for the k-space and real-space boxes for vcb
-    fftwf_complex *HIRES_box_vcb_saved;
+    fftw_complex *HIRES_box_vcb_saved;
     // HIRES_box_vcb_saved may be needed if FFTW_Wisdom doesn't exist -- currently unused
     // but I am not going to allocate it until I am certain I needed it.
 
     // find factor of HII pixel size / deltax pixel size
-    f_pixel_factor = user_params->DIM/(float)user_params->HII_DIM;
+    f_pixel_factor = user_params->DIM/(double)user_params->HII_DIM;
 
     // ************  END INITIALIZATION ****************** //
     LOG_DEBUG("Finished initialization.");
@@ -349,7 +350,7 @@ int ComputeInitialConditions(
     pad_box_3over2(pad_k, HIRES_box, D_pad, MID_pad);
 
     // Create the FFT plan to go to real space
-    fftwf_plan plan_inverse = fftwf_plan_dft_c2r_3d(
+    fftw_plan plan_inverse = fftw_plan_dft_c2r_3d(
         D_pad, D_pad, D_pad,   // Dimensions
         pad_k,                 // Input: complex field in Fourier space
         pad_r,                 // Output: real field in real space
@@ -361,7 +362,7 @@ int ComputeInitialConditions(
         return;
     }
 
-    fftwf_execute_dft_c2r(plan_inverse, pad_k, pad_r);
+    fftw_execute_dft_c2r(plan_inverse, pad_k, pad_r);
 
     // Compute mean(phi²) and replace φ with (φ² - <φ²>)
     size_t Ntot = (size_t)D_pad * D_pad * D_pad;
@@ -379,16 +380,16 @@ int ComputeInitialConditions(
     for (size_t i = 0; i < Ntot; i++) {
         avg_pot2 += pad_r[i] * pad_r[i];
     }
-    avg_pot2 /= (float)Ntot;
+    avg_pot2 /= (double)Ntot;
 
     for (size_t i = 0; i < Ntot; i++) {
-        pad_r[i] = pad_r[i] * pad_r[i] - (float)avg_pot2;
+        pad_r[i] = pad_r[i] * pad_r[i] - (double)avg_pot2;
     }            
     printf("delta phi^2=%e\n",pad_r[R_pad_INDEX(0,0,0)]);
 
     // FFT back to k-space
-    fftwf_plan plan_fwd = fftwf_plan_dft_r2c_3d(D_pad, D_pad, D_pad, pad_r, pad_k, FFTW_ESTIMATE);
-    fftwf_execute(plan_fwd);
+    fftw_plan plan_fwd = fftw_plan_dft_r2c_3d(D_pad, D_pad, D_pad, pad_r, pad_k, FFTW_ESTIMATE);
+    fftw_execute(plan_fwd);
 
     // Truncate back to original resolution
     truncate_box_3over2(tmp_k, pad_k, D_pad, MID_pad);  
@@ -465,13 +466,17 @@ int ComputeInitialConditions(
                     k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
                     if (k_mag == 0.){pot_to_delta = 0.;}
-                    else {pot_to_delta = TF_CLASS(k_mag,1,0)*5./3. ;} // the 5/3 is to go from potential to primordial curvature, that's how the transfer function in CLASS is defined
+                    // if (TF_CLASS(k_mag, 1, 6) == 0.){pot_to_delta = 0.;}
+                    // else
+                    // {pot_to_delta = TF_CLASS(k_mag,1,0)/TF_CLASS(k_mag, 1, 6)*pow(k_mag,2) ;} // the potential transfer function (instead of 5/3) is to go from potential to primordial curvature, that's how the transfer function in CLASS is defined
+                    else
+                    {pot_to_delta = TF_CLASS(k_mag,1,0)*(5./3.)*pow(k_mag,2) ;} // the potential transfer function (instead of 5/3) is to go from potential to primordial curvature, that's how the transfer function in CLASS is defined
                     if(user_params_ps->USE_RELATIVE_VELOCITIES && !user_params_ps->EVOLVE_MATTER) { //jbm:Add average relvel suppression
                         Cv = sqrt(1.0 - global_params.A_VCB_PM*exp( -pow(log(k_mag/global_params.KP_VCB_PM),2.0)/(2.0*global_params.SIGMAK_VCB_PM*global_params.SIGMAK_VCB_PM)));} //for v=vrms}
                     else {
                         Cv = 1.;
                     }
-                    *((fftwf_complex *)HIRES_box + C_INDEX(n_x,n_y,n_z)) *= pot_to_delta * Cv ;
+                    *((fftw_complex *)HIRES_box + C_INDEX(n_x,n_y,n_z)) *= pot_to_delta * Cv ;
                     }}}}
     }
 
@@ -481,7 +486,7 @@ int ComputeInitialConditions(
         adj_complex_conj(HIRES_box,user_params,cosmo_params);
     }
     
-    memcpy(HIRES_box_saved, HIRES_box, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+    memcpy(HIRES_box_saved, HIRES_box, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
     // FFT back to real space
     int stat = dft_c2r_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
@@ -494,7 +499,7 @@ int ComputeInitialConditions(
         for (i=0; i<user_params->DIM; i++){
             for (j=0; j<user_params->DIM; j++){
                 for (k=0; k<user_params->DIM; k++){
-                    *((float *)boxes->hires_density + R_INDEX(i,j,k)) = *((float *)HIRES_box + R_FFT_INDEX(i,j,k))/VOLUME;
+                    *((double *)boxes->hires_density + R_INDEX(i,j,k)) = *((double *)HIRES_box + R_FFT_INDEX(i,j,k))/VOLUME;
                 }
             }
         }
@@ -504,7 +509,7 @@ int ComputeInitialConditions(
 
     //Throw(TableGenerationError);
     // *** If required, let's also create a lower-resolution version of the density field  *** //
-    memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+    memcpy(HIRES_box, HIRES_box_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
 
     // Only filter if we are perturbing on the low-resolution grid
@@ -524,7 +529,7 @@ int ComputeInitialConditions(
                 for (j=0; j<user_params->HII_DIM; j++){
                     for (k=0; k<user_params->HII_DIM; k++){
                         boxes->lowres_density[HII_R_INDEX(i,j,k)] =
-                        *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                        *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                            (unsigned long long)(j*f_pixel_factor+0.5),
                                                            (unsigned long long)(k*f_pixel_factor+0.5)))/VOLUME;
                     }
@@ -540,7 +545,7 @@ int ComputeInitialConditions(
 
       for(ii=0;ii<3;ii++) {
 
-        memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        memcpy(HIRES_box, HIRES_box_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
 #pragma omp parallel shared(HIRES_box,ii) private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag,p,p_vcb) num_threads(user_params->N_THREADS)
         {
@@ -602,7 +607,7 @@ int ComputeInitialConditions(
                   for (i=0; i<user_params->HII_DIM; i++){
                       for (j=0; j<user_params->HII_DIM; j++){
                           for (k=0; k<user_params->HII_DIM; k++){
-                            vcb_i = *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                            vcb_i = *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                              (unsigned long long)(j*f_pixel_factor+0.5),
                                                              (unsigned long long)(k*f_pixel_factor+0.5)));
                             boxes->lowres_vcb[HII_R_INDEX(i,j,k)] += vcb_i*vcb_i;
@@ -644,7 +649,7 @@ int ComputeInitialConditions(
 
 if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
     for(ii=2;ii<5;ii++) {
-        memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        memcpy(HIRES_box, HIRES_box_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
         #pragma omp parallel shared(HIRES_box,ii) private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag,p,p_SDM) num_threads(user_params->N_THREADS)
                 {
@@ -694,7 +699,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                         for (i=0; i<user_params->HII_DIM; i++){
                             for (j=0; j<user_params->HII_DIM; j++){
                                 for (k=0; k<user_params->HII_DIM; k++){
-                                  delta_SDM_i = *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                                  delta_SDM_i = *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                    (unsigned long long)(j*f_pixel_factor+0.5),
                                                                    (unsigned long long)(k*f_pixel_factor+0.5)))/VOLUME;
                                   if (ii == 2) {
@@ -722,7 +727,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
 if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
     for(ii=0;ii<3;ii++) {
 
-      memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+      memcpy(HIRES_box, HIRES_box_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
     #pragma omp parallel shared(HIRES_box,ii) private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag,p,p_vcb) num_threads(user_params->N_THREADS)
       {
@@ -784,7 +789,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
-                          vcb_i = *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                          vcb_i = *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                            (unsigned long long)(j*f_pixel_factor+0.5),
                                                            (unsigned long long)(k*f_pixel_factor+0.5)));
                           boxes->lowres_V_chi_b_zhigh[HII_R_INDEX(i,j,k)] += vcb_i*vcb_i;
@@ -817,7 +822,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
 
     for(ii=0;ii<3;ii++) {
 
-        memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        memcpy(HIRES_box, HIRES_box_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
         // Now let's set the velocity field/dD/dt (in comoving Mpc)
 
 #pragma omp parallel shared(HIRES_box,ii) private(n_x,n_y,n_z,k_x,k_y,k_z,k_sq) num_threads(user_params->N_THREADS)
@@ -880,19 +885,19 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                         if(user_params->PERTURB_ON_HIGH_RES) {
                             if(ii==0) {
                                 boxes->hires_vx[R_INDEX(i,j,k)] =
-                                *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                                *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                    (unsigned long long)(j),
                                                                    (unsigned long long)(k)));
                             }
                             if(ii==1) {
                                 boxes->hires_vy[R_INDEX(i,j,k)] =
-                                *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                                *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                    (unsigned long long)(j),
                                                                    (unsigned long long)(k)));
                             }
                             if(ii==2) {
                                 boxes->hires_vz[R_INDEX(i,j,k)] =
-                                *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                                *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                    (unsigned long long)(j),
                                                                    (unsigned long long)(k)));
                             }
@@ -900,19 +905,19 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                         else {
                             if(ii==0) {
                                 boxes->lowres_vx[HII_R_INDEX(i,j,k)] =
-                                *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                                *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                    (unsigned long long)(j*f_pixel_factor+0.5),
                                                                    (unsigned long long)(k*f_pixel_factor+0.5)));
                             }
                             if(ii==1) {
                                 boxes->lowres_vy[HII_R_INDEX(i,j,k)] =
-                                *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                                *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                    (unsigned long long)(j*f_pixel_factor+0.5),
                                                                    (unsigned long long)(k*f_pixel_factor+0.5)));
                             }
                             if(ii==2) {
                                 boxes->lowres_vz[HII_R_INDEX(i,j,k)] =
-                                *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                                *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                    (unsigned long long)(j*f_pixel_factor+0.5),
                                                                    (unsigned long long)(k*f_pixel_factor+0.5)));
                             }
@@ -946,13 +951,13 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
         // 20 -> 2
         // 21 -> 4
 
-        fftwf_complex *phi_1 = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        fftw_complex *phi_1 = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
         // First generate the ii,jj phi_1 boxes
 
         int phi_component;
 
-        float component_ii,component_jj,component_ij;
+        double component_ii,component_jj,component_ij;
 
         // Indexing for the various phy components
         int phi_directions[3][2] = {{0,1},{0,2},{1,2}};
@@ -963,7 +968,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
             for (i=0; i<user_params->DIM; i++){
                 for (j=0; j<user_params->DIM; j++){
                     for (k=0; k<user_params->DIM; k++){
-                        *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                        *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                            (unsigned long long)(j),
                                                            (unsigned long long)(k)) ) = 0.;
                     }
@@ -999,7 +1004,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
 
                             k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
-                            float k[] = {k_x, k_y, k_z};
+                            double k[] = {k_x, k_y, k_z};
                             // now set the velocities
                             if ((n_x==0) && (n_y==0) && (n_z==0)){ // DC mode
                                 phi_1[0] = 0;
@@ -1023,17 +1028,17 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                     for (j=0; j<user_params->DIM; j++){
                         for (k=0; k<user_params->DIM; k++){
                             if(phi_component==0) {
-                                boxes->hires_vx_2LPT[R_INDEX(i,j,k)] = *((float *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
+                                boxes->hires_vx_2LPT[R_INDEX(i,j,k)] = *((double *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
                                                                                                       (unsigned long long)(j),
                                                                                                       (unsigned long long)(k)));
                             }
                             if(phi_component==1) {
-                                boxes->hires_vy_2LPT[R_INDEX(i,j,k)] = *((float *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
+                                boxes->hires_vy_2LPT[R_INDEX(i,j,k)] = *((double *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
                                                                                                       (unsigned long long)(j),
                                                                                                       (unsigned long long)(k)));
                             }
                             if(phi_component==2) {
-                                boxes->hires_vz_2LPT[R_INDEX(i,j,k)] = *((float *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
+                                boxes->hires_vz_2LPT[R_INDEX(i,j,k)] = *((double *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
                                                                                                       (unsigned long long)(j),
                                                                                                       (unsigned long long)(k)));
                             }
@@ -1069,7 +1074,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
 
                             k_sq = k_x*k_x + k_y*k_y + k_z*k_z;
 
-                            float k[] = {k_x, k_y, k_z};
+                            double k[] = {k_x, k_y, k_z};
                             // now set the velocities
                             if ((n_x==0) && (n_y==0) && (n_z==0)){ // DC mode
                                 phi_1[0] = 0;
@@ -1099,32 +1104,32 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                             if(phi_component==0) {
                                 component_ii = boxes->hires_vx_2LPT[R_INDEX(i,j,k)];
                                 component_jj = boxes->hires_vy_2LPT[R_INDEX(i,j,k)];
-                                component_ij = *((float *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
+                                component_ij = *((double *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
                                                                               (unsigned long long)(j),
                                                                               (unsigned long long)(k)));
                             }
                             if(phi_component==1) {
                                 component_ii = boxes->hires_vx_2LPT[R_INDEX(i,j,k)];
                                 component_jj = boxes->hires_vz_2LPT[R_INDEX(i,j,k)];
-                                component_ij = *((float *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
+                                component_ij = *((double *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
                                                                               (unsigned long long)(j),
                                                                               (unsigned long long)(k)));
                             }
                             if(phi_component==2) {
                                 component_ii = boxes->hires_vy_2LPT[R_INDEX(i,j,k)];
                                 component_jj = boxes->hires_vz_2LPT[R_INDEX(i,j,k)];
-                                component_ij = *((float *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
+                                component_ij = *((double *)phi_1 + R_FFT_INDEX((unsigned long long)(i),
                                                                               (unsigned long long)(j),
                                                                               (unsigned long long)(k)));
                             }
 
                             // Kept in this form to maintain similar (possible) rounding errors
-                            *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                            *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                (unsigned long long)(j),
                                                                (unsigned long long)(k)) ) += \
                             ( component_ii * component_jj );
 
-                            *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                            *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                (unsigned long long)(j),
                                                                (unsigned long long)(k)) ) -= \
                             ( component_ij * component_ij );
@@ -1140,7 +1145,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
             for (i=0; i<user_params->DIM; i++){
                 for (j=0; j<user_params->DIM; j++){
                     for (k=0; k<user_params->DIM; k++){
-                        *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) /= TOT_NUM_PIXELS;
+                        *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),(unsigned long long)(j),(unsigned long long)(k)) ) /= TOT_NUM_PIXELS;
                     }
                 }
             }
@@ -1149,7 +1154,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
         // Perform FFTs
         dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->DIM, user_params->N_THREADS, HIRES_box);
 
-        memcpy(HIRES_box_saved, HIRES_box, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+        memcpy(HIRES_box_saved, HIRES_box, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
 
         // Now we can store the content of box in a back-up array
         // Then we can generate the gradients of phi_2 (eq. D13b and D9)
@@ -1166,7 +1171,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
         for(ii=0;ii<3;ii++) {
 
             if(ii>0) {
-                memcpy(HIRES_box, HIRES_box_saved, sizeof(fftwf_complex)*KSPACE_NUM_PIXELS);
+                memcpy(HIRES_box, HIRES_box_saved, sizeof(fftw_complex)*KSPACE_NUM_PIXELS);
             }
 
 #pragma omp parallel shared(HIRES_box,ii) private(n_x,n_y,n_z,k_x,k_y,k_z,k_sq) num_threads(user_params->N_THREADS)
@@ -1231,19 +1236,19 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                             if(user_params->PERTURB_ON_HIGH_RES) {
                                 if(ii==0) {
                                     boxes->hires_vx_2LPT[R_INDEX(i,j,k)] =
-                                    *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                                    *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                        (unsigned long long)(j),
                                                                        (unsigned long long)(k)));
                                 }
                                 if(ii==1) {
                                     boxes->hires_vy_2LPT[R_INDEX(i,j,k)] =
-                                    *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                                    *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                        (unsigned long long)(j),
                                                                        (unsigned long long)(k)));
                                 }
                                 if(ii==2) {
                                     boxes->hires_vz_2LPT[R_INDEX(i,j,k)] =
-                                    *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
+                                    *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i),
                                                                        (unsigned long long)(j),
                                                                        (unsigned long long)(k)));
                                 }
@@ -1251,19 +1256,19 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
                             else {
                                 if(ii==0) {
                                     boxes->lowres_vx_2LPT[HII_R_INDEX(i,j,k)] =
-                                    *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                                    *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                        (unsigned long long)(j*f_pixel_factor+0.5),
                                                                        (unsigned long long)(k*f_pixel_factor+0.5)));
                                 }
                                 if(ii==1) {
                                     boxes->lowres_vy_2LPT[HII_R_INDEX(i,j,k)] =
-                                    *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                                    *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                        (unsigned long long)(j*f_pixel_factor+0.5),
                                                                        (unsigned long long)(k*f_pixel_factor+0.5)));
                                 }
                                 if(ii==2) {
                                     boxes->lowres_vz_2LPT[HII_R_INDEX(i,j,k)] =
-                                    *((float *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
+                                    *((double *)HIRES_box + R_FFT_INDEX((unsigned long long)(i*f_pixel_factor+0.5),
                                                                        (unsigned long long)(j*f_pixel_factor+0.5),
                                                                        (unsigned long long)(k*f_pixel_factor+0.5)));
                                 }
@@ -1275,7 +1280,7 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
         }
 
         // deallocate the supplementary boxes
-        fftwf_free(phi_1);
+        fftw_free(phi_1);
 
     }
     LOG_DEBUG("Done 2LPT.");
@@ -1283,13 +1288,13 @@ if(user_params->SCATTERING_DM && user_params->USE_SDM_FLUCTS){
     // * *********************************************** * //
     // *               END 2LPT PART                     * //
     // * *********************************************** * //
-    fftwf_cleanup_threads();
-    fftwf_cleanup();
-    fftwf_forget_wisdom();
+    fftw_cleanup_threads();
+    fftw_cleanup();
+    fftw_forget_wisdom();
 
     // deallocate
-    fftwf_free(HIRES_box);
-    fftwf_free(HIRES_box_saved);
+    fftw_free(HIRES_box);
+    fftw_free(HIRES_box_saved);
     
     free_ps();
 

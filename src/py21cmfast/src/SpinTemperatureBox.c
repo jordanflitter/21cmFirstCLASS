@@ -7,14 +7,14 @@ double **grid_dens, **density_gridpoints;
 double *Sigma_Tmin_grid, *ST_over_PS_arg_grid, *dstarlya_dt_prefactor, *zpp_edge, *sigma_atR;
 double *dstarlyLW_dt_prefactor, *dstarlya_dt_prefactor_MINI, *dstarlyLW_dt_prefactor_MINI;
 // JordanFlitter: added baryons variables
-float **delNL0_rev,**delNL0, **delNL0_rev_baryons,**delNL0_baryons;
-float *R_values, *delNL0_bw, *delNL0_Offset, *delNL0_LL, *delNL0_UL, *delNL0_ibw, *log10delNL0_diff;
-float *log10delNL0_diff_UL,*min_densities, *max_densities, *zpp_interp_table;
+double **delNL0_rev,**delNL0, **delNL0_rev_baryons,**delNL0_baryons;
+double *R_values, *delNL0_bw, *delNL0_Offset, *delNL0_LL, *delNL0_UL, *delNL0_ibw, *log10delNL0_diff;
+double *log10delNL0_diff_UL,*min_densities, *max_densities, *zpp_interp_table;
 short **dens_grid_int_vals;
 short *SingleVal_int;
 
-float *del_fcoll_Rct, *SFR_timescale_factor;
-float *del_fcoll_Rct_MINI;
+double *del_fcoll_Rct, *SFR_timescale_factor;
+double *del_fcoll_Rct_MINI;
 
 double *dxheat_dt_box, *dxion_source_dt_box, *dxlya_dt_box, *dstarlya_dt_box;
 double *dxheat_dt_box_MINI, *dxion_source_dt_box_MINI, *dxlya_dt_box_MINI, *dstarlya_dt_box_MINI;
@@ -23,17 +23,17 @@ double *dstarlyLW_dt_box, *dstarlyLW_dt_box_MINI;
 // JordanFlitter: I need these arrays
 double *dstarlya_cont_dt_box, *dstarlya_inj_dt_box, *dstarlya_cont_dt_prefactor, *dstarlya_inj_dt_prefactor, *sum_ly2, *sum_lynto2;
 double *dstarlya_cont_dt_box_MINI, *dstarlya_inj_dt_box_MINI, *dstarlya_cont_dt_prefactor_MINI, *dstarlya_inj_dt_prefactor_MINI, *sum_ly2_MINI, *sum_lynto2_MINI;
-fftwf_complex *delta_baryons, *delta_baryons_derivative, *delta_SDM, *delta_SDM_derivative;
+fftw_complex *delta_baryons, *delta_baryons_derivative, *delta_SDM, *delta_SDM_derivative;
 
 double *log10_Mcrit_LW_ave_list;
 
-float *inverse_val_box;
+double *inverse_val_box;
 int *m_xHII_low_box;
 
 // Grids/arrays that are re-evaluated for each zp
 double **fcoll_interp1, **fcoll_interp2, **dfcoll_interp1, **dfcoll_interp2;
 double *fcoll_R_array, *sigma_Tmin, *ST_over_PS, *sum_lyn;
-float *inverse_diff, *zpp_growth, *zpp_for_evolve_list,*Mcrit_atom_interp_table;
+double *inverse_diff, *zpp_growth, *zpp_for_evolve_list,*Mcrit_atom_interp_table;
 double *ST_over_PS_MINI,*sum_lyn_MINI,*sum_lyLWn,*sum_lyLWn_MINI;
 
 // interpolation tables for the heating/ionisation integrals
@@ -41,7 +41,7 @@ double **freq_int_heat_tbl, **freq_int_ion_tbl, **freq_int_lya_tbl, **freq_int_h
 double **freq_int_ion_tbl_diff, **freq_int_lya_tbl_diff;
 
 bool TsInterpArraysInitialised = false;
-float initialised_redshift = 0.0;
+double initialised_redshift = 0.0;
 // JordanFlitter: added next_redshift_input. This will help keeping the python and C loops synchronized during the dark ages
 int ComputeTsBox(float redshift, float prev_redshift, struct UserParams *user_params, struct CosmoParams *cosmo_params,
                   struct AstroParams *astro_params, struct FlagOptions *flag_options,
@@ -84,14 +84,14 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     double Trad_fast,xc_fast,xc_inverse,TS_fast,TSold_fast,xa_tilde_fast,TS_prefactor,xa_tilde_prefactor;
     double T_inv,T_inv_sq,xi_power,xa_tilde_fast_arg,Trad_fast_inv,TS_fast_inv,dcomp_dzp_prefactor;
 
-    float growth_factor_z, inverse_growth_factor_z, R, R_factor, zp, mu_for_Ts, filling_factor_of_HI_zp;
-    float dzp, prev_zp, zpp, prev_zpp, prev_R, Tk_BC, xe_BC;
-    float xHII_call, curr_xalpha, TK, TS, xe, deltax_highz;
-    float zpp_for_evolve,dzpp_for_evolve, M_MIN;
+    double growth_factor_z, inverse_growth_factor_z, R, R_factor, zp, mu_for_Ts, filling_factor_of_HI_zp;
+    double dzp, prev_zp, zpp, prev_zpp, prev_R, Tk_BC, xe_BC;
+    double xHII_call, curr_xalpha, TK, TS, xe, deltax_highz;
+    double zpp_for_evolve,dzpp_for_evolve, M_MIN;
 
-    float determine_zpp_max, zpp_grid, zpp_gridpoint1, zpp_gridpoint2,zpp_evolve_gridpoint1;
-    float zpp_evolve_gridpoint2, grad1, grad2, grad3, grad4, delNL0_bw_val;
-    float OffsetValue, DensityValueLow, min_density, max_density;
+    double determine_zpp_max, zpp_grid, zpp_gridpoint1, zpp_gridpoint2,zpp_evolve_gridpoint1;
+    double zpp_evolve_gridpoint2, grad1, grad2, grad3, grad4, delNL0_bw_val;
+    double OffsetValue, DensityValueLow, min_density, max_density;
 
     // JordanFlitter: added a baryons variable
     double curr_delNL0, inverse_val,prefactor_1,prefactor_2,dfcoll_dz_val, density_eval1, curr_delNL0_baryons;
@@ -108,44 +108,44 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     first_zero = true;
     n_pts_radii = 1000;
 
-    float M_MIN_WDM =  M_J_WDM();
+    double M_MIN_WDM =  M_J_WDM();
 
     double ave_fcoll, ave_fcoll_inv, dfcoll_dz_val_ave, ION_EFF_FACTOR;
     double ave_fcoll_MINI, ave_fcoll_inv_MINI, dfcoll_dz_val_ave_MINI, ION_EFF_FACTOR_MINI;
     // JordanFlitter: added baryons variable
-    float curr_dens, min_curr_dens, max_curr_dens, curr_dens_baryons;
+    double curr_dens, min_curr_dens, max_curr_dens, curr_dens_baryons;
 
-    float curr_vcb;
+    double curr_vcb;
     min_curr_dens = max_curr_dens = 0.;
 
     int fcoll_int_min, fcoll_int_max;
 
     fcoll_int_min = fcoll_int_max = 0;
 
-    float Splined_Fcoll,Splined_Fcollzp_mean,Splined_SFRD_zpp, fcoll;
-    float redshift_table_Nion_z,redshift_table_SFRD, fcoll_interp_val1, fcoll_interp_val2, dens_val;
-    float fcoll_interp_min, fcoll_interp_bin_width, fcoll_interp_bin_width_inv;
-    float fcoll_interp_high_min, fcoll_interp_high_bin_width, fcoll_interp_high_bin_width_inv;
+    double Splined_Fcoll,Splined_Fcollzp_mean,Splined_SFRD_zpp, fcoll;
+    double redshift_table_Nion_z,redshift_table_SFRD, fcoll_interp_val1, fcoll_interp_val2, dens_val;
+    double fcoll_interp_min, fcoll_interp_bin_width, fcoll_interp_bin_width_inv;
+    double fcoll_interp_high_min, fcoll_interp_high_bin_width, fcoll_interp_high_bin_width_inv;
 
-    float Splined_Fcoll_MINI,Splined_Fcollzp_mean_MINI_left,Splined_Fcollzp_mean_MINI_right;
-    float Splined_Fcollzp_mean_MINI,Splined_SFRD_zpp_MINI_left,Splined_SFRD_zpp_MINI_right;
-    float Splined_SFRD_zpp_MINI, fcoll_MINI,fcoll_MINI_right,fcoll_MINI_left;
-    float fcoll_interp_min_MINI, fcoll_interp_bin_width_MINI, fcoll_interp_bin_width_inv_MINI;
-    float fcoll_interp_val1_MINI, fcoll_interp_val2_MINI;
-    float fcoll_interp_high_min_MINI, fcoll_interp_high_bin_width_MINI, fcoll_interp_high_bin_width_inv_MINI;
+    double Splined_Fcoll_MINI,Splined_Fcollzp_mean_MINI_left,Splined_Fcollzp_mean_MINI_right;
+    double Splined_Fcollzp_mean_MINI,Splined_SFRD_zpp_MINI_left,Splined_SFRD_zpp_MINI_right;
+    double Splined_SFRD_zpp_MINI, fcoll_MINI,fcoll_MINI_right,fcoll_MINI_left;
+    double fcoll_interp_min_MINI, fcoll_interp_bin_width_MINI, fcoll_interp_bin_width_inv_MINI;
+    double fcoll_interp_val1_MINI, fcoll_interp_val2_MINI;
+    double fcoll_interp_high_min_MINI, fcoll_interp_high_bin_width_MINI, fcoll_interp_high_bin_width_inv_MINI;
 
     int fcoll_int;
     int redshift_int_Nion_z,redshift_int_SFRD;
-    float zpp_integrand, Mlim_Fstar, Mlim_Fesc, Mlim_Fstar_MINI, Mlim_Fesc_MINI, Mmax, sigmaMmax;
+    double zpp_integrand, Mlim_Fstar, Mlim_Fesc, Mlim_Fstar_MINI, Mlim_Fesc_MINI, Mmax, sigmaMmax;
 
     double log10_Mcrit_LW_ave;
-    float log10_Mcrit_mol;
-    float log10_Mcrit_LW_ave_table_Nion_z, log10_Mcrit_LW_ave_table_SFRD;
+    double log10_Mcrit_mol;
+    double log10_Mcrit_LW_ave_table_Nion_z, log10_Mcrit_LW_ave_table_SFRD;
     int  log10_Mcrit_LW_ave_int_Nion_z, log10_Mcrit_LW_ave_int_SFRD;
     double LOG10_MTURN_INT = (double) ((LOG10_MTURN_MAX - LOG10_MTURN_MIN)) / ((double) (NMTURN - 1.));
-    float **log10_Mcrit_LW;
+    double **log10_Mcrit_LW;
     int log10_Mcrit_LW_int;
-    float log10_Mcrit_LW_diff, log10_Mcrit_LW_val;
+    double log10_Mcrit_LW_diff, log10_Mcrit_LW_val;
 
     int table_int_boundexceeded = 0;
     int fcoll_int_boundexceeded = 0;
@@ -157,26 +157,26 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     }
 
     double total_time, total_time2, total_time3, total_time4;
-    float M_MIN_at_zp;
+    double M_MIN_at_zp;
 
     int NO_LIGHT = 0;
 
     // JordanFlitter: I need these variables
     double prev_Ts, tau21, xCMB, eps_CMB, E_continuum, E_injected, Ndot_alpha_cont, Ndot_alpha_inj, Ndot_alpha_cont_MINI, Ndot_alpha_inj_MINI;
     double dCMBheat_dzp, eps_Lya_cont, eps_Lya_inj, eps_Lya_cont_MINI, eps_Lya_inj_MINI, dstarlya_cont_dt, dstarlya_inj_dt;
-    float T_chi_BC, V_chi_b_BC;
+    double T_chi_BC, V_chi_b_BC;
     double T_chi, V_chi_b, dSDM_b_heat_dzp, dSDM_chi_heat_dzp, D_V_chi_b_dzp;
     double dxion_source2_dt, beta_ion;
     HYREC_DATA *rec_data;
     double T_bar_gamma_b, epsilon_gamma_b, Delta_T_gamma_b, dT_b_2_dt_ext, dT_chi_2_dt_ext, dadia_dzp_SDM;
-    float EPSILON_THRES;
+    double EPSILON_THRES;
     SDM_RATES SDM_rates;
 
     // JordanFlitter: added variables in order to evolve the baryons density field
-    float k_x, k_y, k_z, k_mag;
+    double k_x, k_y, k_z, k_mag;
     int n_x, n_y, n_z;
-    float delta_baryons_local, delta_baryons_derivative_local;
-    float delta_SDM_local, delta_SDM_derivative_local;
+    double delta_baryons_local, delta_baryons_derivative_local;
+    double delta_SDM_local, delta_SDM_derivative_local;
 
     if(flag_options->USE_MASS_DEPENDENT_ZETA) {
         ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
@@ -188,21 +188,21 @@ if (LOG_LEVEL >= DEBUG_LEVEL){
     }
 
     // Initialise arrays to be used for the Ts.c computation //
-    fftwf_complex *box = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-    fftwf_complex *unfiltered_box = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    fftw_complex *box = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
+    fftw_complex *unfiltered_box = (fftw_complex *)fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
     // JordanFlitter: need to allocate memory for baryons boxes
-    fftwf_complex *box_baryons, *unfiltered_box_baryons;
+    fftw_complex *box_baryons, *unfiltered_box_baryons;
     if (user_params->EVOLVE_BARYONS){
-        box_baryons = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-        unfiltered_box_baryons = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+        box_baryons = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
+        unfiltered_box_baryons = (fftw_complex *)fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
     }
-    fftwf_complex *log10_Mcrit_LW_unfiltered, *log10_Mcrit_LW_filtered;
+    fftw_complex *log10_Mcrit_LW_unfiltered, *log10_Mcrit_LW_filtered;
     if (flag_options->USE_MINI_HALOS){
-        log10_Mcrit_LW_unfiltered = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-        log10_Mcrit_LW_filtered = (fftwf_complex *) fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-        log10_Mcrit_LW = (float **) calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+        log10_Mcrit_LW_unfiltered = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
+        log10_Mcrit_LW_filtered = (fftw_complex *) fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
+        log10_Mcrit_LW = (double **) calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
         for (R_ct=0; R_ct<global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct++){
-            log10_Mcrit_LW[R_ct] = (float *) calloc(HII_TOT_NUM_PIXELS, sizeof(float));
+            log10_Mcrit_LW[R_ct] = (double *) calloc(HII_TOT_NUM_PIXELS, sizeof(double));
         }
     }
 
@@ -221,11 +221,11 @@ LOG_SUPER_DEBUG("Initialised heat");
 
 // JordanFlitter: I need to allocate memory for these boxes if we evolve the baryons (and SDM) density field
 if (user_params->EVOLVE_BARYONS){
-    delta_baryons = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-    delta_baryons_derivative = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+    delta_baryons = (fftw_complex *)fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
+    delta_baryons_derivative = (fftw_complex *)fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
     if (user_params->SCATTERING_DM){
-        delta_SDM = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
-        delta_SDM_derivative = (fftwf_complex *)fftwf_malloc(sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+        delta_SDM = (fftw_complex *)fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
+        delta_SDM_derivative = (fftw_complex *)fftw_malloc(sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
     }
 }
 
@@ -239,13 +239,13 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
 
         zpp_edge = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
         sigma_atR = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
-        R_values = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+        R_values = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
 
         if(user_params->USE_INTERPOLATION_TABLES) {
-            min_densities = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
-            max_densities = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+            min_densities = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+            max_densities = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
 
-            zpp_interp_table = calloc(zpp_interp_points_SFR, sizeof(float));
+            zpp_interp_table = calloc(zpp_interp_points_SFR, sizeof(double));
         }
         // JordanFlitter: Allocate memory for Lya heating arrays
         if (flag_options->USE_Lya_HEATING){
@@ -267,28 +267,28 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
 
         if(flag_options->USE_MASS_DEPENDENT_ZETA) {
 
-            SFR_timescale_factor = (float *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+            SFR_timescale_factor = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
 
             if(user_params->MINIMIZE_MEMORY) {
-                delNL0 = (float **)calloc(1,sizeof(float *));
-                delNL0[0] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                delNL0 = (double **)calloc(1,sizeof(double *));
+                delNL0[0] = (double *)calloc((double)HII_TOT_NUM_PIXELS,sizeof(double));
             }
             else {
-                delNL0 = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+                delNL0 = (double **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
                 for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
-                    delNL0[i] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                    delNL0[i] = (double *)calloc((double)HII_TOT_NUM_PIXELS,sizeof(double));
                 }
             }
             // JordanFlitter: allocate memory for baryons
             if (user_params->EVOLVE_BARYONS) {
                 if(user_params->MINIMIZE_MEMORY) {
-                    delNL0_baryons = (float **)calloc(1,sizeof(float *));
-                    delNL0_baryons[0] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                    delNL0_baryons = (double **)calloc(1,sizeof(double *));
+                    delNL0_baryons[0] = (double *)calloc((double)HII_TOT_NUM_PIXELS,sizeof(double));
                 }
                 else {
-                    delNL0_baryons = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+                    delNL0_baryons = (double **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
                     for(i=0;i<global_params.NUM_FILTER_STEPS_FOR_Ts;i++) {
-                        delNL0_baryons[i] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                        delNL0_baryons[i] = (double *)calloc((double)HII_TOT_NUM_PIXELS,sizeof(double));
                     }
                 }
             }
@@ -300,25 +300,25 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
                 overdense_low_table = calloc(NSFR_low,sizeof(double));
                 overdense_high_table = calloc(NSFR_high,sizeof(double));
 
-                log10_SFRD_z_low_table = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+                log10_SFRD_z_low_table = (double **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
                 for(j=0;j<global_params.NUM_FILTER_STEPS_FOR_Ts;j++) {
-                    log10_SFRD_z_low_table[j] = (float *)calloc(NSFR_low,sizeof(float));
+                    log10_SFRD_z_low_table[j] = (double *)calloc(NSFR_low,sizeof(double));
                 }
 
-                SFRD_z_high_table = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+                SFRD_z_high_table = (double **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
                 for(j=0;j<global_params.NUM_FILTER_STEPS_FOR_Ts;j++) {
-                    SFRD_z_high_table[j] = (float *)calloc(NSFR_high,sizeof(float));
+                    SFRD_z_high_table[j] = (double *)calloc(NSFR_high,sizeof(double));
                 }
 
                 if(flag_options->USE_MINI_HALOS){
-                    log10_SFRD_z_low_table_MINI = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+                    log10_SFRD_z_low_table_MINI = (double **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
                     for(j=0;j<global_params.NUM_FILTER_STEPS_FOR_Ts;j++) {
-                        log10_SFRD_z_low_table_MINI[j] = (float *)calloc(NSFR_low*NMTURN,sizeof(float));
+                        log10_SFRD_z_low_table_MINI[j] = (double *)calloc(NSFR_low*NMTURN,sizeof(double));
                     }
 
-                    SFRD_z_high_table_MINI = (float **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float *));
+                    SFRD_z_high_table_MINI = (double **)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double *));
                     for(j=0;j<global_params.NUM_FILTER_STEPS_FOR_Ts;j++) {
-                        SFRD_z_high_table_MINI[j] = (float *)calloc(NSFR_high*NMTURN,sizeof(float));
+                        SFRD_z_high_table_MINI[j] = (double *)calloc(NSFR_high*NMTURN,sizeof(double));
                     }
                 }
             }
@@ -327,14 +327,14 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
                 log10_Mcrit_LW_ave_list = (double *) calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
             }
 
-            del_fcoll_Rct = (float *) calloc(HII_TOT_NUM_PIXELS,sizeof(float));
+            del_fcoll_Rct = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
 
             dxheat_dt_box = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
             dxion_source_dt_box = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
             dxlya_dt_box = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
             dstarlya_dt_box = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
             if (flag_options->USE_MINI_HALOS){
-                del_fcoll_Rct_MINI = (float *) calloc(HII_TOT_NUM_PIXELS,sizeof(float));
+                del_fcoll_Rct_MINI = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
 
                 dstarlyLW_dt_box = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
                 dxheat_dt_box_MINI = (double *) calloc(HII_TOT_NUM_PIXELS,sizeof(double));
@@ -345,7 +345,7 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
             }
 
             m_xHII_low_box = (int *)calloc(HII_TOT_NUM_PIXELS,sizeof(int));
-            inverse_val_box = (float *)calloc(HII_TOT_NUM_PIXELS,sizeof(float));
+            inverse_val_box = (double *)calloc(HII_TOT_NUM_PIXELS,sizeof(double));
 
         }
         else {
@@ -375,13 +375,13 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
                 }
                 ST_over_PS_arg_grid = (double *)calloc(zpp_interp_points_SFR,sizeof(double));
 
-                delNL0_bw = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
-                delNL0_Offset = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
-                delNL0_LL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
-                delNL0_UL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
-                delNL0_ibw = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
-                log10delNL0_diff = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
-                log10delNL0_diff_UL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                delNL0_bw = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                delNL0_Offset = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                delNL0_LL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                delNL0_UL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                delNL0_ibw = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                log10delNL0_diff = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
+                log10delNL0_diff_UL = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
 
                 fcoll_interp1 = (double **)calloc(dens_Ninterp,sizeof(double *));
                 fcoll_interp2 = (double **)calloc(dens_Ninterp,sizeof(double *));
@@ -396,19 +396,19 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
 
                 dens_grid_int_vals = (short **)calloc(HII_TOT_NUM_PIXELS,sizeof(short *));
                 for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
-                    dens_grid_int_vals[i] = (short *)calloc((float)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(short));
+                    dens_grid_int_vals[i] = (short *)calloc((double)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(short));
                 }
             }
 
-            delNL0_rev = (float **)calloc(HII_TOT_NUM_PIXELS,sizeof(float *));
+            delNL0_rev = (double **)calloc(HII_TOT_NUM_PIXELS,sizeof(double *));
             for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
-                delNL0_rev[i] = (float *)calloc((float)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                delNL0_rev[i] = (double *)calloc((double)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
             }
             // JordanFlitter: allocate memory for baryons
             if (user_params->EVOLVE_BARYONS) {
-                delNL0_rev_baryons = (float **)calloc(HII_TOT_NUM_PIXELS,sizeof(float *));
+                delNL0_rev_baryons = (double **)calloc(HII_TOT_NUM_PIXELS,sizeof(double *));
                 for(i=0;i<HII_TOT_NUM_PIXELS;i++) {
-                    delNL0_rev_baryons[i] = (float *)calloc((float)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+                    delNL0_rev_baryons[i] = (double *)calloc((double)global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
                 }
             }
         }
@@ -438,20 +438,20 @@ LOG_SUPER_DEBUG("initalising Ts Interp Arrays");
 
         // Grids/arrays that are re-evaluated for each zp
         fcoll_R_array = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
-        inverse_diff = calloc(x_int_NXHII,sizeof(float));
-        zpp_growth = (float *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+        inverse_diff = calloc(x_int_NXHII,sizeof(double));
+        zpp_growth = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
 
         sigma_Tmin = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
         ST_over_PS = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
         sum_lyn = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
         if (flag_options->USE_MINI_HALOS){
-            Mcrit_atom_interp_table = (float *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+            Mcrit_atom_interp_table = (double *)calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
             ST_over_PS_MINI = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
             sum_lyn_MINI = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
             sum_lyLWn = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
             sum_lyLWn_MINI = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
         }
-        zpp_for_evolve_list = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(float));
+        zpp_for_evolve_list = calloc(global_params.NUM_FILTER_STEPS_FOR_Ts,sizeof(double));
 
         TsInterpArraysInitialised = true;
 LOG_SUPER_DEBUG("initalised Ts Interp Arrays");
@@ -599,7 +599,7 @@ LOG_SUPER_DEBUG("read in file");
         if (redshift <= global_params.Z_HEAT_MAX) {
 
             if(!flag_options->M_MIN_in_Mass) {
-                M_MIN = (float)TtoM(redshift, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
+                M_MIN = (double)TtoM(redshift, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
                 LOG_DEBUG("Attempting to initialise sigmaM table with M_MIN=%e, Tvir_MIN=%e, mu=%e",
                           M_MIN, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
                 if(user_params->USE_INTERPOLATION_TABLES) {
@@ -708,8 +708,8 @@ LOG_SUPER_DEBUG("Treating as the first box");
                     Tk_ave += previous_spin_temp->Tk_box[ct];
                 }
             }
-            x_e_ave /= (float)HII_TOT_NUM_PIXELS;
-            Tk_ave /= (float)HII_TOT_NUM_PIXELS;
+            x_e_ave /= (double)HII_TOT_NUM_PIXELS;
+            Tk_ave /= (double)HII_TOT_NUM_PIXELS;
         }
 
         // JordanFlitter: We need to allocate memory for HyRec and fill its fields.
@@ -750,8 +750,8 @@ LOG_SUPER_DEBUG("Treating as the first box");
             // JordanFlitter: during the dark ages, we don't need curr_delNL0 (or delta(z=0)) as we use the baryons density field at perturbed_field_redshift
             if (!user_params->NO_INI_MATTER_FLUCTS && !user_params->EVOLVE_BARYONS) {
                 // JordanFlitter: Need to allocate memeory for delNL0 during the dark ages!
-                delNL0 = (float **)calloc(1,sizeof(float *));
-                delNL0[0] = (float *)calloc((float)HII_TOT_NUM_PIXELS,sizeof(float));
+                delNL0 = (double **)calloc(1,sizeof(double *));
+                delNL0[0] = (double *)calloc((double)HII_TOT_NUM_PIXELS,sizeof(double));
 
                 #pragma omp parallel shared(perturbed_field,delNL0,inverse_growth_factor_z) private(i,j,k,curr_delNL0) num_threads(user_params->N_THREADS)
                 {
@@ -786,16 +786,16 @@ LOG_SUPER_DEBUG("Treating as the first box");
                     for (i=0; i<user_params->HII_DIM; i++){
                         for (j=0; j<user_params->HII_DIM; j++){
                             for (k=0; k<user_params->HII_DIM; k++){
-                                *((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->baryons_density[HII_R_INDEX(i,j,k)];
+                                *((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->baryons_density[HII_R_INDEX(i,j,k)];
 
-                                if (*((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                    *((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                if (*((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                    *((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                 }
                                 if (user_params->SCATTERING_DM){
-                                    *((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->SDM_density[HII_R_INDEX(i,j,k)];
+                                    *((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->SDM_density[HII_R_INDEX(i,j,k)];
 
-                                    if (*((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                        *((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                    if (*((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                        *((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                     }
                                 }
                             }
@@ -832,12 +832,12 @@ LOG_SUPER_DEBUG("Treating as the first box");
                     // We extrapolate linearly delta_baryons and its redshift derivative to zp. This requires FFT'ing the density box
                     dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, delta_baryons);
                     // Make a copy of delta_baryons at k space
-                    memcpy(delta_baryons_derivative, delta_baryons, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                    memcpy(delta_baryons_derivative, delta_baryons, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
                     if (user_params->SCATTERING_DM){
                         // Now we extrapolate linearly delta_SDM and its redshift derivative to zp. This requires FFT'ing the density box
                         dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, delta_SDM);
                         // Make a copy of delta_SDM at k space
-                        memcpy(delta_SDM_derivative, delta_SDM, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                        memcpy(delta_SDM_derivative, delta_SDM, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
                     }
                     #pragma omp parallel shared(zp,prev_zp,delta_baryons,delta_baryons_derivative,delta_SDM,delta_SDM_derivative) private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag) num_threads(user_params->N_THREADS)
                             {
@@ -856,11 +856,11 @@ LOG_SUPER_DEBUG("Treating as the first box");
                                             k_z = n_z * DELTA_K;
                                             k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
-                                            *((fftwf_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_BARYONS(zp,k_mag,0)/SDGF_BARYONS(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
-                                            *((fftwf_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_BARYONS_dz(zp,k_mag)/SDGF_BARYONS(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                            *((fftw_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_BARYONS(zp,k_mag,0)/SDGF_BARYONS(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                            *((fftw_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_BARYONS_dz(zp,k_mag)/SDGF_BARYONS(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
                                             if (user_params->SCATTERING_DM){
-                                                *((fftwf_complex *)delta_SDM + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_SDM(zp,k_mag,0)/SDGF_SDM(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
-                                                *((fftwf_complex *)delta_SDM_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_SDM_dz(zp,k_mag)/SDGF_SDM(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                                *((fftw_complex *)delta_SDM + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_SDM(zp,k_mag,0)/SDGF_SDM(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                                *((fftw_complex *)delta_SDM_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_SDM_dz(zp,k_mag)/SDGF_SDM(prev_zp,k_mag,0)/HII_TOT_NUM_PIXELS;
                                             }
                                         }
                                     }
@@ -879,13 +879,13 @@ LOG_SUPER_DEBUG("Treating as the first box");
                         for (i=0; i<user_params->HII_DIM; i++){
                             for (j=0; j<user_params->HII_DIM; j++){
                                 for (k=0; k<user_params->HII_DIM; k++){
-                                    if (*((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                        *((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                    if (*((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                        *((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                     }
                                 }
                                 if (user_params->SCATTERING_DM){
-                                    if (*((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                        *((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                    if (*((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                        *((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                     }
                                 }
                             }
@@ -914,11 +914,11 @@ LOG_SUPER_DEBUG("Treating as the first box");
                         // JordanFlitter: set local baryons (and SDM) density and its derivative.
                         //                Note we use box_ct_FFT to access the approporiate cell in the box
                         else {
-                            delta_baryons_local = *((float *)delta_baryons + box_ct_FFT(box_ct));
-                            delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct_FFT(box_ct));
+                            delta_baryons_local = *((double *)delta_baryons + box_ct_FFT(box_ct));
+                            delta_baryons_derivative_local = *((double *)delta_baryons_derivative + box_ct_FFT(box_ct));
                             if (user_params->SCATTERING_DM){
-                                delta_SDM_local = *((float *)delta_SDM + box_ct_FFT(box_ct));
-                                delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct_FFT(box_ct));
+                                delta_SDM_local = *((double *)delta_SDM + box_ct_FFT(box_ct));
+                                delta_SDM_derivative_local = *((double *)delta_SDM_derivative + box_ct_FFT(box_ct));
                             }
                         }
                         // JordanFlitter: If this is the first iteration, we need to take the previous box as initial conditions, otherwise we take the current one
@@ -1153,9 +1153,9 @@ LOG_SUPER_DEBUG("Treating as the first box");
         // JordanFlitter: We don't need all of that during the dark ages (if we enter the "else" condition below, astrophysics kicks in as we are in cosmic dawn)
         else {
         /////////////// Create the z=0 non-linear density fields smoothed on scale R to be used in computing fcoll //////////////
-        R = L_FACTOR*user_params->BOX_LEN/(float)user_params->HII_DIM;
-        R_factor = pow(global_params.R_XLy_MAX/R, 1/((float)global_params.NUM_FILTER_STEPS_FOR_Ts));
-        //      R_factor = pow(E, log(HII_DIM)/(float)NUM_FILTER_STEPS_FOR_Ts);
+        R = L_FACTOR*user_params->BOX_LEN/(double)user_params->HII_DIM;
+        R_factor = pow(global_params.R_XLy_MAX/R, 1/((double)global_params.NUM_FILTER_STEPS_FOR_Ts));
+        //      R_factor = pow(E, log(HII_DIM)/(double)NUM_FILTER_STEPS_FOR_Ts);
 LOG_SUPER_DEBUG("Looping through R");
 
         if(this_spin_temp->first_box || (fabs(initialised_redshift - perturbed_field_redshift) > 0.0001) ) {
@@ -1168,10 +1168,10 @@ LOG_SUPER_DEBUG("Looping through R");
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
-                            *((float *)unfiltered_box + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->density[HII_R_INDEX(i,j,k)];
+                            *((double *)unfiltered_box + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->density[HII_R_INDEX(i,j,k)];
                             // JordanFlitter: we extract also the baryons density field
                             if (user_params->EVOLVE_BARYONS){
-                                *((float *)unfiltered_box_baryons + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->baryons_density[HII_R_INDEX(i,j,k)];
+                                *((double *)unfiltered_box_baryons + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->baryons_density[HII_R_INDEX(i,j,k)];
                             }
                         }
                     }
@@ -1194,10 +1194,10 @@ LOG_SUPER_DEBUG("Done FFT on unfiltered box");
             {
 #pragma omp for
                 for (ct=0; ct<HII_KSPACE_NUM_PIXELS; ct++){
-                    unfiltered_box[ct] /= (float)HII_TOT_NUM_PIXELS;
+                    unfiltered_box[ct] /= (double)HII_TOT_NUM_PIXELS;
                     // JordanFlitter: we do the same for the baryons box
                     if (user_params->EVOLVE_BARYONS){
-                        unfiltered_box_baryons[ct] /= (float)HII_TOT_NUM_PIXELS;
+                        unfiltered_box_baryons[ct] /= (double)HII_TOT_NUM_PIXELS;
                     }
                 }
             }
@@ -1210,10 +1210,10 @@ LOG_SUPER_DEBUG("normalised unfiltered box");
                 R_values[R_ct] = R;
 
                 // copy over unfiltered box
-                memcpy(box, unfiltered_box, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                memcpy(box, unfiltered_box, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
                 // JordanFlitter: we copy also the baryons box
                 if (user_params->EVOLVE_BARYONS){
-                    memcpy(box_baryons, unfiltered_box_baryons, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                    memcpy(box_baryons, unfiltered_box_baryons, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
                 }
 
                 if (R_ct > 0){ // don't filter on cell size
@@ -1242,7 +1242,7 @@ LOG_ULTRA_DEBUG("Executed FFT for R=%f", R);
                     for (i=0;i<user_params->HII_DIM; i++){
                         for (j=0;j<user_params->HII_DIM; j++){
                             for (k=0;k<user_params->HII_DIM; k++){
-                                curr_delNL0 = *((float *)box + HII_R_FFT_INDEX(i,j,k));
+                                curr_delNL0 = *((double *)box + HII_R_FFT_INDEX(i,j,k));
 
                                 if (curr_delNL0 <= -1){ // correct for aliasing in the filtering step
                                     curr_delNL0 = -1+FRACT_FLOAT_ERR;
@@ -1261,7 +1261,7 @@ LOG_ULTRA_DEBUG("Executed FFT for R=%f", R);
                                 }
                                 // JordanFlitter: we do the same for baryons
                                 if (user_params->EVOLVE_BARYONS){
-                                    curr_delNL0_baryons = *((float *)box_baryons + HII_R_FFT_INDEX(i,j,k));
+                                    curr_delNL0_baryons = *((double *)box_baryons + HII_R_FFT_INDEX(i,j,k));
 
                                     if (curr_delNL0_baryons <= -1){ // correct for aliasing in the filtering step
                                         curr_delNL0_baryons = -1+FRACT_FLOAT_ERR;
@@ -1367,7 +1367,7 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
         determine_zpp_max = zpp*1.001;
 
         if(!flag_options->M_MIN_in_Mass) {
-            M_MIN = (float)TtoM(determine_zpp_max, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
+            M_MIN = (double)TtoM(determine_zpp_max, astro_params->X_RAY_Tvir_MIN, mu_for_Ts);
             if(user_params->USE_INTERPOLATION_TABLES) {
               if(user_params->FAST_FCOLL_TABLES){
                 initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
@@ -1381,7 +1381,7 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
         LOG_SUPER_DEBUG("Initialised sigma interp table");
 
         if(user_params->USE_INTERPOLATION_TABLES) {
-            zpp_bin_width = (determine_zpp_max - determine_zpp_min)/((float)zpp_interp_points_SFR-1.0);
+            zpp_bin_width = (determine_zpp_max - determine_zpp_min)/((double)zpp_interp_points_SFR-1.0);
 
             dens_width = 1./((double)dens_Ninterp - 1.);
         }
@@ -1396,7 +1396,7 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
 
                     // generates an interpolation table for redshift
                     for (i=0; i<zpp_interp_points_SFR;i++) {
-                        zpp_interp_table[i] = determine_zpp_min + zpp_bin_width*(float)i;
+                        zpp_interp_table[i] = determine_zpp_min + zpp_bin_width*(double)i;
                     }
 
                     /* initialise interpolation of the mean collapse fraction for global reionization.*/
@@ -1445,15 +1445,15 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
                     {
 #pragma omp for
                         for(i=0;i<zpp_interp_points_SFR;i++) {
-                            zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(float)i/((float)zpp_interp_points_SFR-1.0);
+                            zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(double)i/((double)zpp_interp_points_SFR-1.0);
 
                             if(flag_options->M_MIN_in_Mass) {
                                 Sigma_Tmin_grid[i] = sigma_z0(fmaxf(M_MIN,  M_MIN_WDM),zpp_grid); // JordanFlitter: added redshift argument
                                 ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf(M_MIN,  M_MIN_WDM));
                             }
                             else {
-                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM),zpp_grid); // JordanFlitter: added redshift argument
-                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf((float)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
+                                Sigma_Tmin_grid[i] = sigma_z0(fmaxf((double)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM),zpp_grid); // JordanFlitter: added redshift argument
+                                ST_over_PS_arg_grid[i] = FgtrM_General(zpp_grid, fmaxf((double)TtoM(zpp_grid, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM));
                             }
                         }
                     }
@@ -1468,7 +1468,7 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
                         for(ii=0;ii<global_params.NUM_FILTER_STEPS_FOR_Ts;ii++) {
                             for(i=0;i<zpp_interp_points_SFR;i++) {
 
-                                zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(float)i/((float)zpp_interp_points_SFR-1.0);
+                                zpp_grid = determine_zpp_min + (determine_zpp_max - determine_zpp_min)*(double)i/((double)zpp_interp_points_SFR-1.0);
                                 // JordanFlitter: moved calculation of sigma_atR here, and added redshift argument
                                 sigma_atR[ii] = sigma_z0(RtoM(R_values[ii]),zpp_grid);
                                 grid_sigmaTmin = Sigma_Tmin_grid[i];
@@ -1498,7 +1498,7 @@ LOG_SUPER_DEBUG("Finished loop through filter scales R");
                         delNL0_bw_val = delNL0_bw[R_ct];
 
                         for(i=0;i<dens_Ninterp;i++) {
-                            density_gridpoints[i][R_ct] = pow(10.,( log10( DensityValueLow + OffsetValue) + delNL0_bw_val*((float)i) )) - OffsetValue;
+                            density_gridpoints[i][R_ct] = pow(10.,( log10( DensityValueLow + OffsetValue) + delNL0_bw_val*((double)i) )) - OffsetValue;
                         }
                     }
                 }
@@ -1569,7 +1569,7 @@ LOG_SUPER_DEBUG("got density gridpoints");
                     Throw(TableEvaluationError);
                 }
 
-                redshift_table_Nion_z = determine_zpp_min + zpp_bin_width*(float)redshift_int_Nion_z;
+                redshift_table_Nion_z = determine_zpp_min + zpp_bin_width*(double)redshift_int_Nion_z;
 
                 Splined_Fcollzp_mean = Nion_z_val[redshift_int_Nion_z] + \
                         ( zp - redshift_table_Nion_z )*( Nion_z_val[redshift_int_Nion_z+1] - Nion_z_val[redshift_int_Nion_z] )/(zpp_bin_width);
@@ -1622,7 +1622,7 @@ LOG_SUPER_DEBUG("got density gridpoints");
                                 }
                               }
 
-                              *((float *)log10_Mcrit_LW_unfiltered + HII_R_FFT_INDEX(i,j,k)) = \
+                              *((double *)log10_Mcrit_LW_unfiltered + HII_R_FFT_INDEX(i,j,k)) = \
                                               log10(lyman_werner_threshold(zp, previous_spin_temp->J_21_LW_box[HII_R_INDEX(i,j,k)],
                                               curr_vcb, astro_params) );
 
@@ -1631,7 +1631,7 @@ LOG_SUPER_DEBUG("got density gridpoints");
 
 
 
-                                log10_Mcrit_LW_ave += *((float *)log10_Mcrit_LW_unfiltered + HII_R_FFT_INDEX(i,j,k));
+                                log10_Mcrit_LW_ave += *((double *)log10_Mcrit_LW_unfiltered + HII_R_FFT_INDEX(i,j,k));
                             }
                         }
                     }
@@ -1646,13 +1646,13 @@ LOG_SUPER_DEBUG("got density gridpoints");
                 {
 #pragma omp for
                     for (ct=0; ct<HII_KSPACE_NUM_PIXELS; ct++) {
-                        log10_Mcrit_LW_unfiltered[ct] /= (float)HII_TOT_NUM_PIXELS;
+                        log10_Mcrit_LW_unfiltered[ct] /= (double)HII_TOT_NUM_PIXELS;
                     }
                 }
 
                 if(user_params->USE_INTERPOLATION_TABLES) {
                     log10_Mcrit_LW_ave_int_Nion_z = (int)floor( ( log10_Mcrit_LW_ave - LOG10_MTURN_MIN) / LOG10_MTURN_INT);
-                    log10_Mcrit_LW_ave_table_Nion_z = LOG10_MTURN_MIN + LOG10_MTURN_INT * (float)log10_Mcrit_LW_ave_int_Nion_z;
+                    log10_Mcrit_LW_ave_table_Nion_z = LOG10_MTURN_MIN + LOG10_MTURN_INT * (double)log10_Mcrit_LW_ave_int_Nion_z;
 
                     Splined_Fcollzp_mean_MINI_left = Nion_z_val_MINI[redshift_int_Nion_z + zpp_interp_points_SFR * log10_Mcrit_LW_ave_int_Nion_z] + \
                                                 ( zp - redshift_table_Nion_z ) / (zpp_bin_width)*\
@@ -1697,7 +1697,7 @@ LOG_SUPER_DEBUG("got density gridpoints");
             }
             else {
 
-                if (FgtrM(zp, fmaxf((float)TtoM(zp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM)) < 1e-15 )
+                if (FgtrM(zp, fmaxf((double)TtoM(zp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts),  M_MIN_WDM)) < 1e-15 )
                     NO_LIGHT = 1;
                 else
                     NO_LIGHT = 0;
@@ -1756,7 +1756,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                         Throw(TableEvaluationError);
                     }
 
-                    redshift_table_SFRD = determine_zpp_min + zpp_bin_width*(float)redshift_int_SFRD;
+                    redshift_table_SFRD = determine_zpp_min + zpp_bin_width*(double)redshift_int_SFRD;
 
                     Splined_SFRD_zpp = SFRD_val[redshift_int_SFRD] + \
                                     ( zpp - redshift_table_SFRD )*( SFRD_val[redshift_int_SFRD+1] - SFRD_val[redshift_int_SFRD] )/(zpp_bin_width);
@@ -1769,7 +1769,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                 }
 
                 if(flag_options->USE_MINI_HALOS){
-                    memcpy(log10_Mcrit_LW_filtered, log10_Mcrit_LW_unfiltered, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                    memcpy(log10_Mcrit_LW_filtered, log10_Mcrit_LW_unfiltered, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
                     if (R_ct > 0){// don't filter on cell size
                         filter_box(log10_Mcrit_LW_filtered, 1, global_params.HEAT_FILTER, R_values[R_ct]);
                     }
@@ -1782,7 +1782,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                         for (i=0; i<user_params->HII_DIM; i++){
                             for (j=0; j<user_params->HII_DIM; j++){
                                 for (k=0; k<user_params->HII_DIM; k++){
-                                    log10_Mcrit_LW[R_ct][HII_R_INDEX(i,j,k)] = *((float *) log10_Mcrit_LW_filtered + HII_R_FFT_INDEX(i,j,k));
+                                    log10_Mcrit_LW[R_ct][HII_R_INDEX(i,j,k)] = *((double *) log10_Mcrit_LW_filtered + HII_R_FFT_INDEX(i,j,k));
                                     if(log10_Mcrit_LW[R_ct][HII_R_INDEX(i,j,k)] < log10_Mcrit_mol)
                                         log10_Mcrit_LW[R_ct][HII_R_INDEX(i,j,k)] = log10_Mcrit_mol;
                                     if (log10_Mcrit_LW[R_ct][HII_R_INDEX(i,j,k)] > LOG10_MTURN_MAX)
@@ -1798,7 +1798,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
 
                     if(user_params->USE_INTERPOLATION_TABLES) {
                         log10_Mcrit_LW_ave_int_SFRD = (int)floor( ( log10_Mcrit_LW_ave - LOG10_MTURN_MIN) / LOG10_MTURN_INT);
-                        log10_Mcrit_LW_ave_table_SFRD = LOG10_MTURN_MIN + LOG10_MTURN_INT * (float)log10_Mcrit_LW_ave_int_SFRD;
+                        log10_Mcrit_LW_ave_table_SFRD = LOG10_MTURN_MIN + LOG10_MTURN_INT * (double)log10_Mcrit_LW_ave_int_SFRD;
 
                         Splined_SFRD_zpp_MINI_left = SFRD_val_MINI[redshift_int_SFRD + zpp_interp_points_SFR * log10_Mcrit_LW_ave_int_SFRD] + \
                                                 ( zpp - redshift_table_SFRD ) / (zpp_bin_width)*\
@@ -1835,8 +1835,8 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                         Throw(TableEvaluationError);
                     }
 
-                    zpp_gridpoint1 = determine_zpp_min + zpp_bin_width*(float)zpp_gridpoint1_int;
-                    zpp_gridpoint2 = determine_zpp_min + zpp_bin_width*(float)zpp_gridpoint2_int;
+                    zpp_gridpoint1 = determine_zpp_min + zpp_bin_width*(double)zpp_gridpoint1_int;
+                    zpp_gridpoint2 = determine_zpp_min + zpp_bin_width*(double)zpp_gridpoint2_int;
 
                     grad1 = ( zpp_gridpoint2 - zpp )/( zpp_gridpoint2 - zpp_gridpoint1 );
                     grad2 = ( zpp - zpp_gridpoint1 )/( zpp_gridpoint2 - zpp_gridpoint1 );
@@ -1869,7 +1869,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                         sigma_Tmin[R_ct] = sigma_z0(fmaxf(M_MIN, M_MIN_WDM),zpp); // JordanFlitter: added redshift argument
                     }
                     else {
-                        sigma_Tmin[R_ct] = sigma_z0(fmaxf((float)TtoM(zpp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM),zpp); // JordanFlitter: added redshift argument
+                        sigma_Tmin[R_ct] = sigma_z0(fmaxf((double)TtoM(zpp, astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM),zpp); // JordanFlitter: added redshift argument
                     }
 
                     ST_over_PS[R_ct] = dzpp_for_evolve * pow(1+zpp, -(astro_params->X_RAY_SPEC_INDEX));
@@ -1975,7 +1975,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                 // This is a coarse approximation as it assumes that the linear sampling is a good representation of the different
                 // volumes of the shells (from different radii).
                 for(ii=0;ii<n_pts_radii;ii++) {
-                    trial_zpp = trial_zpp_min + (trial_zpp_max - trial_zpp_min)*(float)ii/((float)n_pts_radii-1.);
+                    trial_zpp = trial_zpp_min + (trial_zpp_max - trial_zpp_min)*(double)ii/((double)n_pts_radii-1.);
 
                     counter = 0;
                     for (n_ct=NSPEC_MAX; n_ct>=2; n_ct--){
@@ -1986,7 +1986,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                     }
                     if(counter==0&&first_zero) {
                         first_zero = false;
-                        weight = (float)ii/(float)n_pts_radii;
+                        weight = (double)ii/(double)n_pts_radii;
                     }
                 }
 
@@ -2038,7 +2038,7 @@ LOG_SUPER_DEBUG("beginning loop over R_ct");
                             ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], fmaxf(M_MIN, M_MIN_WDM));
                         }
                         else {
-                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], fmaxf((float)TtoM(zpp_for_evolve_list[R_ct], astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM));
+                            ST_over_PS[R_ct] *= FgtrM_General(zpp_for_evolve_list[R_ct], fmaxf((double)TtoM(zpp_for_evolve_list[R_ct], astro_params->X_RAY_Tvir_MIN, mu_for_Ts), M_MIN_WDM));
                         }
                     }
 
@@ -2076,7 +2076,7 @@ LOG_SUPER_DEBUG("finished looping over R_ct filter steps");
 
         if(user_params->USE_INTERPOLATION_TABLES) {
             fcoll_interp_high_min = global_params.CRIT_DENS_TRANSITION;
-            fcoll_interp_high_bin_width = 1./((float)NSFR_high-1.)*(Deltac - fcoll_interp_high_min);
+            fcoll_interp_high_bin_width = 1./((double)NSFR_high-1.)*(Deltac - fcoll_interp_high_min);
             fcoll_interp_high_bin_width_inv = 1./fcoll_interp_high_bin_width;
         }
 
@@ -2259,16 +2259,16 @@ LOG_SUPER_DEBUG("looping over box...");
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
-                            *((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->baryons_density[HII_R_INDEX(i,j,k)];
+                            *((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->baryons_density[HII_R_INDEX(i,j,k)];
 
-                            if (*((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                *((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                            if (*((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                *((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                             }
                             if (user_params->SCATTERING_DM){
-                                *((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->SDM_density[HII_R_INDEX(i,j,k)];
+                                *((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = perturbed_field->SDM_density[HII_R_INDEX(i,j,k)];
 
-                                if (*((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                    *((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                if (*((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                    *((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                 }
                             }
                         }
@@ -2278,12 +2278,12 @@ LOG_SUPER_DEBUG("looping over box...");
             // Now we extrapolate linearly delta_baryons and its redshift derivative to zp. This requires FFT'ing the density box
             dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, delta_baryons);
             // Make a copy of delta_baryons at k space
-            memcpy(delta_baryons_derivative, delta_baryons, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+            memcpy(delta_baryons_derivative, delta_baryons, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
             if (user_params->SCATTERING_DM){
                 // Now we extrapolate linearly delta_SDM and its redshift derivative to zp. This requires FFT'ing the density box
                 dft_r2c_cube(user_params->USE_FFTW_WISDOM, user_params->HII_DIM, user_params->N_THREADS, delta_SDM);
                 // Make a copy of delta_SDM at k space
-                memcpy(delta_SDM_derivative, delta_SDM, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                memcpy(delta_SDM_derivative, delta_SDM, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
             }
 
             #pragma omp parallel shared(zp,perturbed_field_redshift,delta_baryons,delta_baryons_derivative,delta_SDM,delta_SDM_derivative) private(n_x,n_y,n_z,k_x,k_y,k_z,k_mag) num_threads(user_params->N_THREADS)
@@ -2303,11 +2303,11 @@ LOG_SUPER_DEBUG("looping over box...");
                                     k_z = n_z * DELTA_K;
                                     k_mag = sqrt(k_x*k_x + k_y*k_y + k_z*k_z);
 
-                                    *((fftwf_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_BARYONS(zp,k_mag,0)/SDGF_BARYONS(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
-                                    *((fftwf_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_BARYONS_dz(zp,k_mag)/SDGF_BARYONS(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                    *((fftw_complex *)delta_baryons + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_BARYONS(zp,k_mag,0)/SDGF_BARYONS(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                    *((fftw_complex *)delta_baryons_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_BARYONS_dz(zp,k_mag)/SDGF_BARYONS(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
                                     if (user_params->SCATTERING_DM){
-                                        *((fftwf_complex *)delta_SDM + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_SDM(zp,k_mag,0)/SDGF_SDM(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
-                                        *((fftwf_complex *)delta_SDM_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_SDM_dz(zp,k_mag)/SDGF_SDM(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                        *((fftw_complex *)delta_SDM + HII_C_INDEX(n_x,n_y,n_z)) *= SDGF_SDM(zp,k_mag,0)/SDGF_SDM(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
+                                        *((fftw_complex *)delta_SDM_derivative + HII_C_INDEX(n_x,n_y,n_z)) *= dSDGF_SDM_dz(zp,k_mag)/SDGF_SDM(perturbed_field_redshift,k_mag,0)/HII_TOT_NUM_PIXELS;
                                     }
                                 }
                             }
@@ -2326,12 +2326,12 @@ LOG_SUPER_DEBUG("looping over box...");
                 for (i=0; i<user_params->HII_DIM; i++){
                     for (j=0; j<user_params->HII_DIM; j++){
                         for (k=0; k<user_params->HII_DIM; k++){
-                            if (*((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                *((float *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                            if (*((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                *((double *)delta_baryons + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                             }
                             if (user_params->SCATTERING_DM){
-                                if (*((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
-                                    *((float *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
+                                if (*((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) <= -1){ // correct for aliasing in the filtering step
+                                    *((double *)delta_SDM + HII_R_FFT_INDEX(i,j,k)) = -1+FRACT_FLOAT_ERR;
                                 }
                             }
                         }
@@ -2407,10 +2407,10 @@ LOG_SUPER_DEBUG("looping over box...");
                         fcoll_interp_min = log10(1. + min_densities[R_ct]*zpp_growth[R_ct]);
                     }
                     if( max_densities[R_ct]*zpp_growth[R_ct] > global_params.CRIT_DENS_TRANSITION ) {
-                        fcoll_interp_bin_width = 1./((float)NSFR_low-1.)*(log10(1.+global_params.CRIT_DENS_TRANSITION)-fcoll_interp_min);
+                        fcoll_interp_bin_width = 1./((double)NSFR_low-1.)*(log10(1.+global_params.CRIT_DENS_TRANSITION)-fcoll_interp_min);
                     }
                     else {
-                        fcoll_interp_bin_width = 1./((float)NSFR_low-1.)*(log10(1.+max_densities[R_ct]*zpp_growth[R_ct])-fcoll_interp_min);
+                        fcoll_interp_bin_width = 1./((double)NSFR_low-1.)*(log10(1.+max_densities[R_ct]*zpp_growth[R_ct])-fcoll_interp_min);
                     }
                     fcoll_interp_bin_width_inv = 1./fcoll_interp_bin_width;
                 }
@@ -2423,10 +2423,10 @@ LOG_SUPER_DEBUG("looping over box...");
                 if(user_params->MINIMIZE_MEMORY) {
 
                     // copy over unfiltered box
-                    memcpy(box, unfiltered_box, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                    memcpy(box, unfiltered_box, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
                     // JordanFlitter: we copy also the baryons box
                     if (user_params->EVOLVE_BARYONS){
-                        memcpy(box_baryons, unfiltered_box_baryons, sizeof(fftwf_complex)*HII_KSPACE_NUM_PIXELS);
+                        memcpy(box_baryons, unfiltered_box_baryons, sizeof(fftw_complex)*HII_KSPACE_NUM_PIXELS);
                     }
 
                     if (R_ct > 0){ // don't filter on cell size
@@ -2452,7 +2452,7 @@ LOG_SUPER_DEBUG("looping over box...");
                         for (i=0;i<user_params->HII_DIM; i++){
                             for (j=0;j<user_params->HII_DIM; j++){
                                 for (k=0;k<user_params->HII_DIM; k++){
-                                    curr_delNL0 = *((float *)box + HII_R_FFT_INDEX(i,j,k));
+                                    curr_delNL0 = *((double *)box + HII_R_FFT_INDEX(i,j,k));
 
                                     if (curr_delNL0 <= -1){ // correct for aliasing in the filtering step
                                         curr_delNL0 = -1+FRACT_FLOAT_ERR;
@@ -2476,7 +2476,7 @@ LOG_SUPER_DEBUG("looping over box...");
 
                                     // JordanFlitter: we do something similar with baryons
                                     if (user_params->EVOLVE_BARYONS) {
-                                        curr_delNL0_baryons = *((float *)box_baryons + HII_R_FFT_INDEX(i,j,k));
+                                        curr_delNL0_baryons = *((double *)box_baryons + HII_R_FFT_INDEX(i,j,k));
 
                                         if (curr_delNL0_baryons <= -1){ // correct for aliasing in the filtering step
                                             curr_delNL0_baryons = -1+FRACT_FLOAT_ERR;
@@ -2523,7 +2523,7 @@ LOG_SUPER_DEBUG("looping over box...");
                         if (flag_options->USE_MINI_HALOS && user_params->USE_INTERPOLATION_TABLES){
                             log10_Mcrit_LW_val = ( log10_Mcrit_LW[R_ct][box_ct] - LOG10_MTURN_MIN) / LOG10_MTURN_INT;
                             log10_Mcrit_LW_int = (int)floorf( log10_Mcrit_LW_val );
-                            log10_Mcrit_LW_diff = log10_Mcrit_LW_val - (float)log10_Mcrit_LW_int;
+                            log10_Mcrit_LW_diff = log10_Mcrit_LW_val - (double)log10_Mcrit_LW_int;
                         }
                         if (!NO_LIGHT){
                             // Now determine all the differentials for the heating/ionisation rate equations
@@ -2553,18 +2553,18 @@ LOG_SUPER_DEBUG("looping over box...");
 
                                                     fcoll_int = (int)floorf( dens_val );
 
-                                                    fcoll = SFRD_z_high_table[R_ct][fcoll_int]*( 1. + (float)fcoll_int - dens_val ) + \
-                                                            SFRD_z_high_table[R_ct][fcoll_int+1]*( dens_val - (float)fcoll_int );
+                                                    fcoll = SFRD_z_high_table[R_ct][fcoll_int]*( 1. + (double)fcoll_int - dens_val ) + \
+                                                            SFRD_z_high_table[R_ct][fcoll_int+1]*( dens_val - (double)fcoll_int );
                                                     if (flag_options->USE_MINI_HALOS){
                                                         fcoll_MINI_left = SFRD_z_high_table_MINI[R_ct][fcoll_int + NSFR_high * log10_Mcrit_LW_int]*\
-                                                                    ( 1. + (float)fcoll_int - dens_val ) +\
+                                                                    ( 1. + (double)fcoll_int - dens_val ) +\
                                                                     SFRD_z_high_table_MINI[R_ct][fcoll_int + 1 + NSFR_high * log10_Mcrit_LW_int]*\
-                                                                    ( dens_val - (float)fcoll_int );
+                                                                    ( dens_val - (double)fcoll_int );
 
                                                         fcoll_MINI_right = SFRD_z_high_table_MINI[R_ct][fcoll_int + NSFR_high * (log10_Mcrit_LW_int + 1)]*\
-                                                                    ( 1. + (float)fcoll_int - dens_val ) +\
+                                                                    ( 1. + (double)fcoll_int - dens_val ) +\
                                                                     SFRD_z_high_table_MINI[R_ct][fcoll_int + 1 + NSFR_high * (log10_Mcrit_LW_int + 1)]*\
-                                                                    ( dens_val - (float)fcoll_int );
+                                                                    ( dens_val - (double)fcoll_int );
 
                                                         fcoll_MINI = fcoll_MINI_left * (1. - log10_Mcrit_LW_diff) + fcoll_MINI_right * log10_Mcrit_LW_diff;
                                                     }
@@ -2587,21 +2587,21 @@ LOG_SUPER_DEBUG("looping over box...");
                                         }
                                         else {
 
-                                            fcoll = log10_SFRD_z_low_table[R_ct][fcoll_int]*( 1 + (float)fcoll_int - dens_val ) + \
-                                                    log10_SFRD_z_low_table[R_ct][fcoll_int+1]*( dens_val - (float)fcoll_int );
+                                            fcoll = log10_SFRD_z_low_table[R_ct][fcoll_int]*( 1 + (double)fcoll_int - dens_val ) + \
+                                                    log10_SFRD_z_low_table[R_ct][fcoll_int+1]*( dens_val - (double)fcoll_int );
 
                                             fcoll = expf(fcoll);
 
                                             if (flag_options->USE_MINI_HALOS){
                                                 fcoll_MINI_left = log10_SFRD_z_low_table_MINI[R_ct][fcoll_int + NSFR_low * log10_Mcrit_LW_int]*\
-                                                                ( 1 + (float)fcoll_int - dens_val ) +\
+                                                                ( 1 + (double)fcoll_int - dens_val ) +\
                                                                     log10_SFRD_z_low_table_MINI[R_ct][fcoll_int + 1 + NSFR_low * log10_Mcrit_LW_int]*\
-                                                                ( dens_val - (float)fcoll_int );
+                                                                ( dens_val - (double)fcoll_int );
 
                                                 fcoll_MINI_right = log10_SFRD_z_low_table_MINI[R_ct][fcoll_int + NSFR_low * (log10_Mcrit_LW_int + 1)]*\
-                                                                ( 1 + (float)fcoll_int - dens_val ) +\
+                                                                ( 1 + (double)fcoll_int - dens_val ) +\
                                                                 log10_SFRD_z_low_table_MINI[R_ct][fcoll_int + 1 + NSFR_low*(log10_Mcrit_LW_int + 1)]*\
-                                                                ( dens_val - (float)fcoll_int );
+                                                                ( dens_val - (double)fcoll_int );
 
                                                 fcoll_MINI = fcoll_MINI_left * (1.-log10_Mcrit_LW_diff) + fcoll_MINI_right * log10_Mcrit_LW_diff;
                                                 fcoll_MINI = expf(fcoll_MINI);
@@ -2621,19 +2621,19 @@ LOG_SUPER_DEBUG("looping over box...");
                                             fcoll_int_boundexceeded_threaded[omp_get_thread_num()] = 1;
                                         }
 
-                                        fcoll = SFRD_z_high_table[R_ct][fcoll_int]*( 1. + (float)fcoll_int - dens_val ) + \
-                                                SFRD_z_high_table[R_ct][fcoll_int+1]*( dens_val - (float)fcoll_int );
+                                        fcoll = SFRD_z_high_table[R_ct][fcoll_int]*( 1. + (double)fcoll_int - dens_val ) + \
+                                                SFRD_z_high_table[R_ct][fcoll_int+1]*( dens_val - (double)fcoll_int );
 
                                         if (flag_options->USE_MINI_HALOS){
                                             fcoll_MINI_left = SFRD_z_high_table_MINI[R_ct][fcoll_int + NSFR_high * log10_Mcrit_LW_int]*\
-                                                        ( 1. + (float)fcoll_int - dens_val ) +\
+                                                        ( 1. + (double)fcoll_int - dens_val ) +\
                                                             SFRD_z_high_table_MINI[R_ct][fcoll_int + 1 + NSFR_high * log10_Mcrit_LW_int]*\
-                                                        ( dens_val - (float)fcoll_int );
+                                                        ( dens_val - (double)fcoll_int );
 
                                             fcoll_MINI_right = SFRD_z_high_table_MINI[R_ct][fcoll_int + NSFR_high*(log10_Mcrit_LW_int + 1)]*\
-                                                        ( 1. + (float)fcoll_int - dens_val ) +\
+                                                        ( 1. + (double)fcoll_int - dens_val ) +\
                                                             SFRD_z_high_table_MINI[R_ct][fcoll_int + 1 + NSFR_high*(log10_Mcrit_LW_int + 1)]*\
-                                                        ( dens_val - (float)fcoll_int );
+                                                        ( dens_val - (double)fcoll_int );
 
                                             fcoll_MINI = fcoll_MINI_left * (1.-log10_Mcrit_LW_diff) + fcoll_MINI_right * log10_Mcrit_LW_diff;
                                         }
@@ -2825,11 +2825,11 @@ LOG_SUPER_DEBUG("looping over box...");
                             // JordanFlitter: set local baryons density and its derivative
                             //                Note we use box_ct_FFT to access the approporiate cell in the box
                             if (user_params->EVOLVE_BARYONS){
-                                delta_baryons_local = *((float *)delta_baryons + box_ct_FFT(box_ct));
-                                delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct_FFT(box_ct));
+                                delta_baryons_local = *((double *)delta_baryons + box_ct_FFT(box_ct));
+                                delta_baryons_derivative_local = *((double *)delta_baryons_derivative + box_ct_FFT(box_ct));
                                 if (user_params->SCATTERING_DM) {
-                                    delta_SDM_local = *((float *)delta_SDM + box_ct_FFT(box_ct));
-                                    delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct_FFT(box_ct));
+                                    delta_SDM_local = *((double *)delta_SDM + box_ct_FFT(box_ct));
+                                    delta_SDM_derivative_local = *((double *)delta_SDM_derivative + box_ct_FFT(box_ct));
                                 }
                             }
 
@@ -3327,11 +3327,11 @@ LOG_SUPER_DEBUG("looping over box...");
                     // JordanFlitter: set local baryons density and its derivative
                     //                Note we use box_ct_FFT to access the approporiate cell in the box
                     if (user_params->EVOLVE_BARYONS){
-                        delta_baryons_local = *((float *)delta_baryons + box_ct_FFT(box_ct));
-                        delta_baryons_derivative_local = *((float *)delta_baryons_derivative + box_ct_FFT(box_ct));
+                        delta_baryons_local = *((double *)delta_baryons + box_ct_FFT(box_ct));
+                        delta_baryons_derivative_local = *((double *)delta_baryons_derivative + box_ct_FFT(box_ct));
                         if (user_params->SCATTERING_DM) {
-                            delta_SDM_local = *((float *)delta_SDM + box_ct_FFT(box_ct));
-                            delta_SDM_derivative_local = *((float *)delta_SDM_derivative + box_ct_FFT(box_ct));
+                            delta_SDM_local = *((double *)delta_SDM + box_ct_FFT(box_ct));
+                            delta_SDM_derivative_local = *((double *)delta_SDM_derivative + box_ct_FFT(box_ct));
                         }
                     }
 
@@ -3789,17 +3789,17 @@ LOG_SUPER_DEBUG("finished loop");
       }
     } // end main integral loop over z'
 
-        fftwf_free(box);
-        fftwf_free(unfiltered_box);
+        fftw_free(box);
+        fftw_free(unfiltered_box);
         // JordanFlitter: free the baryons box
         if (user_params->EVOLVE_BARYONS){
-            fftwf_free(box_baryons);
-            fftwf_free(unfiltered_box_baryons);
+            fftw_free(box_baryons);
+            fftw_free(unfiltered_box_baryons);
         }
 
         if (flag_options->USE_MINI_HALOS){
-            fftwf_free(log10_Mcrit_LW_unfiltered);
-            fftwf_free(log10_Mcrit_LW_filtered);
+            fftw_free(log10_Mcrit_LW_unfiltered);
+            fftw_free(log10_Mcrit_LW_filtered);
             for (R_ct=0; R_ct<global_params.NUM_FILTER_STEPS_FOR_Ts; R_ct++){
                 free(log10_Mcrit_LW[R_ct]);
             }
@@ -3808,10 +3808,10 @@ LOG_SUPER_DEBUG("finished loop");
         //JordanFlitter: We don't need these during the dark ages
         if (redshift <= global_params.Z_HEAT_MAX) {
 
-    //    fftwf_destroy_plan(plan);
-        fftwf_forget_wisdom();
-        fftwf_cleanup_threads();
-        fftwf_cleanup();
+    //    fftw_destroy_plan(plan);
+        fftw_forget_wisdom();
+        fftw_cleanup_threads();
+        fftw_cleanup();
 
         // Free all the boxes. Ideally, we wouldn't do this, as almost always
         // the *next* call to ComputeTsBox will need the same memory. However,
@@ -3922,11 +3922,11 @@ void free_TsCalcBoxes(struct UserParams *user_params, struct FlagOptions *flag_o
 
         // JordanFlitter: need to free the baryons boxes
         if (user_params->EVOLVE_BARYONS){
-            fftwf_free(delta_baryons);
-            fftwf_free(delta_baryons_derivative);
+            fftw_free(delta_baryons);
+            fftw_free(delta_baryons_derivative);
             if (user_params->SCATTERING_DM){
-                fftwf_free(delta_SDM);
-                fftwf_free(delta_SDM_derivative);
+                fftw_free(delta_SDM);
+                fftw_free(delta_SDM_derivative);
             }
         }
 
