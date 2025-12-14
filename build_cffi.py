@@ -64,7 +64,9 @@ ffi.set_source(
     ),
     include_dirs=include_dirs,
     library_dirs=library_dirs,
-    libraries=["m", "gsl", "gslcblas", "fftw3f_omp", "fftw3f"],
+    # SarahLibanore : double precision fftw
+    libraries=["m", "gsl", "gslcblas", #"fftw3f","fftw3f_omp", 
+               "fftw3_omp", "fftw3"],
     extra_compile_args=extra_compile_args,
 )
 
