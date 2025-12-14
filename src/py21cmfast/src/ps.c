@@ -2351,31 +2351,6 @@ double dNdM_conditional(double growthf, double M1, double M2, double delta1, dou
 
             dfcoll_dMmin_NG = derexp * (term1 + term2 + term3) + expval * (dterm1 + dterm2 + dterm3);
 
-        // OLD VERSION
-        //         
-        //     dfdS = (deltagrowth_diff/sqrt(TWOPI)/pow(sigma_diff,3/2.)) * exp(-pow(deltagrowth_diff,2)/2./sigma_diff);
-
-        //     ddfdSdM = dfdS * dsigmadm / 2. / sigma_diff * (pow(deltagrowth_diff,2.)/sigma_diff - 3.);
-
-        //     // DERIVATIVE OF THE EXPRESSION IN D'ALOSIO 
-
-        //     if (user_params_ps->NG_MODEL_APPROX)
-        //         {cothD = 1.;
-        //         termC = - sigma_diff / sigma2 / deltagrowth_diff;
-        //         }
-        //     else
-        //         {val = delta1 / growthf * deltagrowth_diff / sigma2 ;
-        //         cothD =  1+2/(exp(2*val) -1); 
-        //         termC = - sigma_diff / pow(sigma2,2) / deltagrowth_diff * (-sigma_diff + pow(delta2/growthf,2) -2*delta1/growthf*deltagrowth_diff*(-1+cothD));
-        //         }
-        
-        // term = delta1 / growthf - deltagrowth_diff * cothD;
-    
-        // one = A / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + B / sigma2 * term;
-    
-        // two = dA_dMmin / 3. * (deltagrowth_diff / sigma_diff - 1. / deltagrowth_diff) + dB_dMmin / sigma2 * term ;
-    
-        // dfcoll_dMmin_NG = - (ddfdSdM * (one + Cval * termC) + dfdS * (two + dC_dMmin * termC));
         } 
       }
 
