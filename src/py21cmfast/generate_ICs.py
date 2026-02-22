@@ -237,7 +237,7 @@ def run_ICs(cosmo_params,user_params,global_params):
     CLASS_params['z_pk'] = 1087.
     CLASS_params['l_max_scalars'] = 3000
     # We need to run CLASS for very large wavenumbers. This is required for computing sigma(M) and the HMF
-    CLASS_params['P_k_max_1/Mpc'] = 1200.
+    CLASS_params['P_k_max_1/Mpc'] = 3000.
     if user_params.FUZZY_DM:
         # Set FDM parameters
         H_0_eV = H_0 * Hz_to_eV  # Hubble constant in eV
@@ -336,14 +336,16 @@ def run_ICs(cosmo_params,user_params,global_params):
     delta_b_kin_CLASS = Transfer_kin['d_b'][:]
     theta_b_kin_CLASS = Transfer_kin['t_b'][:]*c/Mpc_to_meter # 1/sec
     theta_c_kin_CLASS = np.zeros_like(theta_b_kin_CLASS) # 1/sec
-    #transfer_potential = Transfer_0['phi'][:]    # SarahLibanore, fnl
+
+    Transfer_fnl = CLASS_OUTPUT.get_transfer(0.,'camb')
+    transfer_zeta = Transfer_fnl['-T_tot/k2']    # SarahLibanore, fnl
 
     # Interpolate transfer functions at the desired wavenumbers
     delta_c_kin = Interpolate_transfer(delta_c_kin_CLASS,k_CLASS,k_output)
     delta_b_kin = Interpolate_transfer(delta_b_kin_CLASS,k_CLASS,k_output)
     theta_c_kin = Interpolate_transfer(theta_c_kin_CLASS,k_CLASS,k_output)
     theta_b_kin = Interpolate_transfer(theta_b_kin_CLASS,k_CLASS,k_output)
-    #delta_potential = Interpolate_transfer(transfer_potential,k_CLASS,k_output) # SarahLibanore, fnl
+    delta_zeta = Interpolate_transfer(transfer_zeta,k_CLASS,k_output) # SarahLibanore, fnl
     # Calculate v_cb at kinematic decoupling (as a function of k)
     v_cb_kin = (theta_b_kin-theta_c_kin)/(k_output/Mpc_to_meter)/1000. # km/sec
     # Find the transfer function of v_cb (which is consistent with 21cmFAST).
@@ -582,7 +584,7 @@ def run_ICs(cosmo_params,user_params,global_params):
     # Interpolation tables for background quantities
     global_params.T_M0_TRANSFER = list(delta_m_0)
     global_params.T_VCB_KIN_TRANSFER = list(T_vcb_kin)
-    # global_params.T_POTENTIAL_TRANSFER = list(delta_potential) # SarahLibanore, fnl
+    global_params.T_ZETA_TRANSFER = list(delta_zeta) # SarahLibanore, fnl
 
     # SDM quantities
     if user_params.SCATTERING_DM:
@@ -610,12 +612,24 @@ def run_ICs(cosmo_params,user_params,global_params):
     # SarahLibanore: three point function to add NG corrections to Fcoll
     if user_params.NON_GAUSS_FCOLL:
 
-        temp = tpf(log10_M_array,cosmo_params,global_params,kcutoff=0.01)
-        THREEPOINT_MnMm_mat = temp[0]
-        THREEPOINT_DER_MnMm_mat = temp[1]
+        kcutoff_fnl = 1e-3
+
+        temp = tpf(log10_M_array,cosmo_params,kcutoff_fnl,global_params)
+
+        if cosmo_params.ANALYTICAL_DER_TPF:        
+            THREEPOINT_MnMm_mat = temp[0]
+            THREEPOINT_DER_Mn3 = temp[1]
+            THREEPOINT_DER_MmMn2 = temp[2]
+            THREEPOINT_DER_MnMm2 = temp[3]
+
+            global_params.THREEPOINT_DER_Mn3 = list(THREEPOINT_DER_Mn3.flatten())
+            global_params.THREEPOINT_DER_MmMn2 = list(THREEPOINT_DER_MmMn2.flatten())
+            global_params.THREEPOINT_DER_MnMm2 = list(THREEPOINT_DER_MnMm2.flatten())
+
+        else:
+            THREEPOINT_MnMm_mat = temp
 
         global_params.THREEPOINT_MnMm = list(THREEPOINT_MnMm_mat.flatten())
-        global_params.THREEPOINT_DER_MnMm = list(THREEPOINT_DER_MnMm_mat.flatten())
 
     # Return the lensed C_ell's
     return CLASS_OUTPUT.lensed_cl(3000)
@@ -624,101 +638,146 @@ def run_ICs(cosmo_params,user_params,global_params):
 
 # SarahLibanore : compute three point functions and derivative wrt Mn for NG corrections to Fcoll 
 # The function is computed only at z = 0 
-def W_tophat(k,M,rhoM):
+def window(k,M,rhoM):
 
     R = (3.*M/(4.*np.pi*rhoM))**(1/3.)
-    x = k*R
+
+    x = (k*R)
     W = 3.0*(np.sin(x) - x*np.cos(x))/(x)**3 
 
     return W
 
-def derW_tophat(k,M, rhoM):
 
-    dW = 1./(3.*k**2*M*(M/rhoM)**(2/3.)) *\
-    (2.*6.**(2/3.)*k*np.pi**(1/3.)*(M/rhoM)**(1/3.)*np.cos(k*(3/np.pi)**(1/3.)*(M/rhoM)**(1./3)/2**(2./3)) + \
-    (-4.*6.**(1/3.)*np.pi**(2/3.)+3.*k**2*(M/rhoM)**(2./3.))*np.sin(k*(3/np.pi)**(1/3.)*(M/rhoM)**(1./3)/2**(2./3)))
+def der_window(k,M,rhoM):
 
-    return dW
+    R = (3.*M/(4.*np.pi*rhoM))**(1/3.)
+    
+    x = (k*R)
+
+    dW_dM = (-9*np.sin(x) + 9*x*np.cos(x) + 3*(x**2)*np.sin(x))/((3*M)*(x**3))
+
+    return dW_dM
 
 
 def Pphi(k, cosmo_params):
 
     Tphi = 3/5.
-    P = Tphi**2 *cosmo_params.A_s * pow(k/0.05, cosmo_params.POWER_INDEX-1) 
+    P = Tphi**2 *cosmo_params.A_s * pow(k/0.05, cosmo_params.POWER_INDEX-1) * (2*np.pi**2/k**3) 
 
     return P
 
-def curlM_dcurlM(k,M,kall,cosmo_params,global_params):
+
+def curlM(k,M,kall,cosmo_params,global_params):
     
-    Tmatter_CLASS = interp1d(kall, global_params.T_M0_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)
+    T_CLASS = interp1d(kall, global_params.T_ZETA_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)
 
     rho_crit = 2.7754e11 * cosmo_params.hlittle**2
-    rhoM = rho_crit* cosmo_params.OMm  
+    rhoM = rho_crit *cosmo_params.OMm
 
     Tphi = 3/5.
 
-    curlM = Tmatter_CLASS(k)/Tphi * W_tophat(k,M,rhoM)
+    curlM = (T_CLASS(k)*k**2/Tphi) * window(k,M,rhoM)
 
-    dcurlM = Tmatter_CLASS(k)/Tphi * derW_tophat(k,M,rhoM)
-
-
-    return curlM, dcurlM
+    return curlM
 
 
-def FM(Mm,k_all,k_class,cosmo_params,global_params):
+def der_curlM(k,M,kall,cosmo_params,global_params):
+    
+    T_CLASS = interp1d(kall, global_params.T_ZETA_TRANSFER, kind='cubic', bounds_error=False,fill_value=0.)
 
-    n_mu = 128
+    rho_crit = 2.7754e11 * cosmo_params.hlittle**2
+    rhoM = rho_crit * cosmo_params.OMm
+    Tphi = 3/5.
 
-    k_1 = k_all[:,None,None,None]
-    k_2 = k_all[None,:,None,None]
+    dcurlM = (T_CLASS(k)*k**2/Tphi) * der_window(k,M,rhoM)
 
-    mu = np.linspace(-0.995, 0.995, n_mu) # cos theta
-    mu_vec = mu[None, None,:, None]
+    return dcurlM
 
-    k_12 = np.sqrt(k_1**2 + k_2**2 + 2*k_1*k_2*mu_vec)
+
+def FM(kall,k_1,Mm,k_class,cosmo_params,global_params):
+
+    mu = np.linspace(-0.995, 0.995, 128) # cos theta
+
+    Mm = Mm[None,None, None,:]
+    k_1 = k_1[:,None, None,None]
+    k_2 = kall[None,:, None,None]
+    mu_val = mu[None,None,:,None]
+
+    integrate_k2 = 1
+    integrate_mu = 2
 
     Pphi_1 = Pphi(k_1,cosmo_params)
     Pphi_2 = Pphi(k_2,cosmo_params)
-    Pphi_12 = Pphi(k_12,cosmo_params)
 
-    Bphi = 2 * cosmo_params.F_NL * (Pphi_1 * Pphi_2 + Pphi_1 * Pphi_12 + Pphi_2 * Pphi_12)
+    k_12 = np.sqrt(pow(k_1,2)+pow(k_2,2) + 2*k_1*k_2*mu_val)
 
-    # Expand Mm to shape (1,1,n_M) for broadcasting 
-    Mm_vec = Mm[None,None,None, :]
+    curlM_2 = curlM(k_2,Mm,k_class,cosmo_params,global_params) 
+    curlM_12 = curlM(k_12,Mm,k_class,cosmo_params,global_params) 
 
-    curlM_2, der_curlM_2 = curlM_dcurlM(k_2,Mm_vec,k_class,cosmo_params,global_params) 
-    curlM_12, der_curlM_12 = curlM_dcurlM(k_12,Mm_vec,k_class,cosmo_params,global_params) 
+    if cosmo_params.ANALYTICAL_DER_TPF:
+        der_curlM_2 = der_curlM(k_2,Mm,k_class,cosmo_params,global_params) 
+        der_curlM_12 = der_curlM(k_12,Mm,k_class,cosmo_params,global_params) 
 
-    integrand_k2 = np.trapz(curlM_12 * Bphi,mu,axis=2)
-    d_integrand_k2 = np.trapz(der_curlM_12 * Bphi,mu,axis=2)
+    integrand = k_2**2 * curlM_2 * curlM_12 * (Pphi_1 * Pphi_2 )
+    
+    integral_dk2 = np.trapz(integrand, mu, axis = integrate_mu)
+    Fm = np.trapz(integral_dk2, kall, axis = integrate_k2)
 
-    F = np.trapz(k_2**2 * curlM_2 * integrand_k2,k_all,axis=1)
-    dF = np.trapz(k_2**2 * der_curlM_2 * d_integrand_k2,k_all,axis=1)
+    Fm *= 6. * cosmo_params.F_NL / (8*np.pi**4.) 
 
-    return F[0], dF[0]
+    if cosmo_params.ANALYTICAL_DER_TPF:
+        integrand_dn2 = k_2**2 * (Pphi_1 * Pphi_2 ) * (der_curlM_2 * curlM_12 + curlM_2 * der_curlM_12)
+        
+        integral_dk2_dn2 = np.trapz(integrand_dn2, mu, axis = integrate_mu)
+        dFm_dn2 = np.trapz(integral_dk2_dn2, kall, axis = integrate_k2)
+        
+        dFm_dn2 *= 6. * cosmo_params.F_NL / (8*np.pi**4.) 
 
 
-def tpf(log10_mass_array,cosmo_params,global_params,kcutoff=0.01):
+        return Fm, dFm_dn2
+
+    else:
+        return Fm  
+
+
+def tpf(log10_mass_array,cosmo_params,kcutoff,global_params):
 
     print('Computing three point functions to estimate the Fcoll NG corrections...')
-    full_kall = pow(10.,np.array(global_params.LOG_K_ARR_FOR_TRANSFERS)) # 1/Mpc
-    kall = np.asarray(full_kall[full_kall > kcutoff])
+
+    MassVector = pow(10, log10_mass_array)
+
+    kall_full = pow(10.,np.array(global_params.LOG_K_ARR_FOR_TRANSFERS)) # 1/Mpc
+    kall = np.asarray(kall_full[[kall_full > kcutoff][0]])
     
-    k_1 = kall[:, None]
-    MassVector = 10**log10_mass_array
-    # Mn and Mm arrays
-    Mm = MassVector[:] 
+    k_1 = kall[:,None,None]
 
-    F_1, der_F_1 = FM(Mm,kall,full_kall,cosmo_params,global_params) 
+    Mn = MassVector[None,:,None]
 
-    Mn = MassVector[None, :]  # (1, n_M)
-    curlM_1, der_curlM_1 = curlM_dcurlM(k_1,Mn,full_kall,cosmo_params,global_params) 
-    
-    
-    dm2dn = 1./(8*np.pi**4) * np.trapz(k_1[:,:,None]**2 * curlM_1[:,:,None] * F_1[:,None,:], kall,axis=0)
+    curlM_1 = curlM(k_1,Mn,kall_full,cosmo_params,global_params) 
 
-    der_dm2dn = 1./(8*np.pi**4) * np.trapz(k_1[:,:,None]**2 * der_curlM_1[:,:,None] * der_F_1[:,None,:], kall,axis=0)
+    if cosmo_params.ANALYTICAL_DER_TPF:
+        Fmv, dFm_dn2v = FM(kall,kall, MassVector,kall_full,cosmo_params,global_params)
+        Fm = Fmv[:,None,:]
+        dFm_dn2 = dFm_dn2v[:,None,:]
+        der_curlM_1 = der_curlM(k_1,Mn,kall_full,cosmo_params,global_params) 
+    else:
+        Fmv = FM(kall,kall, MassVector,kall_full,cosmo_params,global_params)
+        Fm = Fmv[:,None,:]
 
-    return dm2dn, der_dm2dn
+    integrand = k_1** 2 * curlM_1 * Fm
 
+    ddd = np.trapz(integrand,kall,axis=0)
 
+    if cosmo_params.ANALYTICAL_DER_TPF:
+        integrand_dnm2 = k_1** 2 * der_curlM_1 * Fm
+        integrand_dmn2 = k_1** 2 * curlM_1 * dFm_dn2
+        integrand_dn3 = k_1** 2 * (der_curlM_1 * Fm + curlM_1 * dFm_dn2)
+
+        der_dnm2 = np.trapz(integrand_dnm2,kall,axis=0)
+        der_dmn2 = np.trapz(integrand_dmn2,kall,axis=0)
+        der_dn3 = np.trapz(integrand_dn3,kall,axis=0)
+
+        return ddd, der_dn3, der_dmn2, der_dnm2
+    else:
+
+        return ddd

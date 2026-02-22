@@ -107,7 +107,7 @@ struct GlobalParams{
     double LOG_V_chi_b[70];
     double LOG_K_ARR_FOR_TRANSFERS[149];
     double T_M0_TRANSFER[149];
-    // double T_POTENTIAL_TRANSFER[149]; // SarahLibanore, fnl
+    double T_ZETA_TRANSFER[149]; // SarahLibanore, fnl
     double T_VCB_KIN_TRANSFER[149];
     double T_V_CHI_B_ZHIGH_TRANSFER[149];
     double LOG_K_ARR_FOR_SDGF[300];
@@ -119,7 +119,10 @@ struct GlobalParams{
     double SIGMA_MZ[300*101];
     // SarahLibanore : three point function at z = 0 used for NG case
     double THREEPOINT_MnMm[300*300]; // the size is set by log M x log M
-    double THREEPOINT_DER_MnMm[300*300]; // the size is set by log M x log M
+    double THREEPOINT_DER_Mn3[300*300];
+    double THREEPOINT_DER_MmMn2[300*300];
+    double THREEPOINT_DER_MnMm2[300*300];
+
 };
 
 extern struct GlobalParams global_params = {

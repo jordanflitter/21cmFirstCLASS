@@ -4,14 +4,12 @@ PKG-INFO
 README.md
 build_cffi.py
 fcoll.nb
-notebook_fNL.ipynb
+run.txt
 setup.py
 Tutorial (Jupyter notebooks)/notebook_1.ipynb
 Tutorial (Jupyter notebooks)/notebook_2.ipynb
 Tutorial (Jupyter notebooks)/notebook_3.ipynb
 Tutorial (Jupyter notebooks)/notebook_4.ipynb
-Tutorial (Jupyter notebooks)/notebook_fNL.ipynb
-Tutorial (Jupyter notebooks)/test_fcoll.ipynb
 images/coeval_boxes.png
 images/densities.png
 images/lightcone_boxes.png

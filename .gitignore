@@ -4,3 +4,6 @@ dist/*
 build/*
 21cmSense/*
 images/*
+*.png
+*lim
+lim/*

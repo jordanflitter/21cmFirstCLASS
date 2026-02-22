@@ -21,6 +21,7 @@ struct CosmoParams{
     double sigma_SDM; // JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
     double SDM_INDEX; // JordanFlitter: added SDM cross section index
     double F_NL; // SarahLibanore: local non gaussianity
+    bool ANALYTICAL_DER_TPF; //SarahLibanore: if True three point function derivative computed analytically
 };
 
 struct UserParams{

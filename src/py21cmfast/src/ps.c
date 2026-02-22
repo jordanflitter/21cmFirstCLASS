@@ -123,11 +123,12 @@ double dSDGF_SDM_dz(double z,double k);
 double sigma_linear_2D_interpolation(double M, double z);
 
 // SarahLibanore : three point functions required in Fcoll NG corrections 
-double three_point_delta_interpolation(double Mn, double Mm);
-double three_point_delta_derivative_interpolation(double Mn, double Mm);
+double three_point_interpolations(double Mn, double Mm, int which_interpolation);
 
 // JordanFlitter: numerical derivative for sigma^2(M,z)
 double sigma_sq_numerical_derivative(double M, double z);
+// SL: FNL
+double three_point_numerical_derivative(double M1, double M2, int which_derivation);
 
 int n_redshifts_1DTable;
 double zmin_1DTable, zmax_1DTable, zbin_width_1DTable;
@@ -2221,20 +2222,13 @@ void initialiseGL_Nion_Xray(int n, double M_Min, double M_Max){
 double dNdM_conditional(double growthf, double M1, double M2, double delta1, double delta2, double sigma2, double z){  // JordanFlitter: added redshift argument
 
     double sigma1, dsigmadm, dsigma_val;
-    // SarahLibanore : quantity used to simplify the expressions
-    double deltagrowth_diff, sigma_diff, dfcoll_dMmin_EPS;
+    double DD, SS, dfcoll_dSmin_EPS, den_MIN;
     // SarahLibanore : quantity used to model the NG corrections
     double dfcoll, dfcoll_dMmin_NG;
-    double A, B, dA_dMmin, dB_dMmin, Cval, dC_dMmin;
+    double A_v, B_v, dA_dMmin, dB_dMmin, C_v, dC_dMmin;
     double delta_n3, delta_m3, delta_m2delta_n, delta_mdelta_n2; 
     double ddelta_n3_dMmin, ddelta_m2delta_n_dMin, ddelta_mdelta_n2_dMin; 
-    // double cothD, val, sumterm, dsumterm;
-    // double dfdS, ddfdSdM, term, one, two, termC;
-    double expval, derexp, term1, term2, term3;
-    double dterm1, dterm1_1, dterm1_2;
-    double dterm2, dterm2_1, dterm2_2;
-    double dterm3;
-    double term_dAL2, dterm_dAL2, coth, valDA, dterm2_DA, num_12, den_12;
+    double x, alpha, beta, gamma, chi, psi, w, y;
 
     double MassBinLow;
     int MassBin;
@@ -2266,100 +2260,121 @@ double dNdM_conditional(double growthf, double M1, double M2, double delta1, dou
     sigma1 = sigma1*sigma1;
     sigma2 = sigma2*sigma2;
 
-    // SarahLibanore : define to simplify notation
-    deltagrowth_diff = ( delta1 - delta2 )/growthf;
-    
-    if (sigma2 == 0.)
-        {return 0.;}
-    if (sigma1 < sigma2)
-        {return 0.;}
-    else if (sigma1 > sigma2)
-        {sigma_diff = sigma1 - sigma2;}
+    den_MIN = 1e-6;
 
-    if (sigma_diff < 1E-10)
-        {sigma_diff = 1E-10;
-    }       
+    // SarahLibanore : define to simplify notation
+    DD = ( delta1 - delta2 )/growthf;
+      
+    SS = sigma1 - sigma2;
+    if (SS < den_MIN || pow(sigma2,2) < den_MIN) 
+        {return 0.;}
 
     // SarahLibanore : in the old version of the code the 1/sqrt(2pi) of the gaussian case was used in other functions, I moved it here
-    dfcoll_dMmin_EPS = ((deltagrowth_diff)*dsigmadm *( exp( - pow( deltagrowth_diff, 2 )/( 2.*sigma_diff ) ) )/(pow(sigma_diff, 1.5)))/sqrt(TWOPI) ;
-   
-    // SarahLibanore : implementation of the derivative of the NG corrections in Eq 5 in 1304.8049
-    if (user_params_ps->NON_GAUSS_FCOLL && cosmo_params_ps->F_NL != 0.){
-            if (delta1 / growthf <= delta2 && user_params_ps->NG_MODEL_APPROX){
-                dfcoll_dMmin_NG = 0.;  }
-            
-            else if (pow(delta1 / growthf,2) < sigma2 && user_params_ps->NG_MODEL_APPROX){
-                dfcoll_dMmin_NG = 0.;
-            }
+    dfcoll_dSmin_EPS = (
+        DD
+        * exp(-pow(DD,2) / (2.0 * SS))
+        / pow(SS,1.5)
+        / sqrt(PI*2)
+    );
+
+    // // SarahLibanore : implementation of the derivative of the NG corrections in Eq 5 in 1304.8049
+    if (user_params_ps->NON_GAUSS_FCOLL && cosmo_params_ps->F_NL != 0.)
+    {
+        // if ((delta1 / growthf <= delta2 / growthf && user_params_ps->NG_MODEL_APPROX) || (pow(delta1 / growthf,2) < sigma2 && user_params_ps->NG_MODEL_APPROX))
+        //     {
+        //         dfcoll_dMmin_NG = 0.;  
+        //     }
+
+        // else{
+
+            if (DD < den_MIN)
+                {dfcoll_dMmin_NG = 0.0;}
+
             else{
-            // the three point function is computed from table at z = 0 and it must be scaled compared with sigma_0
-            delta_n3 = three_point_delta_interpolation(M1,M1); // diagonal on the matrix
-            delta_m3 = three_point_delta_interpolation(M2,M2);   // diagonal on the matrix
-            delta_m2delta_n = three_point_delta_interpolation(M1,M2); // upper triangular
-            delta_mdelta_n2 = three_point_delta_interpolation(M2,M1); // lower triangular
 
-            ddelta_n3_dMmin = three_point_delta_derivative_interpolation(M1,M1); // diagonal in the matrix
-            ddelta_m2delta_n_dMin = three_point_delta_derivative_interpolation(M1,M2); // upper triangular
-            ddelta_mdelta_n2_dMin = three_point_delta_derivative_interpolation(M2,M1); // lower triangular
+                // the three point function is computed from table at z = 0 and it must be scaled compared with sigma_0
+                delta_n3 = three_point_interpolations(M1,M1,0); // diagonal on the matrix
+                delta_m3 = three_point_interpolations(M2,M2,0);   // diagonal on the matrix
+                delta_m2delta_n = three_point_interpolations(M1,M2,0); // upper triangular
+                delta_mdelta_n2 = three_point_interpolations(M2,M1,0); // lower triangular
 
-            A = (delta_n3 - delta_m3 + 3.*delta_m2delta_n - 3.*delta_mdelta_n2);            
-            dA_dMmin = (ddelta_n3_dMmin + 3.*ddelta_m2delta_n_dMin - 3.*ddelta_mdelta_n2_dMin);
-            B = (delta_m3 + delta_mdelta_n2 - 2*delta_m2delta_n) ;
-            dB_dMmin = (ddelta_mdelta_n2_dMin - 2.*ddelta_m2delta_n_dMin) ;
-
-            expval = exp(- pow(deltagrowth_diff,2)/2./sigma_diff);
-            derexp = expval * (-pow(deltagrowth_diff/sigma_diff,2)/2.) * dsigmadm;
-
-            term1 = A / 3 / sqrt(TWOPI) / pow(sigma_diff,3./2.) * (pow(deltagrowth_diff,2)/ sigma_diff - 1.);
-
-            if (user_params_ps->NG_MODEL_APPROX)
-                {term_dAL2 = 1.;
-                term3 = 0.;
-                dterm3 = 0.;}
-            else
-                {valDA = delta1 / growthf * D / sigma2;
-                coth = 1./tanh(valDA);
-                term_dAL2 = D * coth;
-                
-                Cval = delta_m2delta_n - delta_m3;
-                dC_dMmin = ddelta_m2delta_n_dMin ;
-
-                term3 = Cval / pow(sigma2,2) / sqrt(TWOPI) * (pow(delta2,2) - sigma2 - 2*delta1*D*(coth -1)) / sqrt(sigma_diff) ;
-
-                dterm3 = - dsigmadm * Cval / pow(sigma2,2) / sqrt(TWOPI) * (pow(delta2,2) - sigma2 - 2*delta1*D*(coth -1)) / 2./ pow(sigma_diff,3./2.);
+                if (cosmo_params_ps->ANALYTICAL_DER_TPF)
+                    {ddelta_n3_dMmin = three_point_interpolations(M1,M1,1); // diagonal in the matrix
+                    ddelta_m2delta_n_dMin = three_point_interpolations(M1,M2,1); // upper triangular
+                    ddelta_mdelta_n2_dMin =  three_point_interpolations(M2,M1,1); // lower triangular
+                }
+                else{
+                    ddelta_n3_dMmin = three_point_numerical_derivative(M1,M1,0);
+                    ddelta_m2delta_n_dMin = three_point_numerical_derivative(M1,M2,0);
+                    ddelta_mdelta_n2_dMin = three_point_numerical_derivative(M2,M1,1);
                 }
 
-            term2 = ( delta1 / growthf - term_dAL2 ) * (D/sqrt(TWOPI)/pow(sigma_diff,3./2.)) * B/sigma2;
+                A_v = (
+                    delta_n3
+                    - delta_m3
+                    + 3.0 * delta_m2delta_n
+                    - 3.0 * delta_mdelta_n2
+                );
+                dA_dMmin = (
+                    ddelta_n3_dMmin
+                    + 3.0 * ddelta_m2delta_n_dMin
+                    - 3.0 * ddelta_mdelta_n2_dMin
+                );
+
+                B_v =  (delta_m3 + delta_mdelta_n2 - 2.0 * delta_m2delta_n);
+                dB_dMmin = (ddelta_mdelta_n2_dMin - 2.0 * ddelta_m2delta_n_dMin);
+
+                C_v = delta_m2delta_n - delta_m3;
+                dC_dMmin = ddelta_m2delta_n_dMin;
+
+                x = SS / (DD * DD);
+
+                alpha = -(1.0 / (DD * DD)) * (
+                    1.0 / (1.0 - x) + 2.5 / x - 0.5 / (x * x)
+                );
+
+                beta = (1.0 / (2.0 * DD * DD)) * (1.0 / (x * x) - 3.0 / x);
+                gamma = (1.0 / (2.0 * DD * DD)) * (1.0 / (x * x) - 1.0 / x);
+                chi = (1.0 / (3.0 * DD)) * (1.0 / x - 1.0);
+
+                if (user_params_ps->NG_MODEL_APPROX){
+                    psi = (delta2 / growthf) / sigma2;
+                    w = 0.0;
+                    }
+                else{
+                    y = delta1 * DD / (growthf * sigma2);
+
+                    psi = (
+                        (delta1 / growthf - DD) / sigma2
+                        - (2.0 * DD / sigma2) / (exp(2.0 * y) - 1.0)
+                    );
+
+                    w = (
+                        SS / (sigma2 * DD) / sigma2
+                        * (
+                            pow((delta2 / growthf),2)
+                            - sigma2
+                            - (4.0 * delta1 * DD / growthf)
+                            / (exp(2.0 * y) - 1.0)
+                        )
+                    );
+                }
             
-            dterm1_1 = - pow(deltagrowth_diff/sigma_diff,2) * dsigmadm;
-
-            dterm1_2 = dA_dMmin / pow(sigma_diff, 3./2.) - dsigmadm * A * (3./2.) / pow(sigma_diff,5./2.) ;
-
-            num_12 = (sigma_diff * dA_dMmin - 1.5 * A * dsigmadm);
-            den_12 = pow(sigma_diff, 5./2.);
-            dterm1_2 = num_12 / den_12 ;
-
-            dterm1 =  1. / 3 / sqrt(TWOPI) * (A / pow(sigma_diff,3./2.) * dterm1_1 + (pow(deltagrowth_diff,2)/ sigma_diff - 1.) * dterm1_2) ;
-            
-            dterm2_1 = dB_dMmin / pow(sigma_diff,3./2.) ;
-            
-            dterm2_2 = - dsigmadm * B / pow(sigma_diff,5./2.) * (3./2.);
-
-            dterm2_DA = 0.;
-
-            dterm2 = deltagrowth_diff / sqrt(TWOPI) / sigma2 *( (delta1 / growthf - term_dAL2)  * (dterm2_1 + dterm2_2) - dterm2_DA * B / pow(sigma_diff, 3./2.)) ;
-
-            dfcoll_dMmin_NG = derexp * (term1 + term2 + term3) + expval * (dterm1 + dterm2 + dterm3);
-
-        } 
-      }
+                dfcoll_dMmin_NG = (
+                    (dA_dMmin + alpha * A_v * dsigmadm) * chi
+                    + (dB_dMmin + beta * B_v * dsigmadm) * psi
+                    + (dC_dMmin + gamma * C_v * dsigmadm) * w
+                );
+            } 
+        // }
+    }
 
     else{dfcoll_dMmin_NG = 0.;}
 
-    dfcoll = - (dfcoll_dMmin_EPS + dfcoll_dMmin_NG) ;
-    if (dfcoll < 1E-50){
-        dfcoll = 0.;
-    }
+    dfcoll = -(dsigmadm + dfcoll_dMmin_NG)* dfcoll_dSmin_EPS;
+
+    if (dfcoll < 0.)
+        {dfcoll = 0.;}
 
     return dfcoll ;
     
@@ -2492,7 +2507,7 @@ double Nion_ConditionalM_MINI(double growthf, double M1, double M2, double sigma
         LOG_ERROR("gsl integration error occured!");
         LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
         LOG_ERROR("data: growthf=%e M2=%e sigma2=%e delta1=%e delta2=%e MassTurnover=%e",growthf,M2,sigma2,delta1,delta2,MassTurnover);
-        LOG_ERROR("data: MassTurnover_upper=%e Alpha_star=%e Alpha_esc=%e Fstar10=%e Fesc10=%e Mlim_Fstar=%e Mlim_Fesc=%e",MassTurnover_upper,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc);
+        // LOG_ERROR("data: MassTurnover_upper=%e Alpha_star=%e Alpha_esc=%e Fstar10=%e Fesc10=%e Mlim_Fstar=%e Mlim_Fesc=%e",MassTurnover_upper,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc);
         GSL_ERROR(status);
     }
 
@@ -2553,13 +2568,13 @@ double Nion_ConditionalM(double growthf, double M1, double M2, double sigma2, do
 
     gsl_set_error_handler_off();
 
-    status = gsl_integration_qag (&F, lower_limit, upper_limit, 0, rel_tol, 1000, GSL_INTEG_GAUSS61, w, &result, &error);
+    status = gsl_integration_qag (&F, lower_limit, upper_limit, 1e-12, rel_tol, 1000, GSL_INTEG_GAUSS21, w, &result, &error);
     //status = gsl_integration_qng (&F, lower_limit, upper_limit,  rel_tol, 0, w, &result, &error);
 
     if(status!=0) {
         LOG_ERROR("SL problem, gsl integration error occured!");
-        LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
-        //LOG_ERROR("data: growthf=%e M1=%e M2=%e sigma2=%e delta1=%e delta2=%e",growthf,M1,M2,sigma2,delta1,delta2);
+        // LOG_ERROR("(function argument): lower_limit=%e upper_limit=%e rel_tol=%e result=%e error=%e",lower_limit,upper_limit,rel_tol,result,error);
+        LOG_ERROR("data: growthf=%e M1=%e M2=%e sigma2=%e delta1=%e delta2=%e",growthf,M1,M2,sigma2,delta1,delta2);
         //LOG_ERROR("data: MassTurnover=%e Alpha_star=%e Alpha_esc=%e Fstar10=%e Fesc10=%e Mlim_Fstar=%e Mlim_Fesc=%e",MassTurnover,Alpha_star,Alpha_esc,Fstar10,Fesc10,Mlim_Fstar,Mlim_Fesc);
         GSL_ERROR(status);
     }
@@ -4749,7 +4764,7 @@ double sigma_linear_2D_interpolation(double M, double z) {
 
 // SarahLibanore : linear interpolation for the three point function at z = 0
 // it's a 1d interpolation if nnn or mmm , while a 2d interpolation for nmm and nnm
-double three_point_delta_interpolation(double Mn,double Mm) {
+double three_point_interpolations(double Mn,double Mm, int which_interpolation) {
 
         int Mn_ind, Mm_ind;
         double log_Mn, log_Mm;
@@ -4802,83 +4817,42 @@ double three_point_delta_interpolation(double Mn,double Mm) {
     log_Mm1 = global_params.LOG_M_ARR[Mm_ind];
     log_Mm2 = global_params.LOG_M_ARR[Mm_ind+1];
 
-    dnn = global_params.THREEPOINT_MnMm[Mm_ind+SIGMA_M_NPTS*Mn_ind];
-    dnm = global_params.THREEPOINT_MnMm[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
-    dmn = global_params.THREEPOINT_MnMm[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
-    dmm = global_params.THREEPOINT_MnMm[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
-
+    if (which_interpolation == 0)
+        {
+        dnn = global_params.THREEPOINT_MnMm[Mm_ind+SIGMA_M_NPTS*Mn_ind];
+        dnm = global_params.THREEPOINT_MnMm[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
+        dmn = global_params.THREEPOINT_MnMm[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
+        dmm = global_params.THREEPOINT_MnMm[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
+        }
+    else{
+        if (Mn == Mm)
+        {
+        dnn = global_params.THREEPOINT_DER_Mn3[Mm_ind+SIGMA_M_NPTS*Mn_ind];
+        dnm = global_params.THREEPOINT_DER_Mn3[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
+        dmn = global_params.THREEPOINT_DER_Mn3[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
+        dmm = global_params.THREEPOINT_DER_Mn3[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
+        }
+        else if (Mn < Mm)
+        {
+        dnn = global_params.THREEPOINT_DER_MnMm2[Mm_ind+SIGMA_M_NPTS*Mn_ind];
+        dnm = global_params.THREEPOINT_DER_MnMm2[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
+        dmn = global_params.THREEPOINT_DER_MnMm2[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
+        dmm = global_params.THREEPOINT_DER_MnMm2[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
+        }
+        else
+        {
+        dnn = global_params.THREEPOINT_DER_MmMn2[Mm_ind+SIGMA_M_NPTS*Mn_ind];
+        dnm = global_params.THREEPOINT_DER_MmMn2[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
+        dmn = global_params.THREEPOINT_DER_MmMn2[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
+        dmm = global_params.THREEPOINT_DER_MmMn2[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
+        }
+    }
     // Do 2D linear interpolation
     dd1 = (dmn*(log_Mm-log_Mm1)+dnn*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
     dd2 = (dmm*(log_Mm-log_Mm1)+dnm*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
     ddd = (dd2*(log_Mn-log_Mn1)+dd1*(log_Mn2-log_Mn))/(log_Mn2-log_Mn1);
 
     return ddd;
-}
-
-// SarahLibanore : 2D linear interpolation for the derivative of the three point function 
-double three_point_delta_derivative_interpolation(double Mn, double Mm){
-
-        int Mn_ind, Mm_ind;
-        double log_Mn, log_Mm;
-        double dlog10_M, log_Mm1, log_Mm2, log_Mn1, log_Mn2;
-        double dnn, dnm, dmn, dmm, dd1, dd2, dd3_dM;
-
-        // Convert to log
-        log_Mn = log10(Mn); // could also be Mm 
-        if (log_Mn < global_params.LOG_M_ARR[0]){
-            LOG_ERROR("Attempted to compute three point function for M=%e, but minimum M in the interpolation table is", Mn, pow(10.,global_params.LOG_M_ARR[0]));
-            Throw(ValueError);
-            return -1;
-        }
-        // SIGMA_M_NPTS is the size of the M array, the same between computation of sigma and of three point function 
-        else if (log_Mn > global_params.LOG_M_ARR[SIGMA_M_NPTS-1]){
-            LOG_ERROR("Attempted to compute three point function for M=%e, but maximum M in the interpolation table is", Mn, pow(10.,global_params.LOG_M_ARR[SIGMA_M_NPTS-1]));
-            Throw(ValueError);
-            return -1;
-        }
-
-     // 2d - nnm or nmm or nnn or mmm 
-    // we refer to M3 since that is the one most likely to be different
-    log_Mm = log10(Mm);
-    if (log_Mm < global_params.LOG_M_ARR[0]){
-        LOG_ERROR("Attempted to compute three point function for M=%e, but minimum M in the interpolation table is", Mm, pow(10.,global_params.LOG_M_ARR[0]));
-        Throw(ValueError);
-        return -1;
-    }
-    // SIGMA_M_NPTS is the size of the M array, the same between computation of sigma and of three point function 
-    else if (log_Mm > global_params.LOG_M_ARR[SIGMA_M_NPTS-1]){
-        LOG_ERROR("Attempted to compute three point function for M=%e, but maximum M in the interpolation table is", Mm, pow(10.,global_params.LOG_M_ARR[SIGMA_M_NPTS-1]));
-        Throw(ValueError);
-        return -1;
-    }
-
-    // Compute differentials
-    dlog10_M = global_params.LOG_M_ARR[1] - global_params.LOG_M_ARR[0];
-    
-    // Find four nearest neighbours
-    Mn_ind = (int)floor( (log_Mn-global_params.LOG_M_ARR[0])/dlog10_M );
-    Mm_ind = (int)floor( (log_Mm-global_params.LOG_M_ARR[0])/dlog10_M );
-    
-    // Clamp indices to avoid going out of bounds when accessing +1
-    if (Mn_ind == SIGMA_M_NPTS - 1) Mn_ind--;
-    if (Mm_ind == SIGMA_M_NPTS - 1) Mm_ind--;
-    
-    log_Mn1 = global_params.LOG_M_ARR[Mn_ind];
-    log_Mn2 = global_params.LOG_M_ARR[Mn_ind+1];
-    log_Mm1 = global_params.LOG_M_ARR[Mm_ind];
-    log_Mm2 = global_params.LOG_M_ARR[Mm_ind+1];
-
-    dnn = global_params.THREEPOINT_DER_MnMm[Mm_ind+SIGMA_M_NPTS*Mn_ind];
-    dnm = global_params.THREEPOINT_DER_MnMm[Mm_ind+SIGMA_M_NPTS*(Mn_ind+1)];
-    dmn = global_params.THREEPOINT_DER_MnMm[Mm_ind+1+SIGMA_M_NPTS*Mn_ind];
-    dmm = global_params.THREEPOINT_DER_MnMm[Mm_ind+1+SIGMA_M_NPTS*(Mn_ind+1)];
-
-    // Do 2D linear interpolation
-    dd1 = (dmn*(log_Mm-log_Mm1)+dnn*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
-    dd2 = (dmm*(log_Mm-log_Mm1)+dnm*(log_Mm2-log_Mm))/(log_Mm2-log_Mm1);
-    dd3_dM = (dd2*(log_Mn-log_Mn1)+dd1*(log_Mn2-log_Mn))/(log_Mn2-log_Mn1);
-
-    return dd3_dM;
 }
 
 // JordanFlitter: numerical derivative for sigma^2(M,z)
@@ -4891,4 +4865,39 @@ double sigma_sq_numerical_derivative(double M, double z) {
   // Chain rule: dsigma^2/dM = 2*sigma*dsigma/dM = 2*sigma*dsigma/dlog_10(M) * dlog_10(M)/dM = (2*sigma)/(ln(10)*M)*dsigma/dlog_10(M)
   dsigma_sq_dM = 2.*sigma/(log(10.)*M)*dsigma_2_dlog10_M;
   return dsigma_sq_dM;
+}
+
+
+// SarahLibanore: numerical derivative for delta three point functions
+double three_point_numerical_derivative(double M1, double M2, int which_derivation) {
+
+  double dlog10_M, ddd, ddd_up, ddd_low, d_ddd_dlog10_M, d_ddd_dM;
+
+  dlog10_M = 0.01;
+
+    if (M1 == M2)
+        {
+            ddd_up = three_point_interpolations(M1*pow(10.,dlog10_M),M1*pow(10.,dlog10_M),0);
+            ddd_low = three_point_interpolations(M1*pow(10.,-dlog10_M),M1*pow(10.,-dlog10_M),0);
+            d_ddd_dlog10_M = (ddd_up - ddd_low) / (2.*dlog10_M) ;
+            d_ddd_dM = d_ddd_dlog10_M / (log(10.)*M1);
+        }
+    else 
+        {if (which_derivation == 0)
+        {
+            ddd_up = three_point_interpolations(M1*pow(10.,dlog10_M), M2,0);
+            ddd_low = three_point_interpolations(M1*pow(10.,-dlog10_M), M2,0);
+            d_ddd_dlog10_M = (ddd_up - ddd_low) / (2.*dlog10_M) ;
+            d_ddd_dM = d_ddd_dlog10_M / (log(10.)*M2);
+        }
+
+    else
+        {
+            ddd_up = three_point_interpolations(M1, M2*pow(10.,dlog10_M),0);
+            ddd_low = three_point_interpolations(M1, M2*pow(10.,-dlog10_M),0);
+            d_ddd_dlog10_M = (ddd_up - ddd_low) / (2.*dlog10_M) ;
+            d_ddd_dM = d_ddd_dlog10_M / (log(10.)*M2);
+        }
+    }
+  return d_ddd_dM;
 }
