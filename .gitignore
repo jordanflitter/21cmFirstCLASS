@@ -8,3 +8,6 @@ images/*
 *lim
 lim/*
 *.tar.gz
+High*
+watershed*
+*.pkl

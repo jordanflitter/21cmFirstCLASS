@@ -1,10 +1,11 @@
 .gitignore
+DEFFCOL.ipynb
+FNL_CHECKS_sat.ipynb
 LICENSE
 PKG-INFO
 README.md
 build_cffi.py
 fcoll.nb
-run.txt
 setup.py
 Tutorial (Jupyter notebooks)/notebook_1.ipynb
 Tutorial (Jupyter notebooks)/notebook_2.ipynb
