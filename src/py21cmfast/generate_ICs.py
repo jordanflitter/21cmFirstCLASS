@@ -610,24 +610,18 @@ def run_ICs(cosmo_params,user_params,global_params):
         global_params.LOG_SDGF_CDM = list(log10_D_c_kz_mat.T.flatten())
 
     # SarahLibanore: three point function to add NG corrections to Fcoll
-    if user_params.NON_GAUSS_FCOLL:
+    if user_params.NON_GAUSS_FCOLL_COND or user_params.NON_GAUSS_FCOLL_UNCOND:
 
-        kcutoff_fnl = 1e-3
+        temp = tpf(log10_M_array,cosmo_params,global_params)
 
-        temp = tpf(log10_M_array,cosmo_params,kcutoff_fnl,global_params)
+        THREEPOINT_MnMm_mat = temp[0]
+        THREEPOINT_DER_Mn3 = temp[1]
+        THREEPOINT_DER_MmMn2 = temp[2]
+        THREEPOINT_DER_MnMm2 = temp[3]
 
-        if cosmo_params.ANALYTICAL_DER_TPF:        
-            THREEPOINT_MnMm_mat = temp[0]
-            THREEPOINT_DER_Mn3 = temp[1]
-            THREEPOINT_DER_MmMn2 = temp[2]
-            THREEPOINT_DER_MnMm2 = temp[3]
-
-            global_params.THREEPOINT_DER_Mn3 = list(THREEPOINT_DER_Mn3.flatten())
-            global_params.THREEPOINT_DER_MmMn2 = list(THREEPOINT_DER_MmMn2.flatten())
-            global_params.THREEPOINT_DER_MnMm2 = list(THREEPOINT_DER_MnMm2.flatten())
-
-        else:
-            THREEPOINT_MnMm_mat = temp
+        global_params.THREEPOINT_DER_Mn3 = list(THREEPOINT_DER_Mn3.flatten())
+        global_params.THREEPOINT_DER_MmMn2 = list(THREEPOINT_DER_MmMn2.flatten())
+        global_params.THREEPOINT_DER_MnMm2 = list(THREEPOINT_DER_MnMm2.flatten())
 
         global_params.THREEPOINT_MnMm = list(THREEPOINT_MnMm_mat.flatten())
 
@@ -714,9 +708,8 @@ def FM(kall,k_1,Mm,k_class,cosmo_params,global_params):
     curlM_2 = curlM(k_2,Mm,k_class,cosmo_params,global_params) 
     curlM_12 = curlM(k_12,Mm,k_class,cosmo_params,global_params) 
 
-    if cosmo_params.ANALYTICAL_DER_TPF:
-        der_curlM_2 = der_curlM(k_2,Mm,k_class,cosmo_params,global_params) 
-        der_curlM_12 = der_curlM(k_12,Mm,k_class,cosmo_params,global_params) 
+    der_curlM_2 = der_curlM(k_2,Mm,k_class,cosmo_params,global_params) 
+    der_curlM_12 = der_curlM(k_12,Mm,k_class,cosmo_params,global_params) 
 
     integrand = k_2**2 * curlM_2 * curlM_12 * (Pphi_1 * Pphi_2 )
     
@@ -725,29 +718,25 @@ def FM(kall,k_1,Mm,k_class,cosmo_params,global_params):
 
     Fm *= 6. * cosmo_params.F_NL / (8*np.pi**4.) 
 
-    if cosmo_params.ANALYTICAL_DER_TPF:
-        integrand_dn2 = k_2**2 * (Pphi_1 * Pphi_2 ) * (der_curlM_2 * curlM_12 + curlM_2 * der_curlM_12)
-        
-        integral_dk2_dn2 = np.trapz(integrand_dn2, mu, axis = integrate_mu)
-        dFm_dn2 = np.trapz(integral_dk2_dn2, kall, axis = integrate_k2)
-        
-        dFm_dn2 *= 6. * cosmo_params.F_NL / (8*np.pi**4.) 
+    integrand_dn2 = k_2**2 * (Pphi_1 * Pphi_2 ) * (der_curlM_2 * curlM_12 + curlM_2 * der_curlM_12)
+    
+    integral_dk2_dn2 = np.trapz(integrand_dn2, mu, axis = integrate_mu)
+    dFm_dn2 = np.trapz(integral_dk2_dn2, kall, axis = integrate_k2)
+    
+    dFm_dn2 *= 6. * cosmo_params.F_NL / (8*np.pi**4.) 
 
 
-        return Fm, dFm_dn2
-
-    else:
-        return Fm  
+    return Fm, dFm_dn2
 
 
-def tpf(log10_mass_array,cosmo_params,kcutoff,global_params):
+def tpf(log10_mass_array,cosmo_params,global_params):
 
     print('Computing three point functions to estimate the Fcoll NG corrections...')
 
     MassVector = pow(10, log10_mass_array)
 
     kall_full = pow(10.,np.array(global_params.LOG_K_ARR_FOR_TRANSFERS)) # 1/Mpc
-    kall = np.asarray(kall_full[[kall_full > kcutoff][0]])
+    kall = np.asarray(kall_full[[kall_full > cosmo_params.KCUT_FNL][0]])
     
     k_1 = kall[:,None,None]
 
@@ -755,29 +744,21 @@ def tpf(log10_mass_array,cosmo_params,kcutoff,global_params):
 
     curlM_1 = curlM(k_1,Mn,kall_full,cosmo_params,global_params) 
 
-    if cosmo_params.ANALYTICAL_DER_TPF:
-        Fmv, dFm_dn2v = FM(kall,kall, MassVector,kall_full,cosmo_params,global_params)
-        Fm = Fmv[:,None,:]
-        dFm_dn2 = dFm_dn2v[:,None,:]
-        der_curlM_1 = der_curlM(k_1,Mn,kall_full,cosmo_params,global_params) 
-    else:
-        Fmv = FM(kall,kall, MassVector,kall_full,cosmo_params,global_params)
-        Fm = Fmv[:,None,:]
+    Fmv, dFm_dn2v = FM(kall,kall, MassVector,kall_full,cosmo_params,global_params)
+    Fm = Fmv[:,None,:]
+    dFm_dn2 = dFm_dn2v[:,None,:]
+    der_curlM_1 = der_curlM(k_1,Mn,kall_full,cosmo_params,global_params) 
 
     integrand = k_1** 2 * curlM_1 * Fm
 
     ddd = np.trapz(integrand,kall,axis=0)
 
-    if cosmo_params.ANALYTICAL_DER_TPF:
-        integrand_dnm2 = k_1** 2 * der_curlM_1 * Fm
-        integrand_dmn2 = k_1** 2 * curlM_1 * dFm_dn2
-        integrand_dn3 = k_1** 2 * (der_curlM_1 * Fm + curlM_1 * dFm_dn2)
+    integrand_dnm2 = k_1** 2 * der_curlM_1 * Fm
+    integrand_dmn2 = k_1** 2 * curlM_1 * dFm_dn2
+    integrand_dn3 = k_1** 2 * (der_curlM_1 * Fm + curlM_1 * dFm_dn2)
 
-        der_dnm2 = np.trapz(integrand_dnm2,kall,axis=0)
-        der_dmn2 = np.trapz(integrand_dmn2,kall,axis=0)
-        der_dn3 = np.trapz(integrand_dn3,kall,axis=0)
+    der_dnm2 = np.trapz(integrand_dnm2,kall,axis=0)
+    der_dmn2 = np.trapz(integrand_dmn2,kall,axis=0)
+    der_dn3 = np.trapz(integrand_dn3,kall,axis=0)
 
-        return ddd, der_dn3, der_dmn2, der_dnm2
-    else:
-
-        return ddd
+    return ddd, der_dn3, der_dmn2, der_dnm2

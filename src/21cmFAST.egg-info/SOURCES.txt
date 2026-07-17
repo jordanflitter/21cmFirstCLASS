@@ -1,11 +1,9 @@
 .gitignore
 DEFFCOL.ipynb
-FNL_CHECKS_sat.ipynb
 LICENSE
 PKG-INFO
 README.md
 build_cffi.py
-fcoll.nb
 setup.py
 Tutorial (Jupyter notebooks)/notebook_1.ipynb
 Tutorial (Jupyter notebooks)/notebook_2.ipynb
@@ -31,6 +29,7 @@ src/py21cmfast/cli.py
 src/py21cmfast/experiment.py
 src/py21cmfast/generate_ICs.py
 src/py21cmfast/inputs.py
+src/py21cmfast/inputs_WORKING.py
 src/py21cmfast/outputs.py
 src/py21cmfast/plotting.py
 src/py21cmfast/power_spectrum.py

@@ -127,8 +127,6 @@ double three_point_interpolations(double Mn, double Mm, int which_interpolation)
 
 // JordanFlitter: numerical derivative for sigma^2(M,z)
 double sigma_sq_numerical_derivative(double M, double z);
-// SL: FNL
-double three_point_numerical_derivative(double M1, double M2, int which_derivation);
 
 int n_redshifts_1DTable;
 double zmin_1DTable, zmax_1DTable, zbin_width_1DTable;
@@ -257,11 +255,8 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
 {
     // JordanFlitter: we work now with the logarithm of k (this improves precision)
     static double log10_kclass[CLASS_LENGTH], Tmclass[CLASS_LENGTH], Tvclass_vcb[CLASS_LENGTH];
-    // static double Tphiclass[CLASS_LENGTH]; // SarahLibanore, fnl
     static gsl_interp_accel *acc_density, *acc_vcb;
-    // static gsl_interp_accel *acc_phi; // SarahLibanore, fnl
     static gsl_spline *spline_density, *spline_vcb;
-    // static gsl_spline *spline_phi; // SarahLibanore, fnl
     double ans;
     int gsl_status;
 
@@ -275,7 +270,6 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         for (size_t i = 0; i < CLASS_LENGTH; i++) {
             log10_kclass[i] = global_params.LOG_K_ARR_FOR_TRANSFERS[i];
             Tmclass[i] = global_params.T_M0_TRANSFER[i];
-            // Tphiclass[i] = global_params.T_POTENTIAL_TRANSFER[i]; // SarahLibanore, fnl
             Tvclass_vcb[i] = global_params.T_VCB_KIN_TRANSFER[i];
             if (user_params_ps->SCATTERING_DM && user_params_ps->USE_SDM_FLUCTS){
                 Tclass_xe_high[i] = 0.; // JordanFlitterTODO: fill with values once you have transfer functions
@@ -290,11 +284,8 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         gsl_set_error_handler_off();
         // Set up spline table for densities
         acc_density   = gsl_interp_accel_alloc ();
-        // acc_phi   = gsl_interp_accel_alloc (); // SarahLibanore, fnl
         spline_density  = gsl_spline_alloc (gsl_interp_cspline, CLASS_LENGTH);
-        // spline_phi  = gsl_spline_alloc (gsl_interp_cspline, CLASS_LENGTH); // SarahLibanore, fnl
         gsl_status = gsl_spline_init(spline_density, log10_kclass, Tmclass, CLASS_LENGTH);
-        // gsl_status = gsl_spline_init(spline_phi, log10_kclass, Tphiclass, CLASS_LENGTH); // SarahLibanore, fnl
         GSL_ERROR(gsl_status);
         LOG_SUPER_DEBUG("Generated CLASS Density Spline.");
 
@@ -347,8 +338,6 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
     }
     else if (flag_int == -1) {
         gsl_spline_free (spline_density);
-        // gsl_spline_free (spline_phi); // SarahLibanore, fnl
-        // gsl_spline_free (acc_phi); // SarahLibanore, fnl
         gsl_interp_accel_free(acc_density);      
         gsl_spline_free (spline_vcb);
         gsl_interp_accel_free(acc_vcb);
@@ -393,9 +382,6 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         else if(flag_dv == 5){ // output is V_chi_b_high
             return (Tclass_V_chi_b_high[CLASS_LENGTH-1]/kclass_max/kclass_max);
         }
-        // else if(flag_dv == 6){ // SarahLibanore, fnl, output is potential
-        //     return (Tphiclass[CLASS_LENGTH-1]);
-        // }
     }
     else { // Do spline
         // JordanFlitter: we work now with the logarithm of k (this improves precision)
@@ -417,10 +403,6 @@ double TF_CLASS(double k, int flag_int, int flag_dv)
         else if(flag_dv == 5){ // output is V_chi_b_high
             ans = gsl_spline_eval (spline_V_chi_b_high, log10_k, acc_V_chi_b_high);
         }
-        // else if(flag_dv == 6){ // SarahLibanore, fnl, output is potential
-        //     ans = gsl_spline_eval (spline_phi, log10_k, acc_phi);
-        //     ans *= pow(k,2);
-        // }
         else{
             ans=0.0; //neither densities not velocities?
         }
@@ -1379,51 +1361,276 @@ double FgtrM_General(double z, double M){
     }
 }
 
-double dNion_General(double lnM, void *params){
-    struct parameters_gsl_SFR_General_int_ vals = *(struct parameters_gsl_SFR_General_int_ *)params;
+// SarahLibanore: added this macro to print diagnostics and exit when the CGF approximation breaks down (D <= 0 or exponent overflow)
+#define THROW_CGF_ERROR(fmt, ...)                                        \
+    do {                                                                  \
+        fprintf(stderr,                                                   \
+            "\n[CGF ERROR] %s:%d in %s():\n  " fmt "\n"                  \
+            "  --> The skewness-only CGF approximation has broken down.\n"\
+            "  --> The trispectrum (O(f_NL^2)) is no longer negligible.\n"\
+            "  --> Reduce |f_NL| or implement the kappa_4 correction.\n\n",\
+            __FILE__, __LINE__, __func__, ##__VA_ARGS__);   \
+        LOG_ERROR("CGF approximation breakdown: " fmt, ##__VA_ARGS__); \
+        Throw(CGFError);                                               \
+    } while(0)
 
-    double M = exp(lnM);
-    double z = vals.z_obs;
-    double growthf = vals.gf_obs;
+// SarahLibanore: CGF approximation breakdown diagnostic.
+// Non-fatal: sets ratio to Gaussian and warns once.  If you want a hard
+// stop (Throw), swap LOG_WARNING for LOG_ERROR and add Throw(CGFError).
+#define CGF_WARN_BREAKDOWN(fmt, ...)                                     \
+    LOG_WARNING(                                                          \
+        "[CGF] Skewness-only approximation has broken down. "            \
+        "The trispectrum O(f_NL^2) is not negligible. "                  \
+        "Setting correction to Gaussian (ratio_CGF=1). "                 \
+        "Reduce |f_NL| or implement kappa_4. Details: " fmt,            \
+        ##__VA_ARGS__)
+
+
+double dNion_General(double lnM, void *params)
+{
+    struct parameters_gsl_SFR_General_int_ vals =
+        *(struct parameters_gsl_SFR_General_int_ *)params;
+ 
+    double M            = exp(lnM);
+    double z            = vals.z_obs;
+    double growthf      = vals.gf_obs;
     double MassTurnover = vals.Mdrop;
-    double Alpha_star = vals.pl_star;
-    double Alpha_esc = vals.pl_esc;
-    double Fstar10 = vals.frac_star;
-    double Fesc10 = vals.frac_esc;
-    double Mlim_Fstar = vals.LimitMass_Fstar;
-    double Mlim_Fesc = vals.LimitMass_Fesc;
-
+    double Alpha_star   = vals.pl_star;
+    double Alpha_esc    = vals.pl_esc;
+    double Fstar10      = vals.frac_star;
+    double Fesc10       = vals.frac_esc;
+    double Mlim_Fstar   = vals.LimitMass_Fstar;
+    double Mlim_Fesc    = vals.LimitMass_Fesc;
+ 
     double Fstar, Fesc, MassFunction;
+    double MassBinLow;
+    int    MassBin;
+ 
+    /* Non-Gaussian correction */
+    double sigmaM, delta_c, S, mu3, ratio_CGF;
+    double ratio_F1_F0_prime;
+    double nu, kappa3, H3nu, epsilon;
 
-    if (Alpha_star > 0. && M > Mlim_Fstar)
-        Fstar = 1./Fstar10;
-    else if (Alpha_star < 0. && M < Mlim_Fstar)
-        Fstar = 1/Fstar10;
-    else
-        Fstar = pow(M/1e10,Alpha_star);
-
-    if (Alpha_esc > 0. && M > Mlim_Fesc)
-        Fesc = 1./Fesc10;
-    else if (Alpha_esc < 0. && M < Mlim_Fesc)
-        Fesc = 1./Fesc10;
-    else
-        Fesc = pow(M/1e10,Alpha_esc);
-
-    if(user_params_ps->HMF==0) {
-        MassFunction = dNdM(growthf, M, z); // JordanFlitter: added redshift argument
-    }
-    if(user_params_ps->HMF==1) {
-        MassFunction = dNdM_st(growthf,M, z); // JordanFlitter: added redshift argument
-    }
-    if(user_params_ps->HMF==2) {
-        MassFunction = dNdM_WatsonFOF(growthf, M, z); // JordanFlitter: added redshift argument
-    }
-    if(user_params_ps->HMF==3) {
-        MassFunction = dNdM_WatsonFOF_z(z, growthf, M);
+    // Stellar fraction f_star(M)
+    if      (Alpha_star > 0. && M > Mlim_Fstar)  Fstar = 1. / Fstar10;
+    else if (Alpha_star < 0. && M < Mlim_Fstar)  Fstar = 1. / Fstar10;
+    else                                           Fstar = pow(M / 1e10, Alpha_star);
+ 
+    // Escape fraction f_esc(M) 
+    if      (Alpha_esc > 0. && M > Mlim_Fesc)    Fesc  = 1. / Fesc10;
+    else if (Alpha_esc < 0. && M < Mlim_Fesc)    Fesc  = 1. / Fesc10;
+    else                                           Fesc  = pow(M / 1e10, Alpha_esc);
+ 
+    // Gaussian Halo mass function 
+    if      (user_params_ps->HMF == 0) MassFunction = dNdM(growthf, M, z);
+    else if (user_params_ps->HMF == 1) MassFunction = dNdM_st(growthf, M, z);
+    else if (user_params_ps->HMF == 2) MassFunction = dNdM_WatsonFOF(growthf, M, z);
+    else if (user_params_ps->HMF == 3) MassFunction = dNdM_WatsonFOF_z(z, growthf, M);
+    else {
+        LOG_ERROR("Incorrect HMF selected: %i (should be 0-3).",
+                  user_params_ps->HMF);
+        Throw(ValueError);
     }
 
-    return MassFunction * M * M * exp(-MassTurnover/M) * Fstar * Fesc;
+    ratio_CGF = 1.0;   /* default: Gaussian (no PNG correction) */
+
+    /* -----------------------------------------------------------
+        NON GAUSSIAN CORRECTION
+       -----------------------------------------------------------    */
+    if (user_params_ps->NON_GAUSS_FCOLL_UNCOND && cosmo_params_ps->F_NL != 0.)
+    {
+        /* sigma(M) at z=0  */
+        if (user_params_ps->USE_INTERPOLATION_TABLES) {
+            MassBin    = (int)floor((log(M) - MinMass) * inv_mass_bin_width);
+            MassBinLow = MinMass + mass_bin_width * (double)MassBin;
+ 
+            if (user_params_ps->EVOLVE_MATTER) {
+                sigmaM = sigma_linear_2D_interpolation(M, z) / dicke(z);
+            } else {
+                sigmaM = Sigma_InterpTable[MassBin]
+                       + (log(M) - MassBinLow)
+                         * (Sigma_InterpTable[MassBin + 1]
+                            - Sigma_InterpTable[MassBin])
+                         * inv_mass_bin_width;
+            }
+            } 
+        else {
+            sigmaM = sigma_z0(M, z);
+        }
+ 
+        S       = sigmaM * sigmaM;           /* variance sigma^2(M)          */
+        delta_c = Deltac / growthf;          /* barrier at z         */
+        mu3     = three_point_interpolations(M, M, 0);   /* <delta^3>, ~ f_NL */
+ 
+        nu      = delta_c / sigmaM;
+        kappa3  = mu3 / (sigmaM * sigmaM * sigmaM);
+        H3nu    = nu * nu * nu - 3.0 * nu;
+        epsilon = (kappa3 * H3nu / 6.0);
+
+        if (fabs(mu3) >= 1.0e-10 * S * S)
+        {
+
+        if (user_params_ps->USE_EDG_uncond_hmf)
+        {
+            // 2009.01245 appendix 
+            double nu2  = nu  * nu;
+            double nu3  = nu2 * nu;
+            double nu4  = nu3 * nu;
+            double nu5  = nu4 * nu;
+            double nu6  = nu5 * nu;
+            double nu7  = nu6 * nu;
+            double nu8  = nu7 * nu;
+            double nu9  = nu8 * nu;
+
+            /* Hermite polynomials */
+            double H2nu = nu2 - 1.0;
+            double H5nu = nu5 - 10.0*nu3 + 15.0*nu;
+            double H6nu = nu6 - 15.0*nu4 + 45.0*nu2 - 15.0;
+            double H8nu = nu8 - 28.0*nu6 + 210.0*nu4 - 420.0*nu2 + 105.0;
+            double H9nu = nu9 - 36.0*nu7 + 378.0*nu5 - 1260.0*nu3 + 945.0*nu;
+
+            double kappa3_sq = kappa3 * kappa3;
+            double kappa3_cu = kappa3_sq * kappa3;
+
+            /* Guard against nu ~ 0 */
+            double inv_nu = (fabs(nu) > 1e-10) ? 1.0/nu : 0.0;
+
+            /* First order: F1'/F0'  (eq. 38) */
+            double ratio_1 = kappa3 * H3nu / 6.0
+                        - kappa3 * H2nu * inv_nu * 0.5;
+
+            /* Second order: F2'/F0'  (eq. 39) */
+            double ratio_2 = kappa3_sq * H6nu / 72.0
+                        - kappa3_sq * H5nu * inv_nu / 12.0;
+
+            /* Third order: F3'/F0'  (eq. 40) */
+            double ratio_3 = kappa3_cu * H9nu / 1296.0
+                        - kappa3_cu * H8nu * inv_nu / 144.0;
+
+            ratio_CGF = 1.0 + ratio_1 + ratio_2 + ratio_3; // Non-Gauss correction
+
+            /* Same fallback as before */
+            if (!isfinite(ratio_CGF) || ratio_CGF < 0.0)
+                {ratio_CGF = 1.0;}
+
+        } /* end Edgeworth */
+        else{
+        // CGF saddlepoint truncated at skewness
+        
+        /* Guard: negligible mu3.
+         * When |mu3| < 1e-10 S^2 the PNG signal is below numerical noise */
+            double Dval = S * S + 2.0 * mu3 * delta_c;
+ 
+            double t        = 2.0 * delta_c / (S + sqrt(Dval));
+            double K        = 0.5 * t * t * S
+                            + (1.0 / 6.0) * t * t * t * mu3;
+            double exponent = K - t * delta_c
+                            + 0.5 * delta_c * delta_c / S;
+
+            /* Guard: no real saddlepoint.
+             * D < 0 means the cubic CGF K(t) cannot reach delta_c along
+             * the real axis.  Occurs for f_NL < 0 when |mu3| > S^2 / (2 delta_c). 
+             */
+            if (Dval > 0.0)
+            { 
+                /* Guard: exponent overflow.
+                 * A large positive E means CGF predicts an exponentially enhanced
+                 * tail, a clear signal that kappa_4 is essential.
+                 * For f_NL > 0 this guard fires first at large M and high z */
+                if (exponent <= 700.0)
+                {
+                    ratio_CGF = sqrt(S / sqrt(Dval)) * exp(exponent); // Non-Gauss correction
+                }
+             } /* end Dval > 0 */
+
+            /* ----------------------------------------------------------
+            * Validity diagnostic
+            * ---------------------------------------------------------- */
+            double left_term = mu3 * t;
+            double right_term = 3. * S;
+            double validation = left_term / right_term ;
+
+            if (user_params_ps->MAX_EPSILON_NG > 0.0) {
+            /* Using  epsilon = |kappa3 H3(nu) / 6|
+                If epsilon > 1, the 3rd-order perturbation series has formally 
+                diverged, and the mathematical expansion is no longer trustworthy. 
+                We conservatively fall back to Gaussian */        
+                if (fabs(epsilon) > user_params_ps->MAX_EPSILON_NG )
+                    {ratio_CGF = 1.;}
+                }
+            else if (user_params_ps->MAX_EPSILON_NG == 0.) {
+                /* Validation check on III order > II order -- cap to double the Gaussian */
+                    if (fabs(validation) > 1.)
+                    {
+                    ratio_CGF = exp( pow(delta_c, 2)/ (4. * S)) / sqrt(2.);
+                    }
+            }
+
+            /* ---------------------------------
+                FOR DEBUGGING 
+               --------------------------------- */
+            double disc = S*S + 2.0*mu3*delta_c;            
+            if (user_params_ps->WRITE_CGF_DIAG)
+                {if (user_params_ps->MAX_EPSILON_NG == 0.0) {
+                typedef struct {
+                    double validation;
+                    double M;
+                    double z;
+                    double S;            // variance
+                    double mu3;          // skewness
+                    double t;        // saddlepoint
+                    double disc;         // discriminant D = S^2 + 2*mu3*delta_c
+                    } CGFDiag;
+
+                int  tid = omp_get_thread_num();
+                char filename[256];
+                sprintf(
+                    filename,
+                    "files/NEW_dNion_diag_thread_%d_fnl_%.0f_Lbox_%d_Nbox_%d.bin",
+                    tid, cosmo_params_ps->F_NL, user_params_ps->BOX_LEN, user_params_ps->HII_DIM
+                );
+                FILE *fdiag = fopen(filename, "ab");
+                if (fdiag) {
+                    CGFDiag rec = { validation, M, z, S, mu3, t, disc};
+                    fwrite(&rec, sizeof(CGFDiag), 1, fdiag);
+                    fclose(fdiag);
+                }
+
+                }
+                else {
+
+                typedef struct {
+                    double epsilon;
+                    double Dval;
+                    double exponent;
+                    double M;
+                    double z;
+                    double ratio_CGF;
+                } CGFDiag;
+
+                int  tid = omp_get_thread_num();
+                char filename[256];
+                sprintf(
+                    filename,
+                    "files/dNion_diag_thread_%d_fnl_%.0f_Lbox_%d_Nbox_%d.bin",
+                    tid, cosmo_params_ps->F_NL, user_params_ps->BOX_LEN, user_params_ps->HII_DIM
+                );
+                FILE *fdiag = fopen(filename, "ab");
+                if (fdiag) {
+                    CGFDiag rec = { fabs(epsilon), Dval, exponent, M, z,
+                                    ratio_CGF };
+                    fwrite(&rec, sizeof(CGFDiag), 1, fdiag);
+                    fclose(fdiag);
+                }
+            }}
+        } /* end |mu3| guard */
+        } /* end saddlepoint */
+    } /* end NON_GAUSS_FCOLL */
+     
+    MassFunction *= ratio_CGF;
+    return MassFunction * M * M * exp(-MassTurnover / M) * Fstar * Fesc;
 }
+
 
 double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_star, double Alpha_esc, double Fstar10, double Fesc10, double Mlim_Fstar, double Mlim_Fesc){
 
@@ -1457,7 +1664,10 @@ double Nion_General(double z, double M_Min, double MassTurnover, double Alpha_st
         F.params = &parameters_gsl_SFR;
 
         lower_limit = log(M_Min);
-        upper_limit = log(fmax(global_params.M_MAX_INTEGRAL, M_Min*100));
+        if (user_params_ps->FORCE_MMAX != 0.)
+            {upper_limit = log(fmax(pow(10,user_params_ps->FORCE_MMAX), M_Min*100));}
+        else
+           {upper_limit = log(fmax(global_params.M_MAX_INTEGRAL, M_Min*100));}
 
         gsl_set_error_handler_off();
 
@@ -2219,166 +2429,543 @@ void initialiseGL_Nion_Xray(int n, double M_Min, double M_Max){
     gauleg(log(M_Min),log(M_Max),xi_SFR_Xray,wi_SFR_Xray,n);
 }
 
-double dNdM_conditional(double growthf, double M1, double M2, double delta1, double delta2, double sigma2, double z){  // JordanFlitter: added redshift argument
 
+// SarahLibanore
+/* ================================================================== *
+ *  dNdM_conditional: functions to compute two-scale saddlepoint            *
+ * ================================================================== */
+ 
+/*
+ * Inner helper: given lambda_s, solve the quadratic for lambda_l*
+ * and return it.  Also returns the discriminant D_l via pointer.
+ */
+static int solve_lambda_l(double lambda_s,
+                           double Sl, double C_sl,
+                           double mu_ssl, double mu_sll, double mu_lll,
+                           double delta_l,
+                           double *lambda_l_out,
+                           double *Dl_out)
+{
+    double b    = Sl + lambda_s * mu_sll;
+    double term = delta_l
+                - lambda_s * C_sl
+                - 0.5 * lambda_s * lambda_s * mu_ssl;
+    double Dl   = b * b + 2.0 * mu_lll * term;
+ 
+    *Dl_out = Dl;
+ 
+    /* [Fix 1a] No real saddlepoint in the lambda_l direction.
+     * Occurs for f_NL < 0 when the cubic CGF cannot reach delta_l
+     * at the current lambda_s.  Signal the caller to fall back. */
+    if (Dl <= 0.0)
+        return -1;
+ 
+    double denom = b + sqrt(Dl);
+ 
+    /* [Fix 1b] Degenerate denominator (catastrophic cancellation near
+     * the second root).  Safe to fall back: physically this means
+     * lambda_l* diverges, i.e., the saddlepoint is not in a valid region. */
+    if (fabs(denom) < 1.0e-30)
+        return -1;
+ 
+    *lambda_l_out = 2.0 * term / denom;
+    return 0;
+}
+
+/*
+ * Evaluate the outer saddlepoint equation and its derivative at lambda_s.
+ * H_ss, H_sl are the Hessian entries
+ */
+static void eval_F_and_Fprime(double lambda_s,
+                               double lambda_l,
+                               double Dl,
+                               double Ss, double Sl, double C_sl,
+                               double mu_sss, double mu_ssl,
+                               double mu_sll, double mu_lll,
+                               double delta_c,
+                               double *F_out,
+                               double *Fp_out)
+{
+ 
+    *F_out = lambda_s * Ss
+           + lambda_l * C_sl
+           + 0.5 * lambda_s * lambda_s * mu_sss
+           + lambda_s * lambda_l * mu_ssl
+           + 0.5 * lambda_l * lambda_l * mu_sll
+           - delta_c;
+ 
+    double H_ss = Ss + lambda_s * mu_sss + lambda_l * mu_ssl;
+    double H_sl = C_sl + lambda_s * mu_ssl + lambda_l * mu_sll;
+    double H_ll = Sl  + lambda_s * mu_sll + lambda_l * mu_lll;
+ 
+    if (fabs(H_ll) < 1.0e-30)
+        *Fp_out = H_ss;          /* degenerate: use diagonal approximation */
+    else
+        *Fp_out = H_ss - (H_sl * H_sl) / H_ll;   /* = det(H) / H_ll */
+}
+ 
+/*
+    dfcoll in the saddlepoint approximation
+*/
+static double cgf_dfcoll_dS_conditional(double DD, double SS,
+                                         double Ss, double Sl,
+                                         double delta_l,
+                                         double mu_sss, double mu_ssl,
+                                         double mu_sll, double mu_lll,
+                                         double delta_c, 
+                                        double M1, double M2, double z)
+{
+    /* ---- safe Gaussian fallback (correct conditional PS formula) ---- */
+    double gauss_rate = DD
+                  * exp(-DD * DD / (2.0 * SS))
+                  / pow(SS, 1.5)
+                  / sqrt(2.0 * M_PI);
+ 
+    /* Sharp-k identity: cross-variance equals large-scale variance. */
+    double C_sl = Sl;
+ 
+    /* --- Guard: negligible cumulants --------------------------------- */
+    double mu_scale = fabs(mu_sss) + fabs(mu_ssl)
+                    + fabs(mu_sll) + fabs(mu_lll);
+    if (mu_scale < 1.0e-14 * Ss * Ss)
+        return gauss_rate;
+ 
+    /* --- Marginal saddlepoint for delta_l  ---------------------------
+     * t** satisfies K_marg'(t**) = delta_l
+     * This is solve_lambda_l with lambda_s = 0.
+     *
+     *   If Dl_marg <= 0 :  falls back to Gaussian  
+     * ------------------------------------------------------------------ */
+    double t_marg = 0.0, Dl_marg = 0.0;
+    if (solve_lambda_l(0.0, Sl, C_sl,
+                       mu_ssl, mu_sll, mu_lll,
+                       delta_l, &t_marg, &Dl_marg) != 0)
+            // Throw(TableGenerationError);
+        return gauss_rate;
+ 
+    double K_marg_pp = sqrt(Dl_marg);
+ 
+    //  * = Legendre–Fenchel conjugate of K_marg at delta_l 
+    double Kl_exp = Sl  * t_marg * t_marg * 0.5
+                  + mu_lll * t_marg * t_marg * t_marg / 6.0
+                  - t_marg * delta_l;           /* = K_marg(t**) - t***dl */
+ 
+    /* --- Joint saddlepoint: NR on outer equation --------------------- */
+    double lambda_s = DD / SS;   /* Gaussian initial guess */
+    double lambda_l = 0.0;
+    double Dl       = 0.0;
+ 
+    /* Check inner quadratic at initial guess. */
+    if (solve_lambda_l(lambda_s, Sl, C_sl,
+                       mu_ssl, mu_sll, mu_lll,
+                       delta_l, &lambda_l, &Dl) != 0)
+        return gauss_rate;
+ 
+    const int    MAX_ITER = 50;
+    const double TOL      = 1.0e-10;
+    int    converged = 0;
+    double F = 0.0, Fp = 0.0;
+ 
+    /* Solve iteratively */
+    for (int iter = 0; iter < MAX_ITER; iter++) {
+ 
+        eval_F_and_Fprime(lambda_s, lambda_l, Dl,
+                          Ss, Sl, C_sl,
+                          mu_sss, mu_ssl, mu_sll, mu_lll,
+                          delta_c, &F, &Fp);
+ 
+        if (fabs(F) < TOL) { converged = 1; break; }
+        if (fabs(Fp) < 1.0e-30) break;
+ 
+        double step     = -F / Fp;
+        double max_step = 0.5 * fmax(fabs(lambda_s), 0.1);
+        if (fabs(step) > max_step)
+            step = (step > 0.0) ? max_step : -max_step;
+ 
+        lambda_s += step;
+ 
+        if (solve_lambda_l(lambda_s, Sl, C_sl,
+                           mu_ssl, mu_sll, mu_lll,
+                           delta_l, &lambda_l, &Dl) != 0)
+            return gauss_rate;
+    }
+ 
+    if (!converged) {
+        static int cgf_nr_warn = 0;
+        if (!cgf_nr_warn) {
+            cgf_nr_warn = 1;
+            LOG_WARNING("[CGF] NR did not converge in %d iters "
+                        "(|F|=%.2e). Falling back to Gaussian. "
+                        "DD=%.3e SS=%.3e Sl=%.3e dl=%.3e dc=%.3e. "
+                        "Will not repeat.",
+                        MAX_ITER, fabs(F), DD, SS, Sl, delta_l, delta_c);
+        }
+        return gauss_rate;
+    }
+ 
+    /* --- Hessian at the converged joint saddlepoint ------------------ */
+    double H_ss = Ss  + lambda_s * mu_sss + lambda_l * mu_ssl;
+    double H_sl = C_sl + lambda_s * mu_ssl + lambda_l * mu_sll;
+    double H_ll = Sl  + lambda_s * mu_sll + lambda_l * mu_lll;
+    double detH = H_ss * H_ll - H_sl * H_sl;
+  
+    /* --- Joint CGF at the saddlepoint -------------------------------- */
+    double ls2 = lambda_s * lambda_s, ls3 = ls2 * lambda_s;
+    double ll2 = lambda_l * lambda_l, ll3 = ll2 * lambda_l;
+ 
+    double Kstar = 0.5 * (ls2 * Ss
+                        + 2.0 * lambda_s * lambda_l * C_sl
+                        + ll2 * Sl)
+                 + (ls3 * mu_sss
+                  + 3.0 * ls2 * lambda_l * mu_ssl
+                  + 3.0 * lambda_s * ll2 * mu_sll
+                  + ll3 * mu_lll) / 6.0;
+ 
+    /* --- Conditional saddlepoint exponent ------------------
+     *  (joint / marginal)
+     * ------------------------------------------------------- */
+    
+    double pdf_joint ;
+    double pdf_marg ;
+    double pdf_cond ;
+
+    double left_marg ;
+    double right_marg ;
+    double marg ;
+
+    double exponent;
+    double left_joint ;
+    double right_joint ;
+    double joint ;
+
+    left_marg =  mu_lll * t_marg ;
+    right_marg = 3. * Sl ;
+    marg = left_marg / right_marg;
+
+    /* ----------------------------------------------------------------
+        * Validity diagnostic on marginal term 
+    ------------------------------------------------------------------ */
+    if (user_params_ps->MAX_EPSILON_NG == 0. &&  fabs(marg) > 1. )
+        {
+            K_marg_pp = 2. * Sl;
+            Kl_exp = - pow(delta_l, 2) / (4. * Sl) ;
+        }
+    
+    left_joint = fabs(pow(lambda_s, 3)*mu_sss + 3.*pow(lambda_s,2)*lambda_l * mu_ssl + 3.*lambda_s*pow(lambda_l,2)*mu_sll + pow(lambda_l,3)*mu_lll);
+
+    right_joint = 3. * (pow(lambda_s,2)*Ss + 2.*lambda_s*lambda_l*C_sl + pow(lambda_l,2) * Sl);
+
+    joint = left_joint / right_joint ;
+    /* ----------------------------------------------------------------
+        * Validity diagnostic on joint term
+    ------------------------------------------------------------------ */
+    if (user_params_ps->MAX_EPSILON_NG == 0. && fabs(joint) > 1.)
+        {
+        detH = 4. * Sl * SS;
+        exponent = - pow(DD, 2) / (4.*SS) - pow(delta_l,2) / (4.*Sl);
+        H_ll = 2. * Sl;
+        }
+    else{
+        exponent = Kstar - lambda_s * delta_c - lambda_l * delta_l;
+    }
+
+    // ---------------------------------------
+    // FOR DEBUGGING
+    // ---------------------------------------
+    if(user_params_ps->WRITE_CGF_DIAG){
+    if (user_params_ps->MAX_EPSILON_NG == 0.0) 
+            {
+ 
+            typedef struct {
+                double marg;        // the ratio mu_lll * t_marg / (3*Sl)
+                double t_marg;      // saddlepoint t**
+                double Dl_marg;     // discriminant Sl^2 + 2*mu_lll*delta_l
+                double joint;         // the ratio left_joint / right_joint
+                double left_joint;    // cubic part (numerator)
+                double right_joint;   // quadratic part (denominator)
+                double Ss; 
+                double Sl; 
+                double lambda_s;      // joint saddlepoint
+                double lambda_l;      // joint saddlepoint
+                double detH;          // Hessian determinant
+                double M1;
+                double M2;
+                double z;
+            } CGFDiag;
+ 
+            int  tid = omp_get_thread_num();
+            char filename[256];
+                sprintf(
+                    filename,
+                    "files/NEW_cgfcond_diag_thread_%d_fnl_%.0f_Lbox_%d_Nbox_%d.bin",
+                    tid, cosmo_params_ps->F_NL, user_params_ps->BOX_LEN, user_params_ps->HII_DIM
+                );
+
+            FILE *fdiag = fopen(filename, "ab");
+            if (fdiag) {
+                CGFDiag rec = { marg, t_marg, Dl_marg, joint , left_joint, right_joint, Ss, Sl, lambda_s, lambda_l, detH, M1, M2, z};
+                fwrite(&rec, sizeof(CGFDiag), 1, fdiag);
+                fclose(fdiag);
+            }
+            }
+        }
+    // --------------------------------------------------
+    // --------------------------------------------------
+
+    if (detH <= 0.0)
+        return gauss_rate;
+    if (user_params_ps->MAX_EPSILON_NG > 0.0 && H_ll <= 0.0)
+        return gauss_rate;
+    if (exponent > 700.0)
+        return gauss_rate;
+
+    pdf_marg = 1. / sqrt(2. * PI * K_marg_pp) * exp(Kl_exp);
+
+    pdf_joint = 1. / (2. * PI * sqrt(detH)) * exp(exponent);
+
+    pdf_cond = pdf_joint / pdf_marg ;
+
+    if (!isfinite(pdf_cond) || pdf_cond < 0.0)
+        return gauss_rate;
+
+    return (DD / SS) * pdf_cond; // return saddlepoint result -- does not have the memory part
+}
+/* ================================================================== */
+
+ 
+double dNdM_conditional(double growthf, double M1, double M2,
+                         double delta1, double delta2,
+                         double sigma2, double z)
+{
     double sigma1, dsigmadm, dsigma_val;
-    double DD, SS, dfcoll_dSmin_EPS, den_MIN;
-    // SarahLibanore : quantity used to model the NG corrections
-    double dfcoll, dfcoll_dMmin_NG;
-    double A_v, B_v, dA_dMmin, dB_dMmin, C_v, dC_dMmin;
-    double delta_n3, delta_m3, delta_m2delta_n, delta_mdelta_n2; 
-    double ddelta_n3_dMmin, ddelta_m2delta_n_dMin, ddelta_mdelta_n2_dMin; 
-    double x, alpha, beta, gamma, chi, psi, w, y;
-
+    double DD, SS, den_MIN;
+    double dfcoll_dS, dfcoll_Gauss, dfcoll;
     double MassBinLow;
-    int MassBin;
+    int    MassBin;
 
-    if(user_params_ps->USE_INTERPOLATION_TABLES) {
-        MassBin = (int)floor( (M1 - MinMass )*inv_mass_bin_width );
+    double dfcoll_dM_NG;
 
-        MassBinLow = MinMass + mass_bin_width*(double)MassBin;
+    /* four mixed cumulants -- <delta delta delta> */
+    double mu_sss, mu_lll, mu_ssl, mu_sll;
 
-        // JordanFlitter: added 2D interpolation to sigma(M,z) and its derivative
-        if (user_params_ps->EVOLVE_MATTER){
-            sigma1 = sigma_linear_2D_interpolation(exp(M1),z)/dicke(z);
-            dsigmadm = sigma_sq_numerical_derivative(exp(M1),z)/dicke(z)/dicke(z);
-        }
+    /* these are used in D'Alosio-Lidz case */
+    double x, alpha, beta, gamma, chi, psi, w, y;
+    double A_v, B_v, dA_dMmin, dB_dMmin, C_v, dC_dMmin;
+    double dmu_sss_dMmin, dmu_ssl_dMin, dmu_sll_dMin; 
+ 
+    /* ------------------------------------------------------------------
+     * sigma(M_s) and d sigma^2 / dM 
+     * ------------------------------------------------------------------ */
+    if (user_params_ps->USE_INTERPOLATION_TABLES) {
+        MassBin    = (int)floor((M1 - MinMass) * inv_mass_bin_width);
+        MassBinLow = MinMass + mass_bin_width * (double)MassBin;
+ 
+        if (user_params_ps->EVOLVE_MATTER) {
+            sigma1   = sigma_linear_2D_interpolation(exp(M1), z) / dicke(z);
+            dsigmadm = sigma_sq_numerical_derivative(exp(M1), z)
+                       / dicke(z) / dicke(z);
+        } 
         else {
-            sigma1 = Sigma_InterpTable[MassBin] + ( M1 - MassBinLow )*( Sigma_InterpTable[MassBin+1] - Sigma_InterpTable[MassBin] )*inv_mass_bin_width;
-            dsigma_val = dSigmadm_InterpTable[MassBin] + ( M1 - MassBinLow )*( dSigmadm_InterpTable[MassBin+1] - dSigmadm_InterpTable[MassBin] )*inv_mass_bin_width;
-            dsigmadm = -pow(10.,dsigma_val);
+            sigma1   = Sigma_InterpTable[MassBin]
+                     + (M1 - MassBinLow)
+                       * (Sigma_InterpTable[MassBin + 1]
+                          - Sigma_InterpTable[MassBin])
+                       * inv_mass_bin_width;
+            dsigma_val = dSigmadm_InterpTable[MassBin]
+                       + (M1 - MassBinLow)
+                         * (dSigmadm_InterpTable[MassBin + 1]
+                            - dSigmadm_InterpTable[MassBin])
+                         * inv_mass_bin_width;
+            dsigmadm = -pow(10., dsigma_val);
         }
-    }
+    } 
     else {
-        sigma1 = sigma_z0(exp(M1),z); // JordanFlitter: added redshift argument
-        dsigmadm = dsigmasqdm_z0(exp(M1),z); // JordanFlitter: added redshift argument
+        sigma1   = sigma_z0(exp(M1), z);
+        dsigmadm = dsigmasqdm_z0(exp(M1), z);
     }
-
+ 
+    /* Convert to linear masses after sigma extraction */
     M1 = exp(M1);
     M2 = exp(M2);
+ 
+    /* Square the rms values to get variances. */
+    sigma1 = sigma1 * sigma1;
+    sigma2 = sigma2 * sigma2;
+ 
+    den_MIN = 1.0e-6;
+ 
+    /* Growth-factor-divided thresholds. */
+    double delta_c = delta1 / growthf; // barrier at z 
+    double delta_l = delta2 / growthf; // overdensity at z = 0 
 
-    sigma1 = sigma1*sigma1;
-    sigma2 = sigma2*sigma2;
-
-    den_MIN = 1e-6;
-
-    // SarahLibanore : define to simplify notation
-    DD = ( delta1 - delta2 )/growthf;
-      
+    /* Effective barrier and variance increments (growth-factor-divided).*/
+    DD = delta_c - delta_l;
     SS = sigma1 - sigma2;
-    if (SS < den_MIN || pow(sigma2,2) < den_MIN) 
-        {return 0.;}
-
-    // SarahLibanore : in the old version of the code the 1/sqrt(2pi) of the gaussian case was used in other functions, I moved it here
-    dfcoll_dSmin_EPS = (
-        DD
+ 
+    /* Scales not hierarchically separated or large-scale variance
+     * too small: the walk has no room to make a first crossing. */
+    if (SS < den_MIN || sigma2 < den_MIN)
+        return 0.0;
+ 
+    // GAUSSIAN DFCOLL/DM
+    dfcoll_Gauss = DD
         * exp(-pow(DD,2) / (2.0 * SS))
         / pow(SS,1.5)
-        / sqrt(PI*2)
-    );
+        / sqrt(PI*2);
 
-    // // SarahLibanore : implementation of the derivative of the NG corrections in Eq 5 in 1304.8049
-    if (user_params_ps->NON_GAUSS_FCOLL && cosmo_params_ps->F_NL != 0.)
+    /* ------------------------------------------------------------------
+     * Non-Gaussian conditional rate 
+     * ------------------------------------------------------------------ */
+    if (user_params_ps->NON_GAUSS_FCOLL_COND
+        && cosmo_params_ps->F_NL != 0.
+        && DD >= den_MIN)
     {
-        // if ((delta1 / growthf <= delta2 / growthf && user_params_ps->NG_MODEL_APPROX) || (pow(delta1 / growthf,2) < sigma2 && user_params_ps->NG_MODEL_APPROX))
-        //     {
-        //         dfcoll_dMmin_NG = 0.;  
-        //     }
+        /* Four bispectrum-derived cumulants.
+         *   mu_sss = <delta_s^3>          (small scale)
+         *   mu_lll = <delta_l^3>          (large scale)
+         *   mu_ssl = <delta_s^2 delta_l>      
+         *   mu_sll = <delta_s delta_l^2>             
+         */
+        mu_sss = three_point_interpolations(M1, M1, 0);
+        mu_lll = three_point_interpolations(M2, M2, 0);
+        mu_sll = three_point_interpolations(M1, M2, 0);
+        mu_ssl = three_point_interpolations(M2, M1, 0);
+ 
+    /* Eq 5 in 1304.8049 or Eq 49 in 1206.3305*/
+    if (user_params_ps->USE_LD_cond_hmf)
+    {
+        x = SS / (DD * DD);
 
-        // else{
+        // derivatives of the three point functions 
+        dmu_sss_dMmin = three_point_interpolations(M1,M1,1); // diagonal in the matrix
+        dmu_sll_dMin = three_point_interpolations(M1,M2,1); // upper triangular
+        dmu_ssl_dMin =  three_point_interpolations(M2,M1,1); // lower triangular
+        
+        A_v = (
+            mu_sss
+            - mu_lll
+            + 3.0 * mu_sll
+            - 3.0 * mu_ssl
+        );
+        dA_dMmin = (
+            dmu_sss_dMmin
+            + 3.0 * dmu_sll_dMin
+            - 3.0 * dmu_ssl_dMin
+        );
 
-            if (DD < den_MIN)
-                {dfcoll_dMmin_NG = 0.0;}
+        B_v =  (mu_lll + mu_ssl - 2.0 * mu_sll);
+        dB_dMmin = (dmu_ssl_dMin - 2.0 * dmu_sll_dMin);
 
-            else{
+        C_v = mu_sll - mu_lll;
+        dC_dMmin = dmu_sll_dMin;
+        
+        alpha = -(1.0 / (DD * DD)) * (
+            1.0 / (1.0 - x) + 2.5 / x - 0.5 / (x * x)
+        );
 
-                // the three point function is computed from table at z = 0 and it must be scaled compared with sigma_0
-                delta_n3 = three_point_interpolations(M1,M1,0); // diagonal on the matrix
-                delta_m3 = three_point_interpolations(M2,M2,0);   // diagonal on the matrix
-                delta_m2delta_n = three_point_interpolations(M1,M2,0); // upper triangular
-                delta_mdelta_n2 = three_point_interpolations(M2,M1,0); // lower triangular
+        beta = (1.0 / (2.0 * DD * DD)) * (1.0 / (x * x) - 3.0 / x);
+        gamma = (1.0 / (2.0 * DD * DD)) * (1.0 / (x * x) - 1.0 / x);
+        chi = (1.0 / (3.0 * DD)) * (1.0 / x - 1.0);
 
-                if (cosmo_params_ps->ANALYTICAL_DER_TPF)
-                    {ddelta_n3_dMmin = three_point_interpolations(M1,M1,1); // diagonal in the matrix
-                    ddelta_m2delta_n_dMin = three_point_interpolations(M1,M2,1); // upper triangular
-                    ddelta_mdelta_n2_dMin =  three_point_interpolations(M2,M1,1); // lower triangular
-                }
-                else{
-                    ddelta_n3_dMmin = three_point_numerical_derivative(M1,M1,0);
-                    ddelta_m2delta_n_dMin = three_point_numerical_derivative(M1,M2,0);
-                    ddelta_mdelta_n2_dMin = three_point_numerical_derivative(M2,M1,1);
-                }
+        if (user_params_ps->NG_MODEL_APPROX){
+            // 1304.8049 -- condition: delta_c^2 >> Sm, delta_c >> delta_m
+            psi = delta_l / sigma2;
+            w = 0.0;
+            }
+        else{
+            // 1206.3305
+            y = delta_c * DD / sigma2;
 
-                A_v = (
-                    delta_n3
-                    - delta_m3
-                    + 3.0 * delta_m2delta_n
-                    - 3.0 * delta_mdelta_n2
-                );
-                dA_dMmin = (
-                    ddelta_n3_dMmin
-                    + 3.0 * ddelta_m2delta_n_dMin
-                    - 3.0 * ddelta_mdelta_n2_dMin
-                );
+            psi = (
+                (delta_c - DD) / sigma2
+                - (2.0 * DD / sigma2) / expm1(2.0*y)
+            );
 
-                B_v =  (delta_m3 + delta_mdelta_n2 - 2.0 * delta_m2delta_n);
-                dB_dMmin = (ddelta_mdelta_n2_dMin - 2.0 * ddelta_m2delta_n_dMin);
+            w = (
+                SS / (sigma2 * DD) / sigma2
+                * (
+                    pow(delta_l,2)
+                    - sigma2
+                    - (4.0 * delta_c * DD)
+                    / (exp(2.0 * y) - 1.0)
+                )
+            );
+        }
 
-                C_v = delta_m2delta_n - delta_m3;
-                dC_dMmin = ddelta_m2delta_n_dMin;
-
-                x = SS / (DD * DD);
-
-                alpha = -(1.0 / (DD * DD)) * (
-                    1.0 / (1.0 - x) + 2.5 / x - 0.5 / (x * x)
-                );
-
-                beta = (1.0 / (2.0 * DD * DD)) * (1.0 / (x * x) - 3.0 / x);
-                gamma = (1.0 / (2.0 * DD * DD)) * (1.0 / (x * x) - 1.0 / x);
-                chi = (1.0 / (3.0 * DD)) * (1.0 / x - 1.0);
-
-                if (user_params_ps->NG_MODEL_APPROX){
-                    psi = (delta2 / growthf) / sigma2;
-                    w = 0.0;
-                    }
-                else{
-                    y = delta1 * DD / (growthf * sigma2);
-
-                    psi = (
-                        (delta1 / growthf - DD) / sigma2
-                        - (2.0 * DD / sigma2) / (exp(2.0 * y) - 1.0)
-                    );
-
-                    w = (
-                        SS / (sigma2 * DD) / sigma2
-                        * (
-                            pow((delta2 / growthf),2)
-                            - sigma2
-                            - (4.0 * delta1 * DD / growthf)
-                            / (exp(2.0 * y) - 1.0)
-                        )
-                    );
-                }
+        dfcoll_dM_NG = (
+                (dA_dMmin + alpha * A_v * dsigmadm) * chi
+                + (dB_dMmin + beta * B_v * dsigmadm) * psi
+                + (dC_dMmin + gamma * C_v * dsigmadm) * w
+            ) ;
             
-                dfcoll_dMmin_NG = (
-                    (dA_dMmin + alpha * A_v * dsigmadm) * chi
-                    + (dB_dMmin + beta * B_v * dsigmadm) * psi
-                    + (dC_dMmin + gamma * C_v * dsigmadm) * w
-                );
+        dfcoll = - (dsigmadm + dfcoll_dM_NG) * dfcoll_Gauss; // non-Gaus corrected dfcoll
+        
+        /* Only fall back if the TOTAL result is unphysical */
+        if (!isfinite(dfcoll) || dfcoll < 0.0) {
+            dfcoll = -dsigmadm * dfcoll_Gauss;
+        }
+        }
+
+    /* Compute correction using saddlepoint approximation */
+    else{
+
+        dfcoll_dS = cgf_dfcoll_dS_conditional(
+                    DD, SS,
+                    sigma1,    /* Ss = sigma_s^2 */
+                    sigma2,    /* Sl = sigma_l^2 */
+                    delta_l,
+                    mu_sss,
+                    mu_ssl,
+                    mu_sll,
+                    mu_lll,
+                    delta_c, 
+                    M1, 
+                    M2, 
+                    z);
+        
+        /* Gaussian safe fallback */
+        if (!isfinite(dfcoll_dS) || dfcoll_dS < 0.0) {
+            dfcoll_dS = dfcoll_Gauss;
             } 
-        // }
+
+        /* ----------------------------------------------------------------
+         * Validity diagnostic
+         * if we rely on epsilon, otherwise validity checked in the helper functions
+         * ---------------------------------------------------------------- */
+        double sigma_s = sqrt(sigma1);
+        double nu      = delta_c / sigma_s;
+        double H3      = nu * nu * nu - 3.0 * nu;
+        double kappa3  = mu_sss / (sigma_s * sigma_s * sigma_s);
+        double epsilon = fabs(kappa3 * H3 / 6.0);
+
+        if (user_params_ps->MAX_EPSILON_NG > 0.0) {
+            if (epsilon > user_params_ps->MAX_EPSILON_NG )
+            {
+            /* ----------------------------------------------------------------
+            * epsilon = |kappa3 H3(nu) / 6| in H3
+            *
+            * epsilon << 1: perturbative (skewness-only CGF reliable).
+            * epsilon >  1: kappa4 non-negligible at the barrier, 
+            *                the 3rd-order perturbation series has formally 
+            *                diverged, and the expansion is no longer trustworthy
+            * ---------------------------------------------------------------- */
+            dfcoll_dS = dfcoll_Gauss;
+            }
+        }
+
+        dfcoll = -dsigmadm * dfcoll_dS; // non-Gaus corrected dfcoll
     }
+    } 
 
-    else{dfcoll_dMmin_NG = 0.;}
-
-    dfcoll = -(dsigmadm + dfcoll_dMmin_NG)* dfcoll_dSmin_EPS;
-
-    if (dfcoll < 0.)
-        {dfcoll = 0.;}
-
-    return dfcoll ;
-    
+    else {
+    /* Gaussian first-crossing rate (PNG off). */
+     dfcoll = -dsigmadm * dfcoll_Gauss;
+        }
+ 
+    return dfcoll;
 }
+ 
+
 
 void initialiseGL_Nion(int n, double M_Min, double M_Max){
     //calculates the weightings and the positions for Gauss-Legendre quadrature.
@@ -2984,7 +3571,12 @@ void initialise_Nion_General_spline(double z, double min_density, double max_den
     growthf = dicke(z);
 
     Mmin = log(Mmin);
-    Mmax = log(Mmax);
+    if (user_params_ps->FORCE_MMAX == 0.)
+        Mmax = log(Mmax);
+    else{
+        // printf("using input Mmax input Nion: %g instead of %g\n", log(pow(10,user_params_ps->FORCE_MMAX)), log(Mmax));
+        Mmax = log(pow(10,user_params_ps->FORCE_MMAX));
+    }
 
     MassBin = (int)floor( ( Mmax - MinMass )*inv_mass_bin_width );
 
@@ -3349,6 +3941,9 @@ void initialise_Nion_Ts_spline(
     double Mmin = MassTurn/50., Mmax = global_params.M_MAX_INTEGRAL;
     double Mlim_Fstar, Mlim_Fesc;
 
+    if (user_params_ps->FORCE_MMAX != 0.)
+        {Mmax = pow(10,user_params_ps->FORCE_MMAX);}
+
     if (z_val == NULL){
       z_val = calloc(Nbin,sizeof(double));
       Nion_z_val = calloc(Nbin,sizeof(double));
@@ -3438,6 +4033,9 @@ void initialise_SFRD_spline(int Nbin, double zmin, double zmax, double MassTurn,
     int i;
     double Mmin = MassTurn/50., Mmax = global_params.M_MAX_INTEGRAL;
     double Mlim_Fstar;
+
+    if (user_params_ps->FORCE_MMAX != 0.)
+        {Mmax = pow(10,user_params_ps->FORCE_MMAX);}
 
     if (z_X_val == NULL){
       z_X_val = calloc(Nbin,sizeof(double));
@@ -3535,7 +4133,6 @@ void initialise_SFRD_Conditional_table(
     ln_10 = log(10);
 
     Mmin = MassTurnover/50.;
-    Mmax = RtoM(R[Nfilter-1]);
     Mlim_Fstar = Mass_limit_bisection(Mmin, Mmax, Alpha_star, Fstar10);
 
     Mmin = log(Mmin);
@@ -3549,7 +4146,13 @@ void initialise_SFRD_Conditional_table(
 
     for (j=0; j < Nfilter; j++) {
 
-        Mmax = RtoM(R[j]);
+        // Mmax = RtoM(R[j]);
+        if (user_params_ps->FORCE_MMAX == 0.)
+        {Mmax = RtoM(R[j]);}
+        else{
+            // printf("using input Mmax input SFRD: %g instead of %g\n", pow(10,user_params_ps->FORCE_MMAX), RtoM(R[Nfilter-1]));
+                Mmax = fmin(RtoM(R[j]), pow(10,user_params_ps->FORCE_MMAX));
+        }
 
         initialiseGL_Nion_Xray(NGL_SFR, MassTurnover/50., Mmax);
 
@@ -3831,6 +4434,10 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
     int fail_condition, not_mono_increasing, num_fails;
     int gsl_status;
 
+    double MassTurn;
+
+    MassTurn = astro_params->M_TURN;
+
     z_arr = calloc(Nmax,sizeof(double));
     Q_arr = calloc(Nmax,sizeof(double));
 
@@ -3838,9 +4445,16 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
     if (flag_options->USE_MASS_DEPENDENT_ZETA) {
         ION_EFF_FACTOR = global_params.Pop2_ion * astro_params->F_STAR10 * astro_params->F_ESC10;
 
+        double Mmax;
+        if (user_params->FORCE_MMAX != 0.) {
+            Mmax = pow(10,user_params->FORCE_MMAX);
+        }
+        else {
+            Mmax = global_params.M_MAX_INTEGRAL;
+        }
         M_MIN = astro_params->M_TURN/50.;
-        Mlim_Fstar = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_STAR, astro_params->F_STAR10);
-        Mlim_Fesc = Mass_limit_bisection(M_MIN, global_params.M_MAX_INTEGRAL, astro_params->ALPHA_ESC, astro_params->F_ESC10);
+        Mlim_Fstar = Mass_limit_bisection(M_MIN, Mmax, astro_params->ALPHA_STAR, astro_params->F_STAR10);
+        Mlim_Fesc = Mass_limit_bisection(M_MIN, Mmax, astro_params->ALPHA_ESC, astro_params->F_ESC10);
         if(user_params->FAST_FCOLL_TABLES){
           initialiseSigmaMInterpTable(fmin(MMIN_FAST,M_MIN),1e20);
         }
@@ -3890,10 +4504,10 @@ int InitialisePhotonCons(struct UserParams *user_params, struct CosmoParams *cos
 
             // Ionizing emissivity (num of photons per baryon)
             if (flag_options->USE_MASS_DEPENDENT_ZETA) {
-                Nion0 = ION_EFF_FACTOR*Nion_General(z0, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
+                Nion0 = ION_EFF_FACTOR*Nion_General(z0, astro_params->M_TURN/50., MassTurn, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
                                                 Mlim_Fstar, Mlim_Fesc);
-                Nion1 = ION_EFF_FACTOR*Nion_General(z1, astro_params->M_TURN/50., astro_params->M_TURN, astro_params->ALPHA_STAR,
+                Nion1 = ION_EFF_FACTOR*Nion_General(z1, astro_params->M_TURN/50., MassTurn, astro_params->ALPHA_STAR,
                                                 astro_params->ALPHA_ESC, astro_params->F_STAR10, astro_params->F_ESC10,
                                                 Mlim_Fstar, Mlim_Fesc);
             }
@@ -4865,39 +5479,4 @@ double sigma_sq_numerical_derivative(double M, double z) {
   // Chain rule: dsigma^2/dM = 2*sigma*dsigma/dM = 2*sigma*dsigma/dlog_10(M) * dlog_10(M)/dM = (2*sigma)/(ln(10)*M)*dsigma/dlog_10(M)
   dsigma_sq_dM = 2.*sigma/(log(10.)*M)*dsigma_2_dlog10_M;
   return dsigma_sq_dM;
-}
-
-
-// SarahLibanore: numerical derivative for delta three point functions
-double three_point_numerical_derivative(double M1, double M2, int which_derivation) {
-
-  double dlog10_M, ddd, ddd_up, ddd_low, d_ddd_dlog10_M, d_ddd_dM;
-
-  dlog10_M = 0.01;
-
-    if (M1 == M2)
-        {
-            ddd_up = three_point_interpolations(M1*pow(10.,dlog10_M),M1*pow(10.,dlog10_M),0);
-            ddd_low = three_point_interpolations(M1*pow(10.,-dlog10_M),M1*pow(10.,-dlog10_M),0);
-            d_ddd_dlog10_M = (ddd_up - ddd_low) / (2.*dlog10_M) ;
-            d_ddd_dM = d_ddd_dlog10_M / (log(10.)*M1);
-        }
-    else 
-        {if (which_derivation == 0)
-        {
-            ddd_up = three_point_interpolations(M1*pow(10.,dlog10_M), M2,0);
-            ddd_low = three_point_interpolations(M1*pow(10.,-dlog10_M), M2,0);
-            d_ddd_dlog10_M = (ddd_up - ddd_low) / (2.*dlog10_M) ;
-            d_ddd_dM = d_ddd_dlog10_M / (log(10.)*M2);
-        }
-
-    else
-        {
-            ddd_up = three_point_interpolations(M1, M2*pow(10.,dlog10_M),0);
-            ddd_low = three_point_interpolations(M1, M2*pow(10.,-dlog10_M),0);
-            d_ddd_dlog10_M = (ddd_up - ddd_low) / (2.*dlog10_M) ;
-            d_ddd_dM = d_ddd_dlog10_M / (log(10.)*M2);
-        }
-    }
-  return d_ddd_dM;
 }

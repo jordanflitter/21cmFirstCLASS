@@ -38,7 +38,7 @@ Planck18 = Planck15.clone(
 )
 
 print('-----------------------------------------------------')
-print('SarahLibanore: developed f_nl in IC and fcoll, fixed on 06/17/2026')
+print('SarahLibanore: developed f_nl in IC and fcoll, fixed on 06/15/2026')
 print('-----------------------------------------------------')
 
 class GlobalParams(StructInstanceWrapper):
@@ -651,7 +651,7 @@ class CosmoParams(StructWithDefaults):
         "sigma_SDM": 41., # JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
         "SDM_INDEX": -4., # JordanFlitter: added SDM cross section index
         "F_NL":0, # SarahLibanore: local non gaussianity
-        "KCUT_FNL": 1e-3 # SarahLibanore: minimum scale where non Gaussianity kicks in (2009.01245) , 1e-3 to for scale independent 
+        "ANALYTICAL_DER_TPF":True
     }
 
     @property
@@ -847,6 +847,8 @@ class UserParams(StructWithDefaults):
         its 8 nearest neighbors during the 2LPT calculations. Otherwise, there will be no such redistribution. Default is True.
     NON_GAUSS_IC : bool, optional
         If True, initial conditions are drawn using the potential and introducing non Gaussian corrections
+    NON_GAUSS_FCOLL : bool, optional
+        If True, non Gaussian corrections are applied to the collapsed fraction (see  Eq 5 in 1304.8049)
 
     """
 
@@ -891,16 +893,14 @@ class UserParams(StructWithDefaults):
         "EVALUATE_TAU_REIO": True, # JordanFlitter: added flag to evaluate tau_reio from the simulation
         "EVOLVE_MATTER": True, # JordanFlitter: added flag to properly evolve the CDM density field (and the total matter field)
         "LINEAR_DELTA_IN_EPS": True, # JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
-
         "NON_GAUSS_IC": False, # SarahLibanore: flag to use fNL in initial conditions
-        "NON_GAUSS_FCOLL_COND": False, # SarahLibanore: flag to use fNL in collapsed fraction
-        "NON_GAUSS_FCOLL_UNCOND": False, # SarahLibanore: flag to use fNL in collapsed fraction
-        "NG_MODEL_APPROX":True, # SarahLibanore: if True use Lidz approx (1304.8049), otherwise D'Alosio (1206.3305)
-        "FORCE_MMAX": 0., # SarahLibanore: high mass cut in the intrgrals, to prevent inf in the fnl case
-        "WRITE_CGF_DIAG": False, # SarahLibanore: flag for debugging fnl case
-        "MAX_EPSILON_NG": 0., # SarahLibanore: cap fnl correction when III order > II order
-        "USE_LD_cond_hmf": True, # SarahLibanore: in dNdm_conditional, if True use Lidz implementation (1304.8049), otherwise saddlepoint 
-        "USE_EDG_uncond_hmf": True, # SarahLibanore: in dNion_General, if True use Edgeworth implementation (2009.01245), otherwise saddlepoint
+        "NON_GAUSS_FCOLL": False, # SarahLibanore: flag to use fNL in collapsed fraction
+        "NG_MODEL_APPROX":True, # SarahLibanore: if True use Lidz approx, otherwise D'Alosio
+        "FULL_ION_SIMPLE":False, # SarahLibanore: if True, compute full ion simplified
+        "FORCE_MMAX": 0.,
+        "WRITE_CGF_DIAG": False, 
+        "MAX_EPSILON_NG": 0.,
+        "USE_LD": False
     }
 
     _hmf_models = ["PS", "ST", "WATSON", "WATSON-Z"]

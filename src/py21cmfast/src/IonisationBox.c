@@ -1425,33 +1425,6 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                 xHII_from_xrays = 0.;
                             }
 
-                            // !!!! SL - USE FOR FNL !!! 
-                            if (user_params->FULL_ION_SIMPLE)
-                            { if (f_coll * ION_EFF_FACTOR > 1.) 
-                            {
-                                if (flag_options->INHOMO_RECO && (box->xH_box[HII_R_INDEX(x,y,z)] > FRACT_FLOAT_ERR) ){
-                                    box->Gamma12_box[HII_R_INDEX(x,y,z)] = Gamma_R_prefactor * f_coll;
-                                    box->MFP_box[HII_R_INDEX(x,y,z)] = R;
-                                }
-
-                                // keep track of the first time this cell is ionized (earliest time)
-                                if (previous_ionize_box->z_re_box[HII_R_INDEX(x,y,z)] < 0){
-                                    box->z_re_box[HII_R_INDEX(x,y,z)] = redshift;
-                                } else{
-                                    box->z_re_box[HII_R_INDEX(x,y,z)] = previous_ionize_box->z_re_box[HII_R_INDEX(x,y,z)];
-                                }
-
-                                // FLAG CELL(S) AS IONIZED
-                                if (global_params.FIND_BUBBLE_ALGORITHM == 2) // center method
-                                    box->xH_box[HII_R_INDEX(x,y,z)] = 0;
-                                if (global_params.FIND_BUBBLE_ALGORITHM == 1) // sphere method
-                                    update_in_sphere(box->xH_box, user_params->HII_DIM, R/(user_params->BOX_LEN), \
-                                                     x/(user_params->HII_DIM+0.0), y/(user_params->HII_DIM+0.0), z/(user_params->HII_DIM+0.0));
-
-                            }
-                            }
-                            //  !!!!!!
-                            else{
                             // check if fully ionized!
                             if ( (f_coll * ION_EFF_FACTOR + f_coll_MINI * ION_EFF_FACTOR_MINI> (1. - xHII_from_xrays)*(1.0+rec)) ){ //IONIZED!!
                                 // if this is the first crossing of the ionization barrier for this cell (largest R), record the gamma
@@ -1520,7 +1493,6 @@ LOG_ULTRA_DEBUG("while loop for until RtoM(R)=%f reaches M_MIN=%f", RtoM(R), M_M
                                 box->xH_box[HII_R_INDEX(x, y, z)] = res_xH;
 
                             } // end partial ionizations at last filtering step
-                        }
                         } // k
                     } // j
                 } // i

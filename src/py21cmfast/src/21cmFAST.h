@@ -21,7 +21,8 @@ struct CosmoParams{
     double sigma_SDM; // JordanFlitter: added SDM cross section prefactor (this is actually -log10(sigma/cm^2))
     double SDM_INDEX; // JordanFlitter: added SDM cross section index
     double F_NL; // SarahLibanore: local non gaussianity
-    bool ANALYTICAL_DER_TPF; //SarahLibanore: if True three point function derivative computed analytically
+    double KCUT_FNL; // SarahLibanore: minimum scale where non Gaussianity kicks in (2009.01245) 
+
 };
 
 struct UserParams{
@@ -66,9 +67,14 @@ struct UserParams{
     bool EVOLVE_MATTER; // JordanFlitter: added flag to properly evolve the CDM density field (and the total matter field)
     bool LINEAR_DELTA_IN_EPS; // JordanFlitter: added flag to use delta_m from linear theory in the EPS formalism
     bool NON_GAUSS_IC; // SarahLibanore: flag to use fNL in initial conditions
-    bool NON_GAUSS_FCOLL; // SarahLibanore: flag to use fNL in collapsed fraction
-    bool NG_MODEL_APPROX; //SarahLibanore: if True use Lidz approx, otherwise D'Alosio
-    bool FULL_ION_SIMPLE; //SarahLibanore: if True, compute full ion simplified
+    bool NON_GAUSS_FCOLL_COND; // SarahLibanore: flag to use fNL in collapsed fraction
+    bool NON_GAUSS_FCOLL_UNCOND; // SarahLibanore: flag to use fNL in collapsed fraction
+    bool NG_MODEL_APPROX; // SarahLibanore: if True use Lidz approx (1304.8049), otherwise D'Alosio (1206.3305)
+    double FORCE_MMAX; // SarahLibanore: high mass cut in the intrgrals, to prevent inf in the fnl case
+    bool WRITE_CGF_DIAG; // SarahLibanore: flag for debugging fnl case
+    double MAX_EPSILON_NG; // SarahLibanore: cap fnl correction when III order > II order
+    bool USE_LD_cond_hmf; // SarahLibanore: in dNdm_conditional, if True use Lidz implementation (1304.8049), otherwise saddlepoint 
+    bool USE_EDG_uncond_hmf; // SarahLibanore: in dNion_General, if True use Edgeworth implementation (2009.01245), otherwise saddlepoint
 };
 
 struct AstroParams{
