@@ -8,6 +8,7 @@ build_cffi.py
 checks_FNL.ipynb
 checks_FNL_karin.ipynb
 debugFNL.ipynb
+notebook_4_SKA.ipynb
 runsims_FNL.py
 setup.py
 Tutorial (Jupyter notebooks)/notebook_1.ipynb

@@ -1446,7 +1446,7 @@ double dNion_General(double lnM, void *params)
  
             if (user_params_ps->EVOLVE_MATTER) {
                 sigmaM = sigma_linear_2D_interpolation(M, z) / dicke(z);
-                dsigmadm = sigma_sq_numerical_derivative(exp(M), z)
+                dsigmadm = sigma_sq_numerical_derivative(M, z)
                        / dicke(z) / dicke(z);
             } 
             else {
@@ -1457,7 +1457,7 @@ double dNion_General(double lnM, void *params)
                          * inv_mass_bin_width;
 
                 dsigma_val = dSigmadm_InterpTable[MassBin]
-                       + (M - MassBinLow)
+                       + (log(M) - MassBinLow)
                          * (dSigmadm_InterpTable[MassBin + 1]
                             - dSigmadm_InterpTable[MassBin])
                          * inv_mass_bin_width;
@@ -1466,13 +1466,13 @@ double dNion_General(double lnM, void *params)
             } 
         else {
             sigmaM = sigma_z0(M, z);
-            dsigmadm = dsigmasqdm_z0(exp(M), z);
+            dsigmadm = dsigmasqdm_z0(M, z);
         }
  
         S       = sigmaM * sigmaM;           /* variance sigma^2(M)          */
         delta_c = Deltac / growthf;          /* barrier at z         */
         mu3     = three_point_interpolations(M, M, 0);   /* <delta^3>, ~ f_NL */
-        dmu3_dM = three_point_interpolations(M,M,1); // diagonal in the matrix
+        dmu3_dM = three_point_interpolations(M, M, 1); // diagonal in the matrix
 
         double sigma3 = sigmaM * sigmaM * sigmaM;
         double ratio_dk_dnu = 0.0;
@@ -1525,8 +1525,9 @@ double dNion_General(double lnM, void *params)
             double ratio_3 = kappa3_cu * H9nu / 1296.0
                         - kappa3_sq * H8nu / 432.0 * ratio_dk_dnu;
 
-            ratio_CGF = exp(ratio_1 + ratio_2 + ratio_3); // Non-Gauss correction
-
+            ratio_CGF = 1. + ratio_1 + ratio_2 + ratio_3; // Non-Gauss correction
+            if (!isfinite(ratio_CGF)) ratio_CGF = 1.0;
+            else if (ratio_CGF < 0.0) ratio_CGF = 0.0; // only for negative fnl
         } /* end Edgeworth */
         else{
         // CGF saddlepoint truncated at skewness
