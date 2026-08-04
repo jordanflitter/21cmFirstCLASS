@@ -38,7 +38,7 @@ Planck18 = Planck15.clone(
 )
 
 print('-----------------------------------------------------')
-print('SarahLibanore: developed f_nl in IC and fcoll, fixed on 06/17/2026')
+print('SarahLibanore: developed f_nl in IC and fcoll, fixed on 08/04/2026')
 print('-----------------------------------------------------')
 
 class GlobalParams(StructInstanceWrapper):

@@ -1,14 +1,21 @@
 .gitignore
+BMF.ipynb
 DEFFCOL.ipynb
 LICENSE
 PKG-INFO
 README.md
 build_cffi.py
+checks_FNL.ipynb
+checks_FNL_karin.ipynb
+debugFNL.ipynb
+runsims_FNL.py
 setup.py
 Tutorial (Jupyter notebooks)/notebook_1.ipynb
 Tutorial (Jupyter notebooks)/notebook_2.ipynb
 Tutorial (Jupyter notebooks)/notebook_3.ipynb
 Tutorial (Jupyter notebooks)/notebook_4.ipynb
+__pycache__/finaltest_FNL.cpython-310.pyc
+__pycache__/runsims_FNL.cpython-310.pyc
 images/coeval_boxes.png
 images/densities.png
 images/lightcone_boxes.png

@@ -1407,7 +1407,7 @@ double dNion_General(double lnM, void *params)
     int    MassBin;
  
     /* Non-Gaussian correction */
-    double sigmaM, delta_c, S, mu3, ratio_CGF;
+    double sigmaM, dsigma_val, dsigmadm, delta_c, S, mu3, dmu3_dM, ratio_CGF;
     double ratio_F1_F0_prime;
     double nu, kappa3, H3nu, epsilon;
 
@@ -1446,23 +1446,41 @@ double dNion_General(double lnM, void *params)
  
             if (user_params_ps->EVOLVE_MATTER) {
                 sigmaM = sigma_linear_2D_interpolation(M, z) / dicke(z);
-            } else {
+                dsigmadm = sigma_sq_numerical_derivative(exp(M), z)
+                       / dicke(z) / dicke(z);
+            } 
+            else {
                 sigmaM = Sigma_InterpTable[MassBin]
                        + (log(M) - MassBinLow)
                          * (Sigma_InterpTable[MassBin + 1]
                             - Sigma_InterpTable[MassBin])
                          * inv_mass_bin_width;
+
+                dsigma_val = dSigmadm_InterpTable[MassBin]
+                       + (M - MassBinLow)
+                         * (dSigmadm_InterpTable[MassBin + 1]
+                            - dSigmadm_InterpTable[MassBin])
+                         * inv_mass_bin_width;
+                dsigmadm = -pow(10., dsigma_val);
             }
             } 
         else {
             sigmaM = sigma_z0(M, z);
+            dsigmadm = dsigmasqdm_z0(exp(M), z);
         }
  
         S       = sigmaM * sigmaM;           /* variance sigma^2(M)          */
         delta_c = Deltac / growthf;          /* barrier at z         */
         mu3     = three_point_interpolations(M, M, 0);   /* <delta^3>, ~ f_NL */
- 
-        nu      = delta_c / sigmaM;
+        dmu3_dM = three_point_interpolations(M,M,1); // diagonal in the matrix
+
+        double sigma3 = sigmaM * sigmaM * sigmaM;
+        double ratio_dk_dnu = 0.0;
+        if (fabs(dsigmadm) > 0.0 && fabs(nu) > 1e-10)
+            ratio_dk_dnu = ( 3.0*kappa3 - 2.0*S*dmu3_dM/(sigma3*dsigmadm) ) / nu;
+
+        double barrier = sqrt(SHETH_a) * Deltac / growthf;   /* SHETH_a = 0.707 */
+        nu = barrier / sigmaM;
         kappa3  = mu3 / (sigmaM * sigmaM * sigmaM);
         H3nu    = nu * nu * nu - 3.0 * nu;
         epsilon = (kappa3 * H3nu / 6.0);
@@ -1497,21 +1515,17 @@ double dNion_General(double lnM, void *params)
 
             /* First order: F1'/F0'  (eq. 38) */
             double ratio_1 = kappa3 * H3nu / 6.0
-                        - kappa3 * H2nu * inv_nu * 0.5;
+                        - H2nu / 6. * ratio_dk_dnu ;
 
             /* Second order: F2'/F0'  (eq. 39) */
             double ratio_2 = kappa3_sq * H6nu / 72.0
-                        - kappa3_sq * H5nu * inv_nu / 12.0;
+                        - kappa3 * H5nu / 36.0 * ratio_dk_dnu;
 
             /* Third order: F3'/F0'  (eq. 40) */
             double ratio_3 = kappa3_cu * H9nu / 1296.0
-                        - kappa3_cu * H8nu * inv_nu / 144.0;
+                        - kappa3_sq * H8nu / 432.0 * ratio_dk_dnu;
 
-            ratio_CGF = 1.0 + ratio_1 + ratio_2 + ratio_3; // Non-Gauss correction
-
-            /* Same fallback as before */
-            if (!isfinite(ratio_CGF) || ratio_CGF < 0.0)
-                {ratio_CGF = 1.0;}
+            ratio_CGF = exp(ratio_1 + ratio_2 + ratio_3); // Non-Gauss correction
 
         } /* end Edgeworth */
         else{
@@ -1519,17 +1533,17 @@ double dNion_General(double lnM, void *params)
         
         /* Guard: negligible mu3.
          * When |mu3| < 1e-10 S^2 the PNG signal is below numerical noise */
-            double Dval = S * S + 2.0 * mu3 * delta_c;
+            double Dval = S * S + 2.0 * mu3 * barrier;
  
-            double t        = 2.0 * delta_c / (S + sqrt(Dval));
+            double t        = 2.0 * barrier / (S + sqrt(Dval));
             double K        = 0.5 * t * t * S
                             + (1.0 / 6.0) * t * t * t * mu3;
-            double exponent = K - t * delta_c
-                            + 0.5 * delta_c * delta_c / S;
+            double exponent = K - t * barrier
+                            + 0.5 * barrier * barrier / S;
 
             /* Guard: no real saddlepoint.
-             * D < 0 means the cubic CGF K(t) cannot reach delta_c along
-             * the real axis.  Occurs for f_NL < 0 when |mu3| > S^2 / (2 delta_c). 
+             * D < 0 means the cubic CGF K(t) cannot reach barrier along
+             * the real axis.  Occurs for f_NL < 0 when |mu3| > S^2 / (2 barrier). 
              */
             if (Dval > 0.0)
             { 
@@ -1569,7 +1583,7 @@ double dNion_General(double lnM, void *params)
             /* ---------------------------------
                 FOR DEBUGGING 
                --------------------------------- */
-            double disc = S*S + 2.0*mu3*delta_c;            
+            double disc = S*S + 2.0*mu3*barrier;            
             if (user_params_ps->WRITE_CGF_DIAG)
                 {if (user_params_ps->MAX_EPSILON_NG == 0.0) {
                 typedef struct {
@@ -1579,7 +1593,7 @@ double dNion_General(double lnM, void *params)
                     double S;            // variance
                     double mu3;          // skewness
                     double t;        // saddlepoint
-                    double disc;         // discriminant D = S^2 + 2*mu3*delta_c
+                    double disc;         // discriminant D = S^2 + 2*mu3*barrier
                     } CGFDiag;
 
                 int  tid = omp_get_thread_num();
