@@ -1475,15 +1475,16 @@ double dNion_General(double lnM, void *params)
         dmu3_dM = three_point_interpolations(M, M, 1); // diagonal in the matrix
 
         double sigma3 = sigmaM * sigmaM * sigmaM;
-        double ratio_dk_dnu = 0.0;
-        if (fabs(dsigmadm) > 0.0 && fabs(nu) > 1e-10)
-            ratio_dk_dnu = ( 3.0*kappa3 - 2.0*S*dmu3_dM/(sigma3*dsigmadm) ) / nu;
 
         double barrier = sqrt(SHETH_a) * Deltac / growthf;   /* SHETH_a = 0.707 */
         nu = barrier / sigmaM;
         kappa3  = mu3 / (sigmaM * sigmaM * sigmaM);
         H3nu    = nu * nu * nu - 3.0 * nu;
         epsilon = (kappa3 * H3nu / 6.0);
+
+        double ratio_dk_dnu = 0.0;
+        if (fabs(dsigmadm) > 0.0 && fabs(nu) > 1e-10)
+            ratio_dk_dnu = ( 3.0*kappa3 - 2.0*S*dmu3_dM/(sigma3*dsigmadm) ) / nu;
 
         if (fabs(mu3) >= 1.0e-10 * S * S)
         {
